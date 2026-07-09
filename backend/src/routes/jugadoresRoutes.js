@@ -17,8 +17,16 @@ const {
   listarVideosJugador,
 } = require("../controllers/jugadoresController");
 
+const {
+  agregarCargaFisica,
+  listarCargasFisicas,
+  obtenerArchivoCargaFisica,
+  eliminarCargaFisica,
+} = require("../controllers/cargasFisicasController");
+
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
+const uploadPdf = require("../middlewares/uploadPdfMiddleware");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -101,6 +109,39 @@ router.get(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   listarVideosJugador
+);
+
+// Cargas físicas: subir un reporte en PDF
+router.post(
+  "/:id/cargas-fisicas",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadPdf.single("archivo"),
+  agregarCargaFisica
+);
+
+// Cargas físicas: listado
+router.get(
+  "/:id/cargas-fisicas",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  listarCargasFisicas
+);
+
+// Cargas físicas: descargar/ver el PDF
+router.get(
+  "/:id/cargas-fisicas/:cargaId/archivo",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  obtenerArchivoCargaFisica
+);
+
+// Cargas físicas: eliminar una carga puntual
+router.delete(
+  "/:id/cargas-fisicas/:cargaId",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  eliminarCargaFisica
 );
 
 module.exports = router;

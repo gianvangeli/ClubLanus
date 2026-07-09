@@ -132,6 +132,8 @@ export default function AdminJugadorDetalle() {
       </div>
 
       <Caracteristicas jugador={jugador} onActualizado={cargarJugador} />
+
+      <CargasFisicas jugadorId={id} />
     </div>
   )
 }
@@ -797,6 +799,145 @@ function ComposicionCorporal({ jugador, onActualizado }) {
           </tbody>
         </table>
       )}
+    </div>
+  )
+}
+
+function CargasFisicas({ jugadorId }) {
+  const [cargas, setCargas] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [fecha, setFecha] = useState('')
+  const [titulo, setTitulo] = useState('')
+  const [archivo, setArchivo] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+
+  const cargar = () => {
+    setCargando(true)
+    api
+      .get(`/jugadores/${jugadorId}/cargas-fisicas`)
+      .then(({ data }) => setCargas(data))
+      .finally(() => setCargando(false))
+  }
+
+  useEffect(cargar, [jugadorId])
+
+  const onSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (!archivo) {
+      setError('Elegí un archivo PDF')
+      return
+    }
+
+    setEnviando(true)
+    try {
+      const datos = new FormData()
+      datos.append('fecha', fecha || new Date().toISOString().slice(0, 10))
+      if (titulo) datos.append('titulo', titulo)
+      datos.append('archivo', archivo)
+      await api.post(`/jugadores/${jugadorId}/cargas-fisicas`, datos)
+      setFecha('')
+      setTitulo('')
+      setArchivo(null)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo subir el PDF'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const eliminar = async (carga) => {
+    const etiqueta = carga.titulo || new Date(carga.fecha).toLocaleDateString('es-AR')
+    if (!window.confirm(`¿Eliminar la carga física "${etiqueta}"? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/jugadores/${jugadorId}/cargas-fisicas/${carga.id}`)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar la carga física'))
+    }
+  }
+
+  const token = localStorage.getItem('token')
+
+  return (
+    <div className="card seccion cargas-fisicas-card">
+      <h3>Cargas Físicas</h3>
+
+      {cargando && (
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      )}
+
+      {!cargando && cargas.length === 0 && (
+        <p className="texto-muted">Todavía no hay cargas físicas subidas para este jugador.</p>
+      )}
+
+      {!cargando && cargas.length > 0 && (
+        <table className="tabla tabla-compacta">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Título</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {cargas.map((c) => (
+              <tr key={c.id}>
+                <td>{new Date(c.fecha).toLocaleDateString('es-AR')}</td>
+                <td>{c.titulo || <span className="texto-muted">—</span>}</td>
+                <td className="cargas-fisicas-acciones">
+                  <a
+                    className="btn btn-ghost btn-sm"
+                    href={`/api/jugadores/${jugadorId}/cargas-fisicas/${c.id}/archivo?token=${token}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver PDF ↗
+                  </a>
+                  <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(c)}>
+                    Eliminar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <hr className="divisor" />
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <form className="form-video" onSubmit={onSubmit}>
+        <div className="field">
+          <label>Fecha</label>
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Título (opcional)</label>
+          <input
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            placeholder="Ej: Fecha 5 vs. Rival"
+          />
+        </div>
+        <div className="field">
+          <label>Archivo PDF</label>
+          <input type="file" accept="application/pdf" onChange={(e) => setArchivo(e.target.files[0] || null)} />
+        </div>
+
+        <button className="btn btn-primary" type="submit" disabled={enviando}>
+          {enviando ? <span className="spinner" /> : 'Subir carga física'}
+        </button>
+      </form>
     </div>
   )
 }
