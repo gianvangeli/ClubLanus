@@ -7,6 +7,8 @@ const {
   vincularUsuario,
   obtenerJugador,
   actualizarJugador,
+  actualizarAgente,
+  actualizarContactoEmergencia,
   agregarComposicion,
   listarComposicion,
   agregarVideoJugador,
@@ -36,6 +38,22 @@ router.put(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   vincularUsuario
+);
+
+// Datos del agente del jugador
+router.put(
+  "/:id/agente",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  actualizarAgente
+);
+
+// Contacto de emergencia del jugador
+router.put(
+  "/:id/contacto-emergencia",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  actualizarContactoEmergencia
 );
 
 // Composición corporal: cargar medición (peso + % grasa corporal)

@@ -91,7 +91,10 @@ const obtenerJugador = async (req, res) => {
     const { id } = req.params;
 
     const [jugadores] = await db.query(
-      `SELECT id, usuario_id, nombre, apellido, edad, peso, altura, posicion, categoria, division_nombre, creado_en
+      `SELECT id, usuario_id, nombre, apellido, edad, peso, altura, nacionalidad_1, nacionalidad_2, posicion, categoria, division_nombre,
+              contrato, agente_nombre, agente_apellido, agente_mail, agente_telefono,
+              contacto_emergencia_nombre, contacto_emergencia_apellido, contacto_emergencia_relacion, contacto_emergencia_telefono,
+              creado_en
        FROM jugadores WHERE id = ?`,
       [id]
     );
@@ -113,24 +116,43 @@ const obtenerJugador = async (req, res) => {
 const actualizarJugador = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, apellido, edad, altura, posicion, categoria, division_nombre } = req.body;
+    const {
+      nombre,
+      apellido,
+      edad,
+      altura,
+      nacionalidad_1,
+      nacionalidad_2,
+      posicion,
+      categoria,
+      division_nombre,
+      contrato,
+    } = req.body;
 
     if (!nombre || !apellido) {
       return res.status(400).json({ message: "Nombre y apellido son obligatorios" });
     }
 
+    if (contrato && !["si", "no"].includes(contrato)) {
+      return res.status(400).json({ message: "Contrato tiene que ser 'si' o 'no'" });
+    }
+
     const [result] = await db.query(
       `UPDATE jugadores
-       SET nombre = ?, apellido = ?, edad = ?, altura = ?, posicion = ?, categoria = ?, division_nombre = ?
+       SET nombre = ?, apellido = ?, edad = ?, altura = ?, nacionalidad_1 = ?, nacionalidad_2 = ?,
+           posicion = ?, categoria = ?, division_nombre = ?, contrato = ?
        WHERE id = ?`,
       [
         nombre,
         apellido,
         edad || null,
         altura || null,
+        nacionalidad_1 || null,
+        nacionalidad_2 || null,
         posicion || null,
         categoria || null,
         division_nombre || null,
+        contrato || null,
         id,
       ]
     );
@@ -143,6 +165,70 @@ const actualizarJugador = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error al actualizar el jugador",
+      error: error.message,
+    });
+  }
+};
+
+// Carga/edita los datos del agente del jugador (nombre, apellido, mail, teléfono)
+const actualizarAgente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { agente_nombre, agente_apellido, agente_mail, agente_telefono } = req.body;
+
+    const [result] = await db.query(
+      `UPDATE jugadores
+       SET agente_nombre = ?, agente_apellido = ?, agente_mail = ?, agente_telefono = ?
+       WHERE id = ?`,
+      [agente_nombre || null, agente_apellido || null, agente_mail || null, agente_telefono || null, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+
+    res.json({ message: "Agente guardado correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al guardar el agente",
+      error: error.message,
+    });
+  }
+};
+
+// Carga/edita el contacto de emergencia del jugador (nombre, apellido, relación, teléfono)
+const actualizarContactoEmergencia = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      contacto_emergencia_nombre,
+      contacto_emergencia_apellido,
+      contacto_emergencia_relacion,
+      contacto_emergencia_telefono,
+    } = req.body;
+
+    const [result] = await db.query(
+      `UPDATE jugadores
+       SET contacto_emergencia_nombre = ?, contacto_emergencia_apellido = ?,
+           contacto_emergencia_relacion = ?, contacto_emergencia_telefono = ?
+       WHERE id = ?`,
+      [
+        contacto_emergencia_nombre || null,
+        contacto_emergencia_apellido || null,
+        contacto_emergencia_relacion || null,
+        contacto_emergencia_telefono || null,
+        id,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+
+    res.json({ message: "Contacto de emergencia guardado correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al guardar el contacto de emergencia",
       error: error.message,
     });
   }
@@ -308,6 +394,8 @@ module.exports = {
   vincularUsuario,
   obtenerJugador,
   actualizarJugador,
+  actualizarAgente,
+  actualizarContactoEmergencia,
   agregarComposicion,
   listarComposicion,
   agregarVideoJugador,

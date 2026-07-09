@@ -9,9 +9,26 @@ const CAMPOS_VACIOS = {
   apellido: '',
   edad: '',
   altura: '',
+  nacionalidad_1: '',
+  nacionalidad_2: '',
   posicion: '',
   categoria: '',
   division_nombre: '',
+  contrato: '',
+}
+
+const AGENTE_VACIO = {
+  agente_nombre: '',
+  agente_apellido: '',
+  agente_mail: '',
+  agente_telefono: '',
+}
+
+const CONTACTO_EMERGENCIA_VACIO = {
+  contacto_emergencia_nombre: '',
+  contacto_emergencia_apellido: '',
+  contacto_emergencia_relacion: '',
+  contacto_emergencia_telefono: '',
 }
 
 export default function AdminJugadorDetalle() {
@@ -88,9 +105,12 @@ function InfoJugador({ jugador, onActualizado }) {
       apellido: jugador.apellido || '',
       edad: jugador.edad ?? '',
       altura: jugador.altura ?? '',
+      nacionalidad_1: jugador.nacionalidad_1 || '',
+      nacionalidad_2: jugador.nacionalidad_2 || '',
       posicion: jugador.posicion || '',
       categoria: jugador.categoria || '',
       division_nombre: jugador.division_nombre || '',
+      contrato: jugador.contrato || '',
     })
     setError('')
     setEditando(true)
@@ -116,9 +136,12 @@ function InfoJugador({ jugador, onActualizado }) {
         apellido: form.apellido,
         edad,
         altura,
+        nacionalidad_1: form.nacionalidad_1,
+        nacionalidad_2: form.nacionalidad_2,
         posicion: form.posicion,
         categoria: form.categoria,
         division_nombre: form.division_nombre,
+        contrato: form.contrato,
       })
       setEditando(false)
       onActualizado()
@@ -148,9 +171,14 @@ function InfoJugador({ jugador, onActualizado }) {
           <Dato label="Nombre" valor={jugador.nombre} />
           <Dato label="Edad" valor={jugador.edad ? `${jugador.edad} años` : null} />
           <Dato label="Altura" valor={jugador.altura ? `${jugador.altura} m` : null} />
+          <Dato
+            label="Nacionalidad"
+            valor={[jugador.nacionalidad_1, jugador.nacionalidad_2].filter(Boolean).join('/') || null}
+          />
           <Dato label="Posición" valor={jugador.posicion} />
           <Dato label="Categoría" valor={jugador.categoria} />
           <Dato label="División" valor={jugador.division_nombre} />
+          <Dato label="Contrato" valor={jugador.contrato === 'si' ? 'Sí' : jugador.contrato === 'no' ? 'No' : null} />
         </dl>
       ) : (
         <form className="form-edicion" onSubmit={guardar}>
@@ -171,6 +199,14 @@ function InfoJugador({ jugador, onActualizado }) {
             <input type="text" inputMode="decimal" value={form.altura} onChange={onChange('altura')} />
           </div>
           <div className="field">
+            <label>Nacionalidad</label>
+            <input value={form.nacionalidad_1} onChange={onChange('nacionalidad_1')} placeholder="Ej: Argentina" />
+          </div>
+          <div className="field">
+            <label>Segunda nacionalidad (opcional)</label>
+            <input value={form.nacionalidad_2} onChange={onChange('nacionalidad_2')} placeholder="Ej: Paraguay" />
+          </div>
+          <div className="field">
             <label>Posición</label>
             <input value={form.posicion} onChange={onChange('posicion')} placeholder="Ej: Delantero" />
           </div>
@@ -181,6 +217,14 @@ function InfoJugador({ jugador, onActualizado }) {
           <div className="field">
             <label>División</label>
             <input value={form.division_nombre} onChange={onChange('division_nombre')} />
+          </div>
+          <div className="field">
+            <label>Contrato</label>
+            <select value={form.contrato} onChange={onChange('contrato')}>
+              <option value="">Sin definir</option>
+              <option value="si">Sí</option>
+              <option value="no">No</option>
+            </select>
           </div>
 
           <div className="form-edicion-botones">
@@ -197,6 +241,14 @@ function InfoJugador({ jugador, onActualizado }) {
       <hr className="divisor" />
 
       <ComposicionCorporal jugador={jugador} onActualizado={onActualizado} />
+
+      <hr className="divisor" />
+
+      <Agente jugador={jugador} onActualizado={onActualizado} />
+
+      <hr className="divisor" />
+
+      <ContactoEmergencia jugador={jugador} onActualizado={onActualizado} />
     </div>
   )
 }
@@ -206,6 +258,196 @@ function Dato({ label, valor }) {
     <div className="info-dato">
       <dt>{label}</dt>
       <dd>{valor || <span className="texto-muted">—</span>}</dd>
+    </div>
+  )
+}
+
+function Agente({ jugador, onActualizado }) {
+  const [editando, setEditando] = useState(false)
+  const [form, setForm] = useState(AGENTE_VACIO)
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+
+  const tieneDatos = jugador.agente_nombre || jugador.agente_apellido || jugador.agente_mail || jugador.agente_telefono
+
+  const empezarEdicion = () => {
+    setForm({
+      agente_nombre: jugador.agente_nombre || '',
+      agente_apellido: jugador.agente_apellido || '',
+      agente_mail: jugador.agente_mail || '',
+      agente_telefono: jugador.agente_telefono || '',
+    })
+    setError('')
+    setEditando(true)
+  }
+
+  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setError('')
+    setEnviando(true)
+    try {
+      await api.put(`/jugadores/${jugador.id}/agente`, form)
+      setEditando(false)
+      onActualizado()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo guardar el agente'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="seccion-header">
+        <h3>Agente</h3>
+        {!editando && (
+          <button className="btn btn-ghost btn-sm" onClick={empezarEdicion}>
+            {tieneDatos ? 'Editar' : '+ Agregar agente'}
+          </button>
+        )}
+      </div>
+
+      {!editando ? (
+        tieneDatos ? (
+          <dl className="info-lista">
+            <Dato label="Nombre" valor={jugador.agente_nombre} />
+            <Dato label="Apellido" valor={jugador.agente_apellido} />
+            <Dato label="Mail" valor={jugador.agente_mail} />
+            <Dato label="Teléfono" valor={jugador.agente_telefono} />
+          </dl>
+        ) : (
+          <p className="texto-muted">Todavía no se cargó el agente del jugador.</p>
+        )
+      ) : (
+        <form className="form-edicion" onSubmit={guardar}>
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="field">
+            <label>Nombre</label>
+            <input value={form.agente_nombre} onChange={onChange('agente_nombre')} />
+          </div>
+          <div className="field">
+            <label>Apellido</label>
+            <input value={form.agente_apellido} onChange={onChange('agente_apellido')} />
+          </div>
+          <div className="field">
+            <label>Mail</label>
+            <input type="email" value={form.agente_mail} onChange={onChange('agente_mail')} />
+          </div>
+          <div className="field">
+            <label>Teléfono</label>
+            <input value={form.agente_telefono} onChange={onChange('agente_telefono')} />
+          </div>
+          <div className="form-edicion-botones">
+            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Guardar'}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setEditando(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+function ContactoEmergencia({ jugador, onActualizado }) {
+  const [editando, setEditando] = useState(false)
+  const [form, setForm] = useState(CONTACTO_EMERGENCIA_VACIO)
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+
+  const tieneDatos =
+    jugador.contacto_emergencia_nombre ||
+    jugador.contacto_emergencia_apellido ||
+    jugador.contacto_emergencia_relacion ||
+    jugador.contacto_emergencia_telefono
+
+  const empezarEdicion = () => {
+    setForm({
+      contacto_emergencia_nombre: jugador.contacto_emergencia_nombre || '',
+      contacto_emergencia_apellido: jugador.contacto_emergencia_apellido || '',
+      contacto_emergencia_relacion: jugador.contacto_emergencia_relacion || '',
+      contacto_emergencia_telefono: jugador.contacto_emergencia_telefono || '',
+    })
+    setError('')
+    setEditando(true)
+  }
+
+  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setError('')
+    setEnviando(true)
+    try {
+      await api.put(`/jugadores/${jugador.id}/contacto-emergencia`, form)
+      setEditando(false)
+      onActualizado()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo guardar el contacto de emergencia'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="seccion-header">
+        <h3>Contacto de emergencia</h3>
+        {!editando && (
+          <button className="btn btn-ghost btn-sm" onClick={empezarEdicion}>
+            {tieneDatos ? 'Editar' : '+ Agregar contacto de emergencia'}
+          </button>
+        )}
+      </div>
+
+      {!editando ? (
+        tieneDatos ? (
+          <dl className="info-lista">
+            <Dato label="Nombre" valor={jugador.contacto_emergencia_nombre} />
+            <Dato label="Apellido" valor={jugador.contacto_emergencia_apellido} />
+            <Dato label="Relación" valor={jugador.contacto_emergencia_relacion} />
+            <Dato label="Teléfono" valor={jugador.contacto_emergencia_telefono} />
+          </dl>
+        ) : (
+          <p className="texto-muted">Todavía no se cargó un contacto de emergencia.</p>
+        )
+      ) : (
+        <form className="form-edicion" onSubmit={guardar}>
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="field">
+            <label>Nombre</label>
+            <input value={form.contacto_emergencia_nombre} onChange={onChange('contacto_emergencia_nombre')} />
+          </div>
+          <div className="field">
+            <label>Apellido</label>
+            <input value={form.contacto_emergencia_apellido} onChange={onChange('contacto_emergencia_apellido')} />
+          </div>
+          <div className="field">
+            <label>Relación</label>
+            <input
+              value={form.contacto_emergencia_relacion}
+              onChange={onChange('contacto_emergencia_relacion')}
+              placeholder="Ej: Padre, madre, tutor"
+            />
+          </div>
+          <div className="field">
+            <label>Teléfono</label>
+            <input value={form.contacto_emergencia_telefono} onChange={onChange('contacto_emergencia_telefono')} />
+          </div>
+          <div className="form-edicion-botones">
+            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Guardar'}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setEditando(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   )
 }
