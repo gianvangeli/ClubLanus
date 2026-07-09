@@ -1,4 +1,20 @@
+const fs = require("fs");
+const path = require("path");
 const db = require("../config/db");
+
+// Posiciones válidas para el gráfico de cancha (ver POSICIONES_CANCHA en el frontend)
+const POSICIONES_CANCHA = [
+  "Arquero",
+  "Defensor",
+  "Lateral Derecho",
+  "Lateral Izquierdo",
+  "Volante Defensivo",
+  "Volante",
+  "Volante Ofensivo",
+  "Extremo Derecho",
+  "Extremo Izquierdo",
+  "Delantero",
+];
 
 // Alta de jugador (ficha del cuerpo técnico): nombre, apellido, edad, altura.
 // El peso no se carga acá: se registra desde la ficha del jugador como una
@@ -94,6 +110,7 @@ const obtenerJugador = async (req, res) => {
       `SELECT id, usuario_id, nombre, apellido, edad, peso, altura, nacionalidad_1, nacionalidad_2, posicion, categoria, division_nombre,
               contrato, agente_nombre, agente_apellido, agente_mail, agente_telefono,
               contacto_emergencia_nombre, contacto_emergencia_apellido, contacto_emergencia_relacion, contacto_emergencia_telefono,
+              pie, posicion_cancha, minutos_jugados, partidos_jugados, minutos_por_partido,
               creado_en
        FROM jugadores WHERE id = ?`,
       [id]
@@ -170,6 +187,71 @@ const actualizarJugador = async (req, res) => {
   }
 };
 
+// Elimina la ficha de un jugador (por si el cuerpo técnico se equivocó al
+// cargarlo). Borra en cascada todo lo que depende de él: composición
+// corporal, videos individuales (y su archivo en disco si no lo usa nadie
+// más) y las tablas legadas con FK hacia jugadores.
+const eliminarJugador = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const { id } = req.params;
+
+    const [jugadores] = await conn.query("SELECT id FROM jugadores WHERE id = ?", [id]);
+    if (jugadores.length === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+
+    await conn.beginTransaction();
+
+    const [videosDelJugador] = await conn.query(
+      "SELECT video_id FROM video_jugadores WHERE jugador_id = ?",
+      [id]
+    );
+
+    await conn.query("DELETE FROM video_jugadores WHERE jugador_id = ?", [id]);
+    await conn.query("DELETE FROM composicion_corporal WHERE jugador_id = ?", [id]);
+    await conn.query("DELETE FROM cargas_fisicas WHERE jugador_id = ?", [id]);
+    await conn.query("DELETE FROM entrenamiento_jugadores WHERE jugador_id = ?", [id]);
+    await conn.query("DELETE FROM informes WHERE jugador_id = ?", [id]);
+
+    const archivosABorrar = [];
+    for (const { video_id } of videosDelJugador) {
+      const [[{ total }]] = await conn.query(
+        `SELECT
+           (SELECT COUNT(*) FROM video_jugadores WHERE video_id = ?) +
+           (SELECT COUNT(*) FROM biblioteca_videos WHERE video_id = ?) AS total`,
+        [video_id, video_id]
+      );
+
+      if (total === 0) {
+        const [videoRows] = await conn.query("SELECT tipo, url_video FROM videos WHERE id = ?", [video_id]);
+        if (videoRows[0]?.tipo === "archivo") {
+          archivosABorrar.push(videoRows[0].url_video);
+        }
+        await conn.query("DELETE FROM videos WHERE id = ?", [video_id]);
+      }
+    }
+
+    await conn.query("DELETE FROM jugadores WHERE id = ?", [id]);
+
+    await conn.commit();
+
+    for (const urlVideo of archivosABorrar) {
+      fs.unlink(path.join(__dirname, "..", "..", urlVideo), () => {});
+    }
+
+    res.json({ message: "Jugador eliminado correctamente" });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({
+      message: "Error al eliminar el jugador",
+      error: error.message,
+    });
+  } finally {
+    conn.release();
+  }
+};
+
 // Carga/edita los datos del agente del jugador (nombre, apellido, mail, teléfono)
 const actualizarAgente = async (req, res) => {
   try {
@@ -229,6 +311,48 @@ const actualizarContactoEmergencia = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error al guardar el contacto de emergencia",
+      error: error.message,
+    });
+  }
+};
+
+// Carga/edita las características del jugador: pie hábil, posición en la
+// cancha (para el gráfico) y minutos jugados.
+const actualizarCaracteristicas = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { pie, posicion_cancha, minutos_jugados, partidos_jugados, minutos_por_partido } = req.body;
+
+    if (pie && !["derecho", "izquierdo"].includes(pie)) {
+      return res.status(400).json({ message: "Pie tiene que ser 'derecho' o 'izquierdo'" });
+    }
+
+    if (posicion_cancha && !POSICIONES_CANCHA.includes(posicion_cancha)) {
+      return res.status(400).json({ message: "Posición inválida" });
+    }
+
+    const [result] = await db.query(
+      `UPDATE jugadores
+       SET pie = ?, posicion_cancha = ?, minutos_jugados = ?, partidos_jugados = ?, minutos_por_partido = ?
+       WHERE id = ?`,
+      [
+        pie || null,
+        posicion_cancha || null,
+        minutos_jugados || null,
+        partidos_jugados || null,
+        minutos_por_partido || null,
+        id,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+
+    res.json({ message: "Características guardadas correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al guardar las características",
       error: error.message,
     });
   }
@@ -394,8 +518,10 @@ module.exports = {
   vincularUsuario,
   obtenerJugador,
   actualizarJugador,
+  eliminarJugador,
   actualizarAgente,
   actualizarContactoEmergencia,
+  actualizarCaracteristicas,
   agregarComposicion,
   listarComposicion,
   agregarVideoJugador,

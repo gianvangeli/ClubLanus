@@ -130,6 +130,50 @@
   padding: 8px 10px;
 }
 
+/* --- Características / cancha --- */
+
+.caracteristicas-card {
+  margin-top: 20px;
+}
+
+.caracteristicas-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.cancha-svg {
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 100 / 150;
+  background: #2f8f4e;
+  border-radius: var(--radius-sm);
+}
+
+.cancha-linea {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1;
+}
+
+.cancha-punto {
+  fill: rgba(255, 255, 255, 0.85);
+}
+
+.cancha-marcador {
+  fill: var(--granate-700);
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+@media (max-width: 900px) {
+  .caracteristicas-layout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+
 /* --- Videos del jugador --- */
 
 .video-jugador-lista {

@@ -7,8 +7,10 @@ const {
   vincularUsuario,
   obtenerJugador,
   actualizarJugador,
+  eliminarJugador,
   actualizarAgente,
   actualizarContactoEmergencia,
+  actualizarCaracteristicas,
   agregarComposicion,
   listarComposicion,
   agregarVideoJugador,
@@ -32,6 +34,9 @@ router.get("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), obtenerJug
 // Editar datos de la ficha
 router.put("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), actualizarJugador);
 
+// Eliminar la ficha de un jugador (por error de carga del cuerpo técnico)
+router.delete("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), eliminarJugador);
+
 // Vincular una ficha de jugador con su cuenta de usuario
 router.put(
   "/:id/vincular-usuario",
@@ -54,6 +59,14 @@ router.put(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   actualizarContactoEmergencia
+);
+
+// Características del jugador: pie hábil, posición en la cancha, minutos jugados
+router.put(
+  "/:id/caracteristicas",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  actualizarCaracteristicas
 );
 
 // Composición corporal: cargar medición (peso + % grasa corporal)

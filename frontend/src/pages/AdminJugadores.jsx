@@ -25,6 +25,19 @@ export default function AdminJugadores() {
 
   useEffect(cargar, [])
 
+  const eliminar = async (jugador) => {
+    if (!window.confirm(`¿Eliminar a ${jugador.nombre} ${jugador.apellido}? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/jugadores/${jugador.id}`)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar el jugador'))
+    }
+  }
+
   const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
 
   const onSubmit = async (e) => {
@@ -129,6 +142,7 @@ export default function AdminJugadores() {
                   <th>Peso</th>
                   <th>Altura</th>
                   <th>Cuenta vinculada</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -148,6 +162,11 @@ export default function AdminJugadores() {
                       ) : (
                         <span className="badge badge-warning">Sin vincular</span>
                       )}
+                    </td>
+                    <td>
+                      <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(j)}>
+                        Eliminar
+                      </button>
                     </td>
                   </tr>
                 ))}

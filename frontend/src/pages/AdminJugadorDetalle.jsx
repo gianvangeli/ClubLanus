@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import { aNumero } from '../utils/numero'
 import './AdminJugadorDetalle.css'
@@ -31,8 +31,31 @@ const CONTACTO_EMERGENCIA_VACIO = {
   contacto_emergencia_telefono: '',
 }
 
+const CARACTERISTICAS_VACIO = {
+  pie: '',
+  posicion_cancha: '',
+  minutos_jugados: '',
+  partidos_jugados: '',
+  minutos_por_partido: '',
+}
+
+// Posiciones fijas para el gráfico de cancha (coordenadas en un viewBox de 100x150)
+const POSICIONES_CANCHA = [
+  { valor: 'Arquero', x: 50, y: 138 },
+  { valor: 'Defensor', x: 50, y: 112 },
+  { valor: 'Lateral Derecho', x: 80, y: 104 },
+  { valor: 'Lateral Izquierdo', x: 20, y: 104 },
+  { valor: 'Volante Defensivo', x: 50, y: 88 },
+  { valor: 'Volante', x: 50, y: 68 },
+  { valor: 'Volante Ofensivo', x: 50, y: 48 },
+  { valor: 'Extremo Derecho', x: 80, y: 32 },
+  { valor: 'Extremo Izquierdo', x: 20, y: 32 },
+  { valor: 'Delantero', x: 50, y: 16 },
+]
+
 export default function AdminJugadorDetalle() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [jugador, setJugador] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -46,6 +69,19 @@ export default function AdminJugadorDetalle() {
   }
 
   useEffect(cargarJugador, [id])
+
+  const eliminarJugador = async () => {
+    if (!window.confirm(`¿Eliminar a ${jugador.nombre} ${jugador.apellido}? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/jugadores/${id}`)
+      navigate('/admin/jugadores')
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar el jugador'))
+    }
+  }
 
   if (cargando) {
     return (
@@ -83,12 +119,19 @@ export default function AdminJugadorDetalle() {
           </h1>
           <p>Ficha del jugador</p>
         </div>
+        <button className="btn btn-ghost btn-sm btn-danger" onClick={eliminarJugador}>
+          Eliminar jugador
+        </button>
       </div>
+
+      {error && <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>}
 
       <div className="detalle-grid">
         <InfoJugador jugador={jugador} onActualizado={cargarJugador} />
         <VideosJugador jugadorId={id} />
       </div>
+
+      <Caracteristicas jugador={jugador} onActualizado={cargarJugador} />
     </div>
   )
 }
@@ -448,6 +491,176 @@ function ContactoEmergencia({ jugador, onActualizado }) {
           </div>
         </form>
       )}
+    </div>
+  )
+}
+
+function Cancha({ posicion }) {
+  const punto = POSICIONES_CANCHA.find((p) => p.valor === posicion)
+
+  return (
+    <svg viewBox="0 0 100 150" className="cancha-svg">
+      <rect x="2" y="2" width="96" height="146" className="cancha-linea" />
+      <line x1="2" y1="75" x2="98" y2="75" className="cancha-linea" />
+      <circle cx="50" cy="75" r="12" className="cancha-linea" />
+      <circle cx="50" cy="75" r="0.8" className="cancha-punto" />
+      <rect x="25" y="2" width="50" height="22" className="cancha-linea" />
+      <rect x="38" y="2" width="24" height="8" className="cancha-linea" />
+      <circle cx="50" cy="18" r="0.8" className="cancha-punto" />
+      <rect x="25" y="126" width="50" height="22" className="cancha-linea" />
+      <rect x="38" y="140" width="24" height="8" className="cancha-linea" />
+      <circle cx="50" cy="132" r="0.8" className="cancha-punto" />
+      {punto && <circle cx={punto.x} cy={punto.y} r="5" className="cancha-marcador" />}
+    </svg>
+  )
+}
+
+function Caracteristicas({ jugador, onActualizado }) {
+  const [editando, setEditando] = useState(false)
+  const [form, setForm] = useState(CARACTERISTICAS_VACIO)
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+
+  const empezarEdicion = () => {
+    setForm({
+      pie: jugador.pie || '',
+      posicion_cancha: jugador.posicion_cancha || '',
+      minutos_jugados: jugador.minutos_jugados ?? '',
+      partidos_jugados: jugador.partidos_jugados ?? '',
+      minutos_por_partido: jugador.minutos_por_partido ?? '',
+    })
+    setError('')
+    setEditando(true)
+  }
+
+  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    const minutos = aNumero(form.minutos_jugados)
+    const partidos = aNumero(form.partidos_jugados)
+    const minutosPorPartido = aNumero(form.minutos_por_partido)
+    if (minutos === undefined || partidos === undefined || minutosPorPartido === undefined) {
+      setError('Minutos jugados, partidos jugados y minutos por partido tienen que ser números')
+      return
+    }
+
+    setEnviando(true)
+    try {
+      await api.put(`/jugadores/${jugador.id}/caracteristicas`, {
+        pie: form.pie,
+        posicion_cancha: form.posicion_cancha,
+        minutos_jugados: minutos,
+        partidos_jugados: partidos,
+        minutos_por_partido: minutosPorPartido,
+      })
+      setEditando(false)
+      onActualizado()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo guardar'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div className="card seccion caracteristicas-card">
+      <div className="seccion-header">
+        <h3>Características</h3>
+        {!editando && (
+          <button className="btn btn-ghost btn-sm" onClick={empezarEdicion}>
+            Editar
+          </button>
+        )}
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="caracteristicas-layout">
+        <Cancha posicion={editando ? form.posicion_cancha : jugador.posicion_cancha} />
+
+        {!editando ? (
+          <dl className="info-lista">
+            <Dato
+              label="Pie"
+              valor={jugador.pie === 'derecho' ? 'Derecho' : jugador.pie === 'izquierdo' ? 'Izquierdo' : null}
+            />
+            <Dato label="Posición" valor={jugador.posicion_cancha} />
+            <Dato
+              label="Minutos jugados"
+              valor={jugador.minutos_jugados != null ? `${jugador.minutos_jugados}’` : null}
+            />
+            <Dato label="Partidos jugados" valor={jugador.partidos_jugados} />
+            <Dato
+              label="Minutos por partido"
+              valor={jugador.minutos_por_partido != null ? `${jugador.minutos_por_partido}’` : null}
+            />
+          </dl>
+        ) : (
+          <form className="form-edicion" onSubmit={guardar}>
+            <div className="field">
+              <label>Pie</label>
+              <select value={form.pie} onChange={onChange('pie')}>
+                <option value="">Sin definir</option>
+                <option value="derecho">Derecho</option>
+                <option value="izquierdo">Izquierdo</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Posición</label>
+              <select value={form.posicion_cancha} onChange={onChange('posicion_cancha')}>
+                <option value="">Sin definir</option>
+                {POSICIONES_CANCHA.map((p) => (
+                  <option key={p.valor} value={p.valor}>
+                    {p.valor}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Minutos jugados</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Ej: 60"
+                value={form.minutos_jugados}
+                onChange={onChange('minutos_jugados')}
+              />
+            </div>
+            <div className="field">
+              <label>Partidos jugados</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Ej: 12"
+                value={form.partidos_jugados}
+                onChange={onChange('partidos_jugados')}
+              />
+            </div>
+            <div className="field">
+              <label>Minutos por partido</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Ej: 75"
+                value={form.minutos_por_partido}
+                onChange={onChange('minutos_por_partido')}
+              />
+            </div>
+
+            <div className="form-edicion-botones">
+              <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+                {enviando ? <span className="spinner" /> : 'Guardar'}
+              </button>
+              <button className="btn btn-ghost btn-sm" type="button" onClick={() => setEditando(false)}>
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }
