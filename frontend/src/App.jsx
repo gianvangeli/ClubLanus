@@ -10,6 +10,7 @@ import AdminJugadores from './pages/AdminJugadores'
 import AdminJugadorDetalle from './pages/AdminJugadorDetalle'
 import AdminBiblioteca from './pages/AdminBiblioteca'
 import AdminBibliotecaDetalle from './pages/AdminBibliotecaDetalle'
+import Entrenamientos from './pages/Entrenamientos'
 import NotFound from './pages/NotFound'
 
 const CUERPO_TECNICO = ['admin', 'entrenador', 'preparador_fisico']
@@ -84,6 +85,15 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <AdminBibliotecaDetalle />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/entrenamientos"
+              element={
+                <ProtectedRoute roles={[...CUERPO_TECNICO, 'jugador']}>
+                  <Entrenamientos />
                 </ProtectedRoute>
               }
             />

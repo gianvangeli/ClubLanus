@@ -45,6 +45,9 @@ export default function Layout() {
               Biblioteca
             </NavLink>
           )}
+          <NavLink to="/entrenamientos" className="navbar-link">
+            Entrenamientos
+          </NavLink>
         </nav>
 
         <div className="navbar-user">
