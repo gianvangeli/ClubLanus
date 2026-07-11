@@ -106,18 +106,30 @@ export default function AdminJugadorDetalle() {
     )
   }
 
+  const iniciales = `${jugador.nombre?.[0] || ''}${jugador.apellido?.[0] || ''}`.toUpperCase()
+
   return (
     <div className="page">
       <Link to="/admin/jugadores" className="btn btn-ghost btn-sm">
         ← Volver al plantel
       </Link>
 
-      <div className="page-header" style={{ marginTop: 16 }}>
-        <div>
+      <div className="detalle-header">
+        <div className="detalle-header-avatar">{iniciales}</div>
+        <div className="detalle-header-info">
           <h1>
             {jugador.nombre} {jugador.apellido}
           </h1>
-          <p>Ficha del jugador</p>
+          <div className="detalle-header-badges">
+            {jugador.posicion && <span className="chip-outline">{jugador.posicion}</span>}
+            {jugador.categoria && <span className="chip-outline">{jugador.categoria}</span>}
+            {jugador.division_nombre && <span className="chip-outline">{jugador.division_nombre}</span>}
+            {jugador.contrato && (
+              <span className={`chip-outline ${jugador.contrato === 'si' ? 'chip-outline-ok' : ''}`}>
+                Contrato {jugador.contrato === 'si' ? 'vigente' : 'vencido'}
+              </span>
+            )}
+          </div>
         </div>
         <button className="btn btn-ghost btn-sm btn-danger" onClick={eliminarJugador}>
           Eliminar jugador
@@ -128,12 +140,13 @@ export default function AdminJugadorDetalle() {
 
       <div className="detalle-grid">
         <InfoJugador jugador={jugador} onActualizado={cargarJugador} />
-        <VideosJugador jugadorId={id} />
+        <Caracteristicas jugador={jugador} onActualizado={cargarJugador} />
       </div>
 
-      <Caracteristicas jugador={jugador} onActualizado={cargarJugador} />
-
-      <CargasFisicas jugadorId={id} />
+      <div className="detalle-grid detalle-grid-secundaria">
+        <VideosJugador jugadorId={id} />
+        <CargasFisicas jugadorId={id} />
+      </div>
     </div>
   )
 }
