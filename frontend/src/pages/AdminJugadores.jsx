@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import { aNumero } from '../utils/numero'
 import './AdminJugadores.css'
 
 const VACIO = { nombre: '', apellido: '', edad: '', altura: '' }
+
+const COLORES_AVATAR = ['avatar-granate', 'avatar-oro', 'avatar-gris', 'avatar-granate-claro']
+
+const iniciales = (jugador) =>
+  `${jugador.nombre?.[0] || ''}${jugador.apellido?.[0] || ''}`.toUpperCase()
 
 export default function AdminJugadores() {
   const [jugadores, setJugadores] = useState([])
@@ -71,108 +76,134 @@ export default function AdminJugadores() {
     }
   }
 
+  const stats = useMemo(() => {
+    const vinculados = jugadores.filter((j) => j.usuario_id).length
+    return {
+      total: jugadores.length,
+      vinculados,
+      sinVincular: jugadores.length - vinculados,
+    }
+  }, [jugadores])
+
   return (
-    <div className="page">
-      <div className="page-header">
-        <div>
-          <h1>Jugadores</h1>
-          <p>Fichas físicas del plantel — solo cuerpo técnico</p>
+    <div className="jugadores-dark">
+      <div className="page jugadores-page">
+        <div className="page-header">
+          <div>
+            <h1>Jugadores</h1>
+            <p>Fichas físicas del plantel — solo cuerpo técnico</p>
+          </div>
         </div>
-      </div>
 
-      <div className="admin-jugadores-layout">
-        <form className="card form-card" onSubmit={onSubmit}>
-          <h3>Nueva ficha</h3>
-
-          {error && <div className="alert alert-error">{error}</div>}
-          {mensaje && <div className="alert alert-success">{mensaje}</div>}
-
-          <div className="field">
-            <label>Nombre</label>
-            <input value={form.nombre} onChange={onChange('nombre')} required />
+        <div className="jg-stats">
+          <div className="jg-stat-tile jg-stat-granate">
+            <span className="jg-stat-label">Plantel</span>
+            <span className="jg-stat-valor">{stats.total}</span>
           </div>
-          <div className="field">
-            <label>Apellido</label>
-            <input value={form.apellido} onChange={onChange('apellido')} required />
+          <div className="jg-stat-tile jg-stat-oro">
+            <span className="jg-stat-label">Vinculados</span>
+            <span className="jg-stat-valor">{stats.vinculados}</span>
           </div>
-          <div className="field">
-            <label>Edad</label>
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Años"
-              value={form.edad}
-              onChange={onChange('edad')}
-            />
+          <div className="jg-stat-tile jg-stat-gris">
+            <span className="jg-stat-label">Sin vincular</span>
+            <span className="jg-stat-valor">{stats.sinVincular}</span>
           </div>
-          <div className="field">
-            <label>Altura (m)</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              placeholder="Ej: 1,78"
-              value={form.altura}
-              onChange={onChange('altura')}
-            />
-          </div>
+        </div>
 
-          <button className="btn btn-primary" type="submit" disabled={enviando}>
-            {enviando ? <span className="spinner" /> : 'Registrar jugador'}
-          </button>
-        </form>
+        <div className="admin-jugadores-layout">
+          <form className="jg-card jg-form-card" onSubmit={onSubmit}>
+            <h3>Nueva ficha</h3>
 
-        <div className="card table-card">
-          <h3>Plantel</h3>
-          {cargando && (
-            <div className="empty-state">
-              <span className="spinner spinner-dark" />
+            {error && <div className="alert alert-error">{error}</div>}
+            {mensaje && <div className="alert alert-success">{mensaje}</div>}
+
+            <div className="field">
+              <label>Nombre</label>
+              <input value={form.nombre} onChange={onChange('nombre')} required />
             </div>
-          )}
-          {!cargando && jugadores.length === 0 && (
-            <div className="empty-state">
-              <p>Todavía no hay jugadores cargados.</p>
+            <div className="field">
+              <label>Apellido</label>
+              <input value={form.apellido} onChange={onChange('apellido')} required />
             </div>
-          )}
-          {!cargando && jugadores.length > 0 && (
-            <table className="tabla">
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Edad</th>
-                  <th>Peso</th>
-                  <th>Altura</th>
-                  <th>Cuenta vinculada</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {jugadores.map((j) => (
-                  <tr key={j.id}>
-                    <td>
-                      <Link className="tabla-link" to={`/admin/jugadores/${j.id}`}>
-                        {j.nombre} {j.apellido}
-                      </Link>
-                    </td>
-                    <td>{j.edad ?? '—'}</td>
-                    <td>{j.peso ? `${j.peso} kg` : '—'}</td>
-                    <td>{j.altura ? `${j.altura} m` : '—'}</td>
-                    <td>
-                      {j.usuario_id ? (
-                        <span className="badge badge-success">Vinculada</span>
-                      ) : (
-                        <span className="badge badge-warning">Sin vincular</span>
-                      )}
-                    </td>
-                    <td>
-                      <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(j)}>
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
+            <div className="field">
+              <label>Edad</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="Años"
+                value={form.edad}
+                onChange={onChange('edad')}
+              />
+            </div>
+            <div className="field">
+              <label>Altura (m)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                placeholder="Ej: 1,78"
+                value={form.altura}
+                onChange={onChange('altura')}
+              />
+            </div>
+
+            <button className="btn btn-primary" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Registrar jugador'}
+            </button>
+          </form>
+
+          <div className="jg-card jg-list-card">
+            <div className="jg-list-header">
+              <h3>Plantel</h3>
+              <span className="jg-count-chip">{stats.total} jug.</span>
+            </div>
+
+            {cargando && (
+              <div className="empty-state">
+                <span className="spinner spinner-dark" />
+              </div>
+            )}
+            {!cargando && jugadores.length === 0 && (
+              <div className="empty-state">
+                <p>Todavía no hay jugadores cargados.</p>
+              </div>
+            )}
+            {!cargando && jugadores.length > 0 && (
+              <div className="jg-lista">
+                {jugadores.map((j, i) => (
+                  <div className="jg-fila" key={j.id}>
+                    <Link className="jg-fila-link" to={`/admin/jugadores/${j.id}`}>
+                      <div className={`jg-avatar ${COLORES_AVATAR[i % COLORES_AVATAR.length]}`}>
+                        {iniciales(j)}
+                      </div>
+                      <div className="jg-fila-info">
+                        <strong>
+                          {j.nombre} {j.apellido}
+                        </strong>
+                        <span>{j.posicion || j.categoria || 'Sin posición'}</span>
+                      </div>
+                      <div className="jg-fila-chips">
+                        {j.edad && <span className="jg-chip">{j.edad} años</span>}
+                        {j.altura && <span className="jg-chip">{j.altura} m</span>}
+                        {j.peso && <span className="jg-chip">{j.peso} kg</span>}
+                        {j.usuario_id ? (
+                          <span className="jg-chip jg-chip-oro">Vinculado</span>
+                        ) : (
+                          <span className="jg-chip jg-chip-gris">Sin vincular</span>
+                        )}
+                      </div>
+                    </Link>
+                    <button
+                      className="jg-eliminar"
+                      title="Eliminar jugador"
+                      onClick={() => eliminar(j)}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
