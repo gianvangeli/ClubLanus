@@ -23,7 +23,7 @@ export default function Layout() {
     <div className="layout">
       <header className="navbar">
         <div className="navbar-brand">
-          <EscudoClub size={36} />
+          <EscudoClub size={36} variante="blanco" />
           <div className="navbar-brand-text">
             <strong>Club Atlético Lanús</strong>
             <span>Plataforma de Jugadores</span>
