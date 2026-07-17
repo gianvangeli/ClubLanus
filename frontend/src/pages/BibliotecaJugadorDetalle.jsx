@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
+import YouTubePlayer from '../components/YouTubePlayer'
+import { extraerIdYouTube } from '../utils/youtube'
 import './BibliotecaJugadorDetalle.css'
 
 export default function BibliotecaJugadorDetalle() {
@@ -79,14 +81,14 @@ function VideoItem({ video, bibliotecaId }) {
     api.post(`/biblioteca/${bibliotecaId}/abrir`).catch(() => {})
   }
 
-  const reportarProgreso = (completo = false) => {
-    const el = videoRef.current
-    if (!el) return
+  // segundos: si no se pasa (video <video> nativo), se toma de videoRef.
+  const reportarProgreso = (segundosOCompleto, quizasCompleto) => {
+    const segundos =
+      typeof segundosOCompleto === 'number' ? segundosOCompleto : Math.floor(videoRef.current?.currentTime || 0)
+    const completo = typeof segundosOCompleto === 'number' ? Boolean(quizasCompleto) : Boolean(segundosOCompleto)
+
     api
-      .put(`/biblioteca/${bibliotecaId}/progreso`, {
-        segundo_actual: Math.floor(el.currentTime),
-        completo,
-      })
+      .put(`/biblioteca/${bibliotecaId}/progreso`, { segundo_actual: segundos, completo })
       .catch(() => {})
   }
 
@@ -113,12 +115,12 @@ function VideoItem({ video, bibliotecaId }) {
   }, [])
 
   const token = localStorage.getItem('token')
+  const idYouTube = video.tipo === 'link' ? extraerIdYouTube(video.url_video) : null
 
   return (
     <div className="video-item card">
       <div className="video-item-header">
         <h3>{video.titulo}</h3>
-        <span className="badge badge-warning">{formatearCategoria(video.categoria_video)}</span>
       </div>
       {video.descripcion && <p className="video-item-desc">{video.descripcion}</p>}
 
@@ -133,6 +135,8 @@ function VideoItem({ video, bibliotecaId }) {
           onEnded={onEnded}
           src={`/api/biblioteca/videos/${video.id}/archivo?token=${token}`}
         />
+      ) : idYouTube ? (
+        <YouTubePlayer videoId={idYouTube} onAbrir={registrarApertura} onProgreso={reportarProgreso} />
       ) : (
         <a className="btn btn-primary" href={video.url_video} target="_blank" rel="noreferrer">
           Ver video externo ↗
@@ -140,9 +144,4 @@ function VideoItem({ video, bibliotecaId }) {
       )}
     </div>
   )
-}
-
-function formatearCategoria(cat) {
-  const nombres = { partido: 'Partido', entrenamiento: 'Entrenamiento', individual: 'Individual' }
-  return nombres[cat] || cat
 }
