@@ -6,11 +6,6 @@ import './AdminBibliotecaDetalle.css'
 const VIDEO_VACIO = {
   titulo: '',
   descripcion: '',
-  categoria_video: 'partido',
-  rival: '',
-  resultado: '',
-  duracion_segundos: '',
-  fecha_video: '',
   url_video: '',
 }
 
@@ -135,7 +130,7 @@ function SeccionVideos({ bibliotecaId, videos, onVideoAgregado }) {
             <span className="video-existente-tipo">{v.tipo === 'archivo' ? '📁' : '🔗'}</span>
             <div>
               <strong>{v.titulo}</strong>
-              <div className="texto-muted">{formatearCategoria(v.categoria_video)}</div>
+              {v.descripcion && <div className="texto-muted">{v.descripcion}</div>}
             </div>
           </div>
         ))}
@@ -172,41 +167,12 @@ function SeccionVideos({ bibliotecaId, videos, onVideoAgregado }) {
           <input value={form.descripcion} onChange={onChange('descripcion')} />
         </div>
 
-        <div className="form-row-3">
+        {modo === 'link' && (
           <div className="field">
-            <label>Categoría</label>
-            <select value={form.categoria_video} onChange={onChange('categoria_video')}>
-              <option value="partido">Partido</option>
-              <option value="entrenamiento">Entrenamiento</option>
-              <option value="individual">Individual</option>
-            </select>
+            <label>URL del video</label>
+            <input value={form.url_video} onChange={onChange('url_video')} placeholder="https://..." required />
           </div>
-          <div className="field">
-            <label>Rival</label>
-            <input value={form.rival} onChange={onChange('rival')} />
-          </div>
-          <div className="field">
-            <label>Resultado</label>
-            <input value={form.resultado} onChange={onChange('resultado')} placeholder="2-1" />
-          </div>
-        </div>
-
-        <div className="form-row-3">
-          <div className="field">
-            <label>Duración (segundos)</label>
-            <input type="number" min="0" value={form.duracion_segundos} onChange={onChange('duracion_segundos')} />
-          </div>
-          <div className="field">
-            <label>Fecha del video</label>
-            <input type="date" value={form.fecha_video} onChange={onChange('fecha_video')} />
-          </div>
-          {modo === 'link' && (
-            <div className="field">
-              <label>URL del video</label>
-              <input value={form.url_video} onChange={onChange('url_video')} placeholder="https://..." required />
-            </div>
-          )}
-        </div>
+        )}
 
         {modo === 'archivo' && (
           <div className="field">
@@ -374,9 +340,4 @@ function SeccionReporte({ bibliotecaId }) {
       )}
     </div>
   )
-}
-
-function formatearCategoria(cat) {
-  const nombres = { partido: 'Partido', entrenamiento: 'Entrenamiento', individual: 'Individual' }
-  return nombres[cat] || cat
 }

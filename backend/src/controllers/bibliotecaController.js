@@ -78,16 +78,7 @@ const agregarVideoABiblioteca = async (req, res) => {
     const bibliotecaId = req.params.id;
     const creadoPor = req.usuario.id;
 
-    const {
-      titulo,
-      descripcion,
-      url_video,
-      categoria_video,
-      rival,
-      resultado,
-      duracion_segundos,
-      fecha_video,
-    } = req.body;
+    const { titulo, descripcion, url_video } = req.body;
 
     let tipo;
     let urlFinal;
@@ -100,42 +91,16 @@ const agregarVideoABiblioteca = async (req, res) => {
       urlFinal = url_video;
     }
 
-    if (!titulo || !categoria_video || !urlFinal) {
+    if (!titulo || !urlFinal) {
       return res.status(400).json({
-        message:
-          "Faltan datos obligatorios: título, categoría, y un archivo de video o un link",
+        message: "Faltan datos obligatorios: título, y un archivo de video o un link",
       });
     }
 
     const [videoResult] = await db.query(
-      `
-      INSERT INTO videos
-      (
-        titulo,
-        descripcion,
-        tipo,
-        url_video,
-        categoria_video,
-        rival,
-        resultado,
-        duracion_segundos,
-        fecha_video,
-        subido_por
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [
-        titulo,
-        descripcion || null,
-        tipo,
-        urlFinal,
-        categoria_video,
-        rival || null,
-        resultado || null,
-        duracion_segundos ? Number(duracion_segundos) : null,
-        fecha_video || null,
-        creadoPor,
-      ]
+      `INSERT INTO videos (titulo, descripcion, tipo, url_video, categoria_video, subido_por)
+       VALUES (?, ?, ?, ?, 'biblioteca', ?)`,
+      [titulo, descripcion || null, tipo, urlFinal, creadoPor]
     );
 
     const videoId = videoResult.insertId;
@@ -460,7 +425,7 @@ const verDetallePublicacion = async (req, res) => {
     }
 
     const [videos] = await db.query(
-      `SELECT v.id, v.titulo, v.descripcion, v.tipo, v.url_video, v.categoria_video, v.rival, v.resultado, v.duracion_segundos, v.fecha_video
+      `SELECT v.id, v.titulo, v.descripcion, v.tipo, v.url_video
        FROM biblioteca_videos bv
        JOIN videos v ON v.id = bv.video_id
        WHERE bv.biblioteca_id = ?
