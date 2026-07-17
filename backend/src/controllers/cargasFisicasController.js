@@ -1,6 +1,5 @@
-const fs = require("fs");
-const path = require("path");
 const db = require("../config/db");
+const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
 
 // Carga un reporte de cargas físicas en PDF para un jugador, con fecha.
 const agregarCargaFisica = async (req, res) => {
@@ -18,7 +17,7 @@ const agregarCargaFisica = async (req, res) => {
       return res.status(404).json({ message: "Jugador no encontrado" });
     }
 
-    const archivoPdf = `/uploads/cargas-fisicas/${req.file.filename}`;
+    const archivoPdf = await guardarArchivo(req.file.buffer, "cargas-fisicas", req.file.originalname);
 
     const [result] = await db.query(
       `INSERT INTO cargas_fisicas (jugador_id, fecha, titulo, archivo_pdf, registrado_por)
@@ -73,12 +72,7 @@ const obtenerArchivoCargaFisica = async (req, res) => {
       return res.status(404).json({ message: "Archivo no encontrado" });
     }
 
-    const rutaArchivo = path.join(__dirname, "..", "..", cargas[0].archivo_pdf);
-    res.sendFile(rutaArchivo, (error) => {
-      if (error && !res.headersSent) {
-        res.status(404).json({ message: "Archivo no encontrado en el servidor" });
-      }
-    });
+    await servirArchivo(req, res, cargas[0].archivo_pdf);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el archivo",
@@ -104,7 +98,7 @@ const eliminarCargaFisica = async (req, res) => {
     await db.query("DELETE FROM cargas_fisicas WHERE id = ?", [cargaId]);
 
     if (cargas[0].archivo_pdf) {
-      fs.unlink(path.join(__dirname, "..", "..", cargas[0].archivo_pdf), () => {});
+      eliminarArchivo(cargas[0].archivo_pdf);
     }
 
     res.json({ message: "Carga física eliminada correctamente" });

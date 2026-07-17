@@ -1,26 +1,7 @@
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 
 // Sube en la misma request los videos del día ("videos") y, opcionalmente,
-// la imagen del dibujo táctico de la sesión ("dibujo"). Cada campo va a su
-// propia carpeta según el tipo de archivo.
-const uploadDirVideos = path.join(__dirname, "..", "..", "uploads", "videos");
-const uploadDirImagenes = path.join(__dirname, "..", "..", "uploads", "imagenes");
-fs.mkdirSync(uploadDirVideos, { recursive: true });
-fs.mkdirSync(uploadDirImagenes, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, file.fieldname === "dibujo" ? uploadDirImagenes : uploadDirVideos);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const nombreUnico = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, nombreUnico);
-  },
-});
-
+// la imagen del dibujo táctico de la sesión ("dibujo").
 const extensionesVideo = /\.(mp4|mov|avi|mkv|webm|wmv|flv|m4v)$/i;
 const extensionesImagen = /\.(jpg|jpeg|png|webp|gif)$/i;
 
@@ -39,7 +20,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const uploadEntrenamiento = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2GB por archivo
 });

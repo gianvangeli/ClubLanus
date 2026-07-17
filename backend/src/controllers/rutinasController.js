@@ -1,6 +1,5 @@
-const fs = require("fs");
-const path = require("path");
 const db = require("../config/db");
+const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
 
 const sinExtension = (nombreArchivo) => nombreArchivo.replace(/\.[^/.]+$/, "");
 
@@ -49,10 +48,11 @@ const crearRutina = async (req, res) => {
     }
 
     if (archivo) {
+      const urlVideo = await guardarArchivo(archivo.buffer, "videos", archivo.originalname);
       const [videoResult] = await conn.query(
         `INSERT INTO videos (titulo, tipo, url_video, categoria_video, subido_por)
          VALUES (?, 'archivo', ?, 'rutina', ?)`,
-        [titulo, `/uploads/videos/${archivo.filename}`, creadoPor]
+        [titulo, urlVideo, creadoPor]
       );
       await conn.query("INSERT INTO rutina_videos (rutina_id, video_id) VALUES (?, ?)", [
         rutinaId,
@@ -160,7 +160,7 @@ const eliminarRutina = async (req, res) => {
     for (const video of videos) {
       await db.query("DELETE FROM videos WHERE id = ?", [video.id]);
       if (video.tipo === "archivo") {
-        fs.unlink(path.join(__dirname, "..", "..", video.url_video), () => {});
+        eliminarArchivo(video.url_video);
       }
     }
 
@@ -296,12 +296,7 @@ const obtenerArchivoVideo = async (req, res) => {
       }
     }
 
-    const rutaArchivo = path.join(__dirname, "..", "..", videos[0].url_video);
-    res.sendFile(rutaArchivo, (error) => {
-      if (error && !res.headersSent) {
-        res.status(404).json({ message: "Archivo no encontrado en el servidor" });
-      }
-    });
+    await servirArchivo(req, res, videos[0].url_video);
   } catch (error) {
     res.status(500).json({ message: "Error al obtener el archivo", error: error.message });
   }

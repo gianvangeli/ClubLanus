@@ -1,8 +1,7 @@
-const fs = require("fs");
-const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const db = require("../config/db");
+const { guardarArchivo, eliminarArchivo } = require("../config/storage");
 
 // Posiciones válidas para el gráfico de cancha (ver POSICIONES_CANCHA en el frontend)
 const POSICIONES_CANCHA = [
@@ -294,7 +293,7 @@ const eliminarJugador = async (req, res) => {
     await conn.commit();
 
     for (const urlVideo of archivosABorrar) {
-      fs.unlink(path.join(__dirname, "..", "..", urlVideo), () => {});
+      eliminarArchivo(urlVideo);
     }
 
     res.json({ message: "Jugador eliminado correctamente" });
@@ -498,7 +497,7 @@ const agregarVideoJugador = async (req, res) => {
       videosACrear.push({
         titulo: titulo || sinExtension(archivo.originalname),
         tipo: "archivo",
-        url_video: `/uploads/videos/${archivo.filename}`,
+        url_video: await guardarArchivo(archivo.buffer, "videos", archivo.originalname),
       });
     }
 

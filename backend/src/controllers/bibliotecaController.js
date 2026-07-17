@@ -1,5 +1,5 @@
-const path = require("path");
 const db = require("../config/db");
+const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -85,7 +85,7 @@ const agregarVideoABiblioteca = async (req, res) => {
 
     if (req.file) {
       tipo = "archivo";
-      urlFinal = `/uploads/videos/${req.file.filename}`;
+      urlFinal = await guardarArchivo(req.file.buffer, "videos", req.file.originalname);
     } else if (url_video) {
       tipo = "link";
       urlFinal = url_video;
@@ -356,12 +356,7 @@ const obtenerArchivoVideo = async (req, res) => {
       }
     }
 
-    const rutaArchivo = path.join(__dirname, "..", "..", video.url_video);
-    res.sendFile(rutaArchivo, (error) => {
-      if (error && !res.headersSent) {
-        res.status(404).json({ message: "Archivo de video no encontrado en el servidor" });
-      }
-    });
+    await servirArchivo(req, res, video.url_video);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el video",

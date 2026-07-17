@@ -1,6 +1,5 @@
-const fs = require("fs");
-const path = require("path");
 const db = require("../config/db");
+const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -14,14 +13,14 @@ const paraJugador = (entrenamiento) => {
   return { id, fecha, titulo, cantidad_videos, creado_en };
 };
 
-const extraerVideosDelBody = (req, tituloVideo) => {
+const extraerVideosDelBody = async (req, tituloVideo) => {
   const videosACrear = [];
 
   for (const archivo of req.files?.videos || []) {
     videosACrear.push({
       titulo: tituloVideo || sinExtension(archivo.originalname),
       tipo: "archivo",
-      url_video: `/uploads/videos/${archivo.filename}`,
+      url_video: await guardarArchivo(archivo.buffer, "videos", archivo.originalname),
     });
   }
 
@@ -65,7 +64,10 @@ const crearEntrenamiento = async (req, res) => {
     const creadoPor = req.usuario.id;
     const fechaSesion = fecha || new Date().toISOString().slice(0, 10);
     const archivoDibujo = (req.files?.dibujo || [])[0];
-    const videosACrear = extraerVideosDelBody(req, titulo_video);
+    const dibujoUrl = archivoDibujo
+      ? await guardarArchivo(archivoDibujo.buffer, "imagenes", archivoDibujo.originalname)
+      : null;
+    const videosACrear = await extraerVideosDelBody(req, titulo_video);
 
     await conn.beginTransaction();
 
@@ -100,13 +102,13 @@ const crearEntrenamiento = async (req, res) => {
           cantidad_jugadores || null,
           materiales || null,
           espacios || null,
-          archivoDibujo ? `/uploads/imagenes/${archivoDibujo.filename}` : null,
+          dibujoUrl,
           entrenamientoId,
         ]
       );
 
       if (archivoDibujo && existentes[0].dibujo_url) {
-        fs.unlink(path.join(__dirname, "..", "..", existentes[0].dibujo_url), () => {});
+        eliminarArchivo(existentes[0].dibujo_url);
       }
     } else {
       const [result] = await conn.query(
@@ -125,7 +127,7 @@ const crearEntrenamiento = async (req, res) => {
           cantidad_jugadores || null,
           materiales || null,
           espacios || null,
-          archivoDibujo ? `/uploads/imagenes/${archivoDibujo.filename}` : null,
+          dibujoUrl,
           creadoPor,
         ]
       );
@@ -184,7 +186,10 @@ const actualizarEntrenamiento = async (req, res) => {
     } = req.body;
     const creadoPor = req.usuario.id;
     const archivoDibujo = (req.files?.dibujo || [])[0];
-    const videosACrear = extraerVideosDelBody(req, titulo_video);
+    const dibujoUrl = archivoDibujo
+      ? await guardarArchivo(archivoDibujo.buffer, "imagenes", archivoDibujo.originalname)
+      : null;
+    const videosACrear = await extraerVideosDelBody(req, titulo_video);
 
     const [existentes] = await conn.query("SELECT id, fecha, dibujo_url FROM entrenamientos WHERE id = ?", [id]);
     if (existentes.length === 0) {
@@ -209,13 +214,13 @@ const actualizarEntrenamiento = async (req, res) => {
         cantidad_jugadores || null,
         materiales || null,
         espacios || null,
-        archivoDibujo ? `/uploads/imagenes/${archivoDibujo.filename}` : null,
+        dibujoUrl,
         id,
       ]
     );
 
     if (archivoDibujo && existentes[0].dibujo_url) {
-      fs.unlink(path.join(__dirname, "..", "..", existentes[0].dibujo_url), () => {});
+      eliminarArchivo(existentes[0].dibujo_url);
     }
 
     for (const video of videosACrear) {
@@ -326,7 +331,7 @@ const eliminarVideoEntrenamiento = async (req, res) => {
     await db.query("DELETE FROM videos WHERE id = ?", [videoId]);
 
     if (videos[0].tipo === "archivo") {
-      fs.unlink(path.join(__dirname, "..", "..", videos[0].url_video), () => {});
+      eliminarArchivo(videos[0].url_video);
     }
 
     res.json({ message: "Video eliminado correctamente" });
@@ -367,11 +372,11 @@ const eliminarEntrenamiento = async (req, res) => {
 
     for (const video of videos) {
       if (video.tipo === "archivo") {
-        fs.unlink(path.join(__dirname, "..", "..", video.url_video), () => {});
+        eliminarArchivo(video.url_video);
       }
     }
     if (entrenamientos[0].dibujo_url) {
-      fs.unlink(path.join(__dirname, "..", "..", entrenamientos[0].dibujo_url), () => {});
+      eliminarArchivo(entrenamientos[0].dibujo_url);
     }
 
     res.json({ message: "Entrenamiento eliminado correctamente" });
@@ -401,12 +406,7 @@ const obtenerArchivoVideo = async (req, res) => {
       return res.status(404).json({ message: "Archivo no encontrado" });
     }
 
-    const rutaArchivo = path.join(__dirname, "..", "..", videos[0].url_video);
-    res.sendFile(rutaArchivo, (error) => {
-      if (error && !res.headersSent) {
-        res.status(404).json({ message: "Archivo no encontrado en el servidor" });
-      }
-    });
+    await servirArchivo(req, res, videos[0].url_video);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el archivo",
@@ -430,12 +430,7 @@ const obtenerArchivoDibujo = async (req, res) => {
       return res.status(404).json({ message: "Imagen no encontrada" });
     }
 
-    const rutaArchivo = path.join(__dirname, "..", "..", entrenamientos[0].dibujo_url);
-    res.sendFile(rutaArchivo, (error) => {
-      if (error && !res.headersSent) {
-        res.status(404).json({ message: "Archivo no encontrado en el servidor" });
-      }
-    });
+    await servirArchivo(req, res, entrenamientos[0].dibujo_url);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener la imagen",
