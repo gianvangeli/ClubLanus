@@ -3,7 +3,6 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
-import Register from './pages/Register'
 import BibliotecaJugador from './pages/BibliotecaJugador'
 import BibliotecaJugadorDetalle from './pages/BibliotecaJugadorDetalle'
 import AdminJugadores from './pages/AdminJugadores'
@@ -11,6 +10,9 @@ import AdminJugadorDetalle from './pages/AdminJugadorDetalle'
 import AdminBiblioteca from './pages/AdminBiblioteca'
 import AdminBibliotecaDetalle from './pages/AdminBibliotecaDetalle'
 import Entrenamientos from './pages/Entrenamientos'
+import EntrenamientoDetalle from './pages/EntrenamientoDetalle'
+import EjercicioDetalle from './pages/EjercicioDetalle'
+import ReflexionEntrenamiento from './pages/ReflexionEntrenamiento'
 import NotFound from './pages/NotFound'
 
 const CUERPO_TECNICO = ['admin', 'entrenador', 'preparador_fisico']
@@ -34,7 +36,6 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/registro" element={<Register />} />
 
           <Route element={<Layout />}>
             <Route path="/" element={<Inicio />} />
@@ -94,6 +95,30 @@ export default function App() {
               element={
                 <ProtectedRoute roles={[...CUERPO_TECNICO, 'jugador']}>
                   <Entrenamientos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/entrenamientos/:id"
+              element={
+                <ProtectedRoute roles={[...CUERPO_TECNICO, 'jugador']}>
+                  <EntrenamientoDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/entrenamientos/:id/ejercicios/:ejercicioId"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <EjercicioDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/entrenamientos/:id/reflexion"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <ReflexionEntrenamiento />
                 </ProtectedRoute>
               }
             />

@@ -6,6 +6,8 @@ const authRoutes = require("./routes/authRoutes");
 const bibliotecaRoutes = require("./routes/bibliotecaRoutes");
 const jugadoresRoutes = require("./routes/jugadoresRoutes");
 const entrenamientosRoutes = require("./routes/entrenamientosRoutes");
+const rutinasRoutes = require("./routes/rutinasRoutes");
+const ejerciciosRoutes = require("./routes/ejerciciosRoutes");
 const app = express();
 
 app.use(cors());
@@ -14,6 +16,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/biblioteca", bibliotecaRoutes);
 app.use("/api/jugadores", jugadoresRoutes);
 app.use("/api/entrenamientos", entrenamientosRoutes);
+app.use("/api/rutinas", rutinasRoutes);
+app.use("/api/ejercicios", ejerciciosRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Backend funcionando correctamente" });

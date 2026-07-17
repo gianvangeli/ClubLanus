@@ -1,0 +1,51 @@
+.ref-preguntas {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px;
+  gap: 18px;
+}
+
+.ref-pregunta {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.ref-pregunta-header {
+  background: var(--granate-700);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13.5px;
+  padding: 8px 14px;
+}
+
+.ref-pregunta-ayuda {
+  background: #f4f4f4;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-style: italic;
+  padding: 8px 14px;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ref-pregunta textarea {
+  width: 100%;
+  border: none;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 13.5px;
+  padding: 12px 14px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    var(--border) 28px
+  );
+  line-height: 28px;
+}
+
+.ref-pregunta textarea:focus {
+  outline: none;
+  background-color: var(--granate-50);
+}

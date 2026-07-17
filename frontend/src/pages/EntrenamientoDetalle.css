@@ -1,0 +1,53 @@
+.seccion {
+  padding: 22px;
+}
+
+.seccion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.seccion h3 {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--granate-700);
+  margin-bottom: 14px;
+}
+
+.divisor {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 18px 0;
+}
+
+.form-edicion-botones {
+  display: flex;
+  gap: 8px;
+}
+
+.ejercicios-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ejercicio-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 160px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.ejercicio-chip:hover {
+  background: var(--granate-50);
+  border-color: var(--granate-100);
+}
