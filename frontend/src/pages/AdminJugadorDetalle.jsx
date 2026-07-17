@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import { aNumero } from '../utils/numero'
+import YouTubePlayer from '../components/YouTubePlayer'
+import { extraerIdYouTube } from '../utils/youtube'
 import './AdminJugadorDetalle.css'
 
 const CAMPOS_VACIOS = {
@@ -33,10 +35,8 @@ const CONTACTO_EMERGENCIA_VACIO = {
 
 const CARACTERISTICAS_VACIO = {
   pie: '',
-  posicion_cancha: '',
-  minutos_jugados: '',
+  posiciones_cancha: [],
   partidos_jugados: '',
-  minutos_por_partido: '',
 }
 
 // Posiciones fijas para el gráfico de cancha (coordenadas en un viewBox de 100x150)
@@ -298,6 +298,10 @@ function InfoJugador({ jugador, onActualizado }) {
 
       <hr className="divisor" />
 
+      <CuentaAcceso jugador={jugador} onActualizado={onActualizado} />
+
+      <hr className="divisor" />
+
       <ComposicionCorporal jugador={jugador} onActualizado={onActualizado} />
 
       <hr className="divisor" />
@@ -316,6 +320,64 @@ function Dato({ label, valor }) {
     <div className="info-dato">
       <dt>{label}</dt>
       <dd>{valor || <span className="texto-muted">—</span>}</dd>
+    </div>
+  )
+}
+
+function CuentaAcceso({ jugador, onActualizado }) {
+  const [email, setEmail] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+  const [creada, setCreada] = useState(null)
+
+  const crear = async (e) => {
+    e.preventDefault()
+    setError('')
+    setEnviando(true)
+    try {
+      const { data } = await api.post(`/jugadores/${jugador.id}/cuenta`, { email })
+      setCreada(data)
+      setEmail('')
+      onActualizado()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo crear la cuenta'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div>
+      <div className="seccion-header">
+        <h3>Cuenta de acceso</h3>
+      </div>
+
+      {creada ? (
+        <div className="alert alert-success">
+          <p>Cuenta creada. Compartile estos datos al jugador (no se van a volver a mostrar):</p>
+          <p>
+            <strong>Mail:</strong> {creada.email}
+            <br />
+            <strong>Contraseña:</strong> {creada.password}
+          </p>
+        </div>
+      ) : jugador.usuario_id ? (
+        <dl className="info-lista">
+          <Dato label="Mail" valor={jugador.usuario_email} />
+          <Dato label="Estado" valor="Vinculada" />
+        </dl>
+      ) : (
+        <form className="form-edicion" onSubmit={crear}>
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="field">
+            <label>Mail del jugador</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </div>
+          <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+            {enviando ? <span className="spinner" /> : 'Crear cuenta'}
+          </button>
+        </form>
+      )}
     </div>
   )
 }
@@ -510,8 +572,8 @@ function ContactoEmergencia({ jugador, onActualizado }) {
   )
 }
 
-function Cancha({ posicion }) {
-  const punto = POSICIONES_CANCHA.find((p) => p.valor === posicion)
+function Cancha({ posiciones, editable, onToggle }) {
+  const seleccionadas = posiciones || []
 
   return (
     <svg viewBox="0 0 100 150" className="cancha-svg">
@@ -525,7 +587,22 @@ function Cancha({ posicion }) {
       <rect x="25" y="126" width="50" height="22" className="cancha-linea" />
       <rect x="38" y="140" width="24" height="8" className="cancha-linea" />
       <circle cx="50" cy="132" r="0.8" className="cancha-punto" />
-      {punto && <circle cx={punto.x} cy={punto.y} r="5" className="cancha-marcador" />}
+      {POSICIONES_CANCHA.map((p) => {
+        const activo = seleccionadas.includes(p.valor)
+        if (!activo && !editable) return null
+        return (
+          <circle
+            key={p.valor}
+            cx={p.x}
+            cy={p.y}
+            r={activo ? 5 : 3}
+            className={`cancha-marcador ${activo ? 'cancha-marcador-activo' : 'cancha-marcador-inactivo'} ${editable ? 'cancha-marcador-clickable' : ''}`}
+            onClick={editable ? () => onToggle(p.valor) : undefined}
+          >
+            <title>{p.valor}</title>
+          </circle>
+        )
+      })}
     </svg>
   )
 }
@@ -539,10 +616,8 @@ function Caracteristicas({ jugador, onActualizado }) {
   const empezarEdicion = () => {
     setForm({
       pie: jugador.pie || '',
-      posicion_cancha: jugador.posicion_cancha || '',
-      minutos_jugados: jugador.minutos_jugados ?? '',
+      posiciones_cancha: jugador.posiciones_cancha || [],
       partidos_jugados: jugador.partidos_jugados ?? '',
-      minutos_por_partido: jugador.minutos_por_partido ?? '',
     })
     setError('')
     setEditando(true)
@@ -550,15 +625,22 @@ function Caracteristicas({ jugador, onActualizado }) {
 
   const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
 
+  const toggleSector = (valor) => {
+    setForm((prev) => ({
+      ...prev,
+      posiciones_cancha: prev.posiciones_cancha.includes(valor)
+        ? prev.posiciones_cancha.filter((v) => v !== valor)
+        : [...prev.posiciones_cancha, valor],
+    }))
+  }
+
   const guardar = async (e) => {
     e.preventDefault()
     setError('')
 
-    const minutos = aNumero(form.minutos_jugados)
     const partidos = aNumero(form.partidos_jugados)
-    const minutosPorPartido = aNumero(form.minutos_por_partido)
-    if (minutos === undefined || partidos === undefined || minutosPorPartido === undefined) {
-      setError('Minutos jugados, partidos jugados y minutos por partido tienen que ser números')
+    if (partidos === undefined) {
+      setError('Partidos jugados tiene que ser un número')
       return
     }
 
@@ -566,10 +648,8 @@ function Caracteristicas({ jugador, onActualizado }) {
     try {
       await api.put(`/jugadores/${jugador.id}/caracteristicas`, {
         pie: form.pie,
-        posicion_cancha: form.posicion_cancha,
-        minutos_jugados: minutos,
+        posiciones_cancha: form.posiciones_cancha,
         partidos_jugados: partidos,
-        minutos_por_partido: minutosPorPartido,
       })
       setEditando(false)
       onActualizado()
@@ -594,7 +674,14 @@ function Caracteristicas({ jugador, onActualizado }) {
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="caracteristicas-layout">
-        <Cancha posicion={editando ? form.posicion_cancha : jugador.posicion_cancha} />
+        <div>
+          <Cancha
+            posiciones={editando ? form.posiciones_cancha : jugador.posiciones_cancha}
+            editable={editando}
+            onToggle={toggleSector}
+          />
+          {editando && <p className="texto-muted cancha-hint">Tocá la cancha para marcar los sectores que ocupa</p>}
+        </div>
 
         {!editando ? (
           <dl className="info-lista">
@@ -602,16 +689,11 @@ function Caracteristicas({ jugador, onActualizado }) {
               label="Pie"
               valor={jugador.pie === 'derecho' ? 'Derecho' : jugador.pie === 'izquierdo' ? 'Izquierdo' : null}
             />
-            <Dato label="Posición" valor={jugador.posicion_cancha} />
             <Dato
-              label="Minutos jugados"
-              valor={jugador.minutos_jugados != null ? `${jugador.minutos_jugados}’` : null}
+              label="Sectores de cancha"
+              valor={jugador.posiciones_cancha?.length > 0 ? jugador.posiciones_cancha.join(', ') : null}
             />
             <Dato label="Partidos jugados" valor={jugador.partidos_jugados} />
-            <Dato
-              label="Minutos por partido"
-              valor={jugador.minutos_por_partido != null ? `${jugador.minutos_por_partido}’` : null}
-            />
           </dl>
         ) : (
           <form className="form-edicion" onSubmit={guardar}>
@@ -624,27 +706,6 @@ function Caracteristicas({ jugador, onActualizado }) {
               </select>
             </div>
             <div className="field">
-              <label>Posición</label>
-              <select value={form.posicion_cancha} onChange={onChange('posicion_cancha')}>
-                <option value="">Sin definir</option>
-                {POSICIONES_CANCHA.map((p) => (
-                  <option key={p.valor} value={p.valor}>
-                    {p.valor}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label>Minutos jugados</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Ej: 60"
-                value={form.minutos_jugados}
-                onChange={onChange('minutos_jugados')}
-              />
-            </div>
-            <div className="field">
               <label>Partidos jugados</label>
               <input
                 type="text"
@@ -652,16 +713,6 @@ function Caracteristicas({ jugador, onActualizado }) {
                 placeholder="Ej: 12"
                 value={form.partidos_jugados}
                 onChange={onChange('partidos_jugados')}
-              />
-            </div>
-            <div className="field">
-              <label>Minutos por partido</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Ej: 75"
-                value={form.minutos_por_partido}
-                onChange={onChange('minutos_por_partido')}
               />
             </div>
 
@@ -816,6 +867,12 @@ function ComposicionCorporal({ jugador, onActualizado }) {
   )
 }
 
+const etiquetaCarga = (carga) => {
+  const f = new Date(carga.fecha)
+  const dia = `${String(f.getUTCDate()).padStart(2, '0')}/${String(f.getUTCMonth() + 1).padStart(2, '0')}`
+  return `Cargas físicas día ${dia}` + (carga.titulo ? ` (${carga.titulo})` : '')
+}
+
 function CargasFisicas({ jugadorId }) {
   const [cargas, setCargas] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -863,8 +920,7 @@ function CargasFisicas({ jugadorId }) {
   }
 
   const eliminar = async (carga) => {
-    const etiqueta = carga.titulo || new Date(carga.fecha).toLocaleDateString('es-AR')
-    if (!window.confirm(`¿Eliminar la carga física "${etiqueta}"? Esta acción no se puede deshacer.`)) {
+    if (!window.confirm(`¿Eliminar "${etiquetaCarga(carga)}"? Esta acción no se puede deshacer.`)) {
       return
     }
 
@@ -893,36 +949,31 @@ function CargasFisicas({ jugadorId }) {
       )}
 
       {!cargando && cargas.length > 0 && (
-        <table className="tabla tabla-compacta">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Título</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {cargas.map((c) => (
-              <tr key={c.id}>
-                <td>{new Date(c.fecha).toLocaleDateString('es-AR')}</td>
-                <td>{c.titulo || <span className="texto-muted">—</span>}</td>
-                <td className="cargas-fisicas-acciones">
-                  <a
-                    className="btn btn-ghost btn-sm"
-                    href={`/api/jugadores/${jugadorId}/cargas-fisicas/${c.id}/archivo?token=${token}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Ver PDF ↗
-                  </a>
-                  <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(c)}>
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="cf-lista">
+          {cargas.map((c) => (
+            <div className="cf-item" key={c.id}>
+              <div className="cf-item-info">
+                <strong>{etiquetaCarga(c)}</strong>
+                <span className="texto-muted">
+                  {new Date(c.fecha).toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+              <div className="cf-item-acciones">
+                <a
+                  className="btn btn-ghost btn-sm"
+                  href={`/api/jugadores/${jugadorId}/cargas-fisicas/${c.id}/archivo?token=${token}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ver PDF ↗
+                </a>
+                <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(c)}>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
       <hr className="divisor" />
@@ -935,11 +986,11 @@ function CargasFisicas({ jugadorId }) {
           <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </div>
         <div className="field">
-          <label>Título (opcional)</label>
+          <label>Aclaración (opcional)</label>
           <input
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Ej: Fecha 5 vs. Rival"
+            placeholder="Ej: partido, doble turno, recuperación"
           />
         </div>
         <div className="field">
@@ -1042,6 +1093,8 @@ function VideosJugador({ jugadorId }) {
             {v.descripcion && <p className="texto-muted">{v.descripcion}</p>}
             {v.tipo === 'archivo' ? (
               <video className="video-player" controls preload="metadata" src={`/api/biblioteca/videos/${v.id}/archivo?token=${token}`} />
+            ) : extraerIdYouTube(v.url_video) ? (
+              <YouTubePlayer videoId={extraerIdYouTube(v.url_video)} />
             ) : (
               <a className="btn btn-ghost btn-sm" href={v.url_video} target="_blank" rel="noreferrer">
                 Ver video externo ↗

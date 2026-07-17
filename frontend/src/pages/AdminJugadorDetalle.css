@@ -234,9 +234,27 @@
 }
 
 .cancha-marcador {
-  fill: var(--granate-700);
   stroke: #fff;
   stroke-width: 1.5;
+  transition: r 0.1s ease;
+}
+
+.cancha-marcador-activo {
+  fill: var(--granate-700);
+}
+
+.cancha-marcador-inactivo {
+  fill: rgba(255, 255, 255, 0.35);
+}
+
+.cancha-marcador-clickable {
+  cursor: pointer;
+}
+
+.cancha-hint {
+  text-align: center;
+  font-size: 12px;
+  margin-top: 6px;
 }
 
 @media (max-width: 900px) {
@@ -253,6 +271,40 @@
 }
 
 .cargas-fisicas-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.cf-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.cf-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+
+.cf-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cf-item-info span {
+  font-size: 12.5px;
+  text-transform: capitalize;
+}
+
+.cf-item-acciones {
   display: flex;
   gap: 8px;
 }

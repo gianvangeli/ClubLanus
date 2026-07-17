@@ -1,5 +1,7 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
+const bcrypt = require("bcrypt");
 const db = require("../config/db");
 
 // Posiciones válidas para el gráfico de cancha (ver POSICIONES_CANCHA en el frontend)
@@ -19,8 +21,8 @@ const POSICIONES_CANCHA = [
 // Alta de jugador (ficha del cuerpo técnico): nombre, apellido, edad, altura.
 // El peso no se carga acá: se registra desde la ficha del jugador como una
 // medición de composición corporal (peso + % grasa corporal).
-// No requiere una cuenta de usuario todavía: se puede vincular después con
-// vincularUsuario cuando el jugador se registre por su cuenta en /api/auth/register.
+// No requiere una cuenta de usuario todavía: se crea después con
+// crearCuentaJugador, pidiéndole el mail al jugador.
 const crearJugador = async (req, res) => {
   try {
     const { nombre, apellido, edad, altura, usuario_id } = req.body;
@@ -64,7 +66,57 @@ const listarJugadores = async (req, res) => {
   }
 };
 
-// Vincula una ficha de jugador con su cuenta de usuario (creada vía /api/auth/register)
+// Crea la cuenta de acceso del jugador (rol 'jugador') a partir de su mail,
+// la vincula a la ficha y devuelve una contraseña provisoria generada al
+// azar para que el cuerpo técnico se la comparta al jugador. El jugador no
+// se registra por sí mismo: la cuenta la da de alta el cuerpo técnico.
+const crearCuentaJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Falta el mail del jugador" });
+    }
+
+    const [jugadores] = await db.query("SELECT id, nombre, apellido, usuario_id FROM jugadores WHERE id = ?", [id]);
+    if (jugadores.length === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+    if (jugadores[0].usuario_id) {
+      return res.status(409).json({ message: "Este jugador ya tiene una cuenta vinculada" });
+    }
+
+    const [existentes] = await db.query("SELECT id FROM usuarios WHERE email = ?", [email]);
+    if (existentes.length > 0) {
+      return res.status(409).json({ message: "Ya existe una cuenta con ese mail" });
+    }
+
+    const passwordProvisoria = crypto.randomBytes(6).toString("base64url");
+    const hashedPassword = await bcrypt.hash(passwordProvisoria, 10);
+    const nombreCompleto = `${jugadores[0].nombre} ${jugadores[0].apellido}`;
+
+    const [result] = await db.query(
+      "INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, 'jugador')",
+      [nombreCompleto, email, hashedPassword]
+    );
+
+    await db.query("UPDATE jugadores SET usuario_id = ? WHERE id = ?", [result.insertId, id]);
+
+    res.status(201).json({
+      message: "Cuenta creada y vinculada correctamente",
+      email,
+      password: passwordProvisoria,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al crear la cuenta del jugador",
+      error: error.message,
+    });
+  }
+};
+
+// Vincula una ficha de jugador con una cuenta de usuario ya existente
 const vincularUsuario = async (req, res) => {
   try {
     const jugadorId = req.params.id;
@@ -107,12 +159,14 @@ const obtenerJugador = async (req, res) => {
     const { id } = req.params;
 
     const [jugadores] = await db.query(
-      `SELECT id, usuario_id, nombre, apellido, edad, peso, altura, nacionalidad_1, nacionalidad_2, posicion, categoria, division_nombre,
-              contrato, agente_nombre, agente_apellido, agente_mail, agente_telefono,
-              contacto_emergencia_nombre, contacto_emergencia_apellido, contacto_emergencia_relacion, contacto_emergencia_telefono,
-              pie, posicion_cancha, minutos_jugados, partidos_jugados, minutos_por_partido,
-              creado_en
-       FROM jugadores WHERE id = ?`,
+      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.edad, j.peso, j.altura, j.nacionalidad_1, j.nacionalidad_2, j.posicion, j.categoria, j.division_nombre,
+              j.contrato, j.agente_nombre, j.agente_apellido, j.agente_mail, j.agente_telefono,
+              j.contacto_emergencia_nombre, j.contacto_emergencia_apellido, j.contacto_emergencia_relacion, j.contacto_emergencia_telefono,
+              j.pie, j.posiciones_cancha, j.partidos_jugados,
+              j.creado_en, u.email AS usuario_email
+       FROM jugadores j
+       LEFT JOIN usuarios u ON u.id = j.usuario_id
+       WHERE j.id = ?`,
       [id]
     );
 
@@ -120,7 +174,10 @@ const obtenerJugador = async (req, res) => {
       return res.status(404).json({ message: "Jugador no encontrado" });
     }
 
-    res.json(jugadores[0]);
+    const jugador = jugadores[0];
+    jugador.posiciones_cancha = jugador.posiciones_cancha ? JSON.parse(jugador.posiciones_cancha) : [];
+
+    res.json(jugador);
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el jugador",
@@ -316,31 +373,33 @@ const actualizarContactoEmergencia = async (req, res) => {
   }
 };
 
-// Carga/edita las características del jugador: pie hábil, posición en la
-// cancha (para el gráfico) y minutos jugados.
+// Carga/edita las características del jugador: pie hábil, sectores de la
+// cancha que ocupa (uno o más) y partidos jugados. Los minutos jugados y
+// minutos por partido se llevan en Cargas Físicas, no acá.
 const actualizarCaracteristicas = async (req, res) => {
   try {
     const { id } = req.params;
-    const { pie, posicion_cancha, minutos_jugados, partidos_jugados, minutos_por_partido } = req.body;
+    const { pie, partidos_jugados } = req.body;
+    const posicionesCancha = Array.isArray(req.body.posiciones_cancha)
+      ? req.body.posiciones_cancha
+      : [req.body.posiciones_cancha].filter(Boolean);
 
     if (pie && !["derecho", "izquierdo"].includes(pie)) {
       return res.status(400).json({ message: "Pie tiene que ser 'derecho' o 'izquierdo'" });
     }
 
-    if (posicion_cancha && !POSICIONES_CANCHA.includes(posicion_cancha)) {
+    if (posicionesCancha.some((p) => !POSICIONES_CANCHA.includes(p))) {
       return res.status(400).json({ message: "Posición inválida" });
     }
 
     const [result] = await db.query(
       `UPDATE jugadores
-       SET pie = ?, posicion_cancha = ?, minutos_jugados = ?, partidos_jugados = ?, minutos_por_partido = ?
+       SET pie = ?, posiciones_cancha = ?, partidos_jugados = ?
        WHERE id = ?`,
       [
         pie || null,
-        posicion_cancha || null,
-        minutos_jugados || null,
+        posicionesCancha.length > 0 ? JSON.stringify(posicionesCancha) : null,
         partidos_jugados || null,
-        minutos_por_partido || null,
         id,
       ]
     );
@@ -515,6 +574,7 @@ const listarVideosJugador = async (req, res) => {
 module.exports = {
   crearJugador,
   listarJugadores,
+  crearCuentaJugador,
   vincularUsuario,
   obtenerJugador,
   actualizarJugador,

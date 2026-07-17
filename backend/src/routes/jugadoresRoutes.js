@@ -4,6 +4,7 @@ const router = express.Router();
 const {
   crearJugador,
   listarJugadores,
+  crearCuentaJugador,
   vincularUsuario,
   obtenerJugador,
   actualizarJugador,
@@ -45,7 +46,15 @@ router.put("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), actualizar
 // Eliminar la ficha de un jugador (por error de carga del cuerpo técnico)
 router.delete("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), eliminarJugador);
 
-// Vincular una ficha de jugador con su cuenta de usuario
+// Crear la cuenta de acceso del jugador (a partir de su mail) y vincularla
+router.post(
+  "/:id/cuenta",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  crearCuentaJugador
+);
+
+// Vincular una ficha de jugador con una cuenta de usuario ya existente
 router.put(
   "/:id/vincular-usuario",
   verificarToken,
