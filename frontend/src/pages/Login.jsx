@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { extraerError } from '../api/client'
 import EscudoClub from '../components/EscudoClub'
@@ -73,10 +73,6 @@ export default function Login() {
             {cargando ? <span className="spinner" /> : 'Ingresar'}
           </button>
         </form>
-
-        <p className="auth-footer">
-          ¿Sos jugador y no tenés cuenta? <Link to="/registro">Registrate acá</Link>
-        </p>
       </div>
     </div>
   )

@@ -3,10 +3,7 @@ const router = express.Router();
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 
-const { register, registrarStaff, login } = require("../controllers/authController");
-
-// Registro público: solo jugadores (acceso a Biblioteca)
-router.post("/register", register);
+const { registrarStaff, login } = require("../controllers/authController");
 
 // Alta de cuerpo técnico: solo admin
 router.post(

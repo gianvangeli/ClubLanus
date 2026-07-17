@@ -26,11 +26,6 @@ export function AuthProvider({ children }) {
     return data.usuario
   }
 
-  const registrar = async (nombre, email, password) => {
-    await api.post('/auth/register', { nombre, email, password })
-    return login(email, password)
-  }
-
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('usuario')
@@ -40,7 +35,7 @@ export function AuthProvider({ children }) {
   const esCuerpoTecnico = usuario ? CUERPO_TECNICO.includes(usuario.rol) : false
 
   const value = useMemo(
-    () => ({ usuario, cargando, login, registrar, logout, esCuerpoTecnico }),
+    () => ({ usuario, cargando, login, logout, esCuerpoTecnico }),
     [usuario, cargando]
   )
 
