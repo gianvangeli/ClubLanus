@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import api, { extraerError } from '../api/client'
+import api, { API_BASE, extraerError } from '../api/client'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
 import './BibliotecaJugadorDetalle.css'
@@ -133,7 +133,7 @@ function VideoItem({ video, bibliotecaId }) {
           onPlay={onPlay}
           onPause={onPause}
           onEnded={onEnded}
-          src={`/api/biblioteca/videos/${video.id}/archivo?token=${token}`}
+          src={`${API_BASE}/api/biblioteca/videos/${video.id}/archivo?token=${token}`}
         />
       ) : idYouTube ? (
         <YouTubePlayer videoId={idYouTube} onAbrir={registrarApertura} onProgreso={reportarProgreso} />

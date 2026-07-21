@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import api, { extraerError } from '../api/client'
+import api, { API_BASE, extraerError } from '../api/client'
 import { aNumero } from '../utils/numero'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
@@ -961,7 +961,7 @@ function CargasFisicas({ jugadorId }) {
               <div className="cf-item-acciones">
                 <a
                   className="btn btn-ghost btn-sm"
-                  href={`/api/jugadores/${jugadorId}/cargas-fisicas/${c.id}/archivo?token=${token}`}
+                  href={`${API_BASE}/api/jugadores/${jugadorId}/cargas-fisicas/${c.id}/archivo?token=${token}`}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -1092,7 +1092,7 @@ function VideosJugador({ jugadorId }) {
             </div>
             {v.descripcion && <p className="texto-muted">{v.descripcion}</p>}
             {v.tipo === 'archivo' ? (
-              <video className="video-player" controls preload="metadata" src={`/api/biblioteca/videos/${v.id}/archivo?token=${token}`} />
+              <video className="video-player" controls preload="metadata" src={`${API_BASE}/api/biblioteca/videos/${v.id}/archivo?token=${token}`} />
             ) : extraerIdYouTube(v.url_video) ? (
               <YouTubePlayer videoId={extraerIdYouTube(v.url_video)} />
             ) : (

@@ -1,7 +1,12 @@
 import axios from 'axios'
 
+// En local, Vite redirige /api al backend (ver vite.config.js). En
+// producción no hay ese proxy, así que hace falta la URL completa del
+// backend desplegado, cargada en build time vía VITE_API_URL.
+export const API_BASE = import.meta.env.VITE_API_URL || ''
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE}/api`,
 })
 
 api.interceptors.request.use((config) => {

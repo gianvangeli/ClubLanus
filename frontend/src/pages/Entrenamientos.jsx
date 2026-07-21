@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import api, { extraerError } from '../api/client'
+import api, { API_BASE, extraerError } from '../api/client'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
 import './Entrenamientos.css'
@@ -153,7 +153,7 @@ export function Planificacion({ sesion }) {
       {s.dibujo_url && (
         <img
           className="entren-dibujo"
-          src={`/api/entrenamientos/${s.id}/dibujo?token=${token}`}
+          src={`${API_BASE}/api/entrenamientos/${s.id}/dibujo?token=${token}`}
           alt="Dibujo táctico de la sesión"
         />
       )}
@@ -179,7 +179,7 @@ export function VideoEntrenamiento({ video, puedeEliminar, onEliminar }) {
           className="video-player"
           controls
           preload="metadata"
-          src={`/api/entrenamientos/videos/${video.id}/archivo?token=${token}`}
+          src={`${API_BASE}/api/entrenamientos/videos/${video.id}/archivo?token=${token}`}
         />
       ) : extraerIdYouTube(video.url_video) ? (
         <YouTubePlayer videoId={extraerIdYouTube(video.url_video)} />
@@ -543,7 +543,7 @@ function VideoRutina({ video }) {
           className="video-player"
           controls
           preload="metadata"
-          src={`/api/rutinas/videos/${video.id}/archivo?token=${token}`}
+          src={`${API_BASE}/api/rutinas/videos/${video.id}/archivo?token=${token}`}
         />
       ) : extraerIdYouTube(video.url_video) ? (
         <YouTubePlayer videoId={extraerIdYouTube(video.url_video)} />
