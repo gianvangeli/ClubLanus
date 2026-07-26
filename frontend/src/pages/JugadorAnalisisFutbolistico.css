@@ -1,0 +1,48 @@
+.af-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .af-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.af-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.af-item {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.af-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.af-texto {
+  margin-top: 10px;
+}
+
+.af-texto dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.af-texto dd {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}

@@ -1,0 +1,132 @@
+.menu-secciones {
+  position: relative;
+}
+
+.menu-secciones-boton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-secciones-icono {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.menu-secciones-icono span {
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+/* --- Panel oscuro, tipo selector de área/equipo --- */
+
+.msj-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  background: #1d1216;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  padding: 10px;
+  z-index: 30;
+}
+
+.msj-panel-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
+}
+
+.msj-panel-header-titulo {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f5eef0;
+}
+
+.msj-panel-header-sub {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #a99aa1;
+}
+
+.msj-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.msj-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #f5eef0;
+}
+
+.msj-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.msj-item-activo,
+.msj-item-activo:hover {
+  background: #7a1230;
+}
+
+.msj-item-icono {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.msj-icono-granate {
+  background: #c96a7c;
+  color: #2b1017;
+}
+
+.msj-icono-oro {
+  background: #d9c284;
+  color: #2b1c10;
+}
+
+.msj-icono-gris {
+  background: #c7c5ca;
+  color: #221d20;
+}
+
+.msj-item-etiqueta {
+  flex: 1;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.msj-item-check {
+  font-size: 13px;
+  font-weight: 700;
+  color: #d9c284;
+}
+
+@media (max-width: 480px) {
+  .msj-panel {
+    width: 220px;
+  }
+}

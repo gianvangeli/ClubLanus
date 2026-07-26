@@ -1,0 +1,62 @@
+.perfil-psicosocial-texto {
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.informes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.informe-item {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.informe-item-fecha {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--granate-700);
+}
+
+.informe-texto {
+  margin-top: 10px;
+}
+
+.informe-texto dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.informe-texto dd {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.mis-jugadores-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mis-jugadores-item {
+  display: block;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+  transition: border-color 0.15s ease;
+}
+
+.mis-jugadores-item:hover {
+  border-color: var(--granate-500);
+}

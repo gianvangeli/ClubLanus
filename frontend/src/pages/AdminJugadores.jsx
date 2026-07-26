@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import { aNumero } from '../utils/numero'
+import { calcularEdad } from '../utils/fecha'
 import './AdminJugadores.css'
 
-const VACIO = { nombre: '', apellido: '', edad: '', altura: '' }
+const VACIO = { nombre: '', apellido: '', fecha_nacimiento: '', altura: '' }
 
 const COLORES_AVATAR = ['avatar-granate', 'avatar-oro', 'avatar-gris', 'avatar-granate-claro']
 
@@ -50,11 +51,10 @@ export default function AdminJugadores() {
     setError('')
     setMensaje('')
 
-    const edad = aNumero(form.edad)
     const altura = aNumero(form.altura)
 
-    if (edad === undefined || altura === undefined) {
-      setError('Edad y altura tienen que ser números (podés usar coma o punto)')
+    if (altura === undefined) {
+      setError('Altura tiene que ser un número (podés usar coma o punto)')
       return
     }
 
@@ -63,7 +63,7 @@ export default function AdminJugadores() {
       await api.post('/jugadores', {
         nombre: form.nombre,
         apellido: form.apellido,
-        edad,
+        fecha_nacimiento: form.fecha_nacimiento || null,
         altura,
       })
       setMensaje('Jugador registrado correctamente')
@@ -91,7 +91,6 @@ export default function AdminJugadores() {
         <div className="page-header">
           <div>
             <h1>Jugadores</h1>
-            <p>Fichas físicas del plantel — solo cuerpo técnico</p>
           </div>
         </div>
 
@@ -126,14 +125,15 @@ export default function AdminJugadores() {
               <input value={form.apellido} onChange={onChange('apellido')} required />
             </div>
             <div className="field">
-              <label>Edad</label>
+              <label>Fecha de nacimiento</label>
               <input
-                type="text"
-                inputMode="numeric"
-                placeholder="Años"
-                value={form.edad}
-                onChange={onChange('edad')}
+                type="date"
+                value={form.fecha_nacimiento}
+                onChange={onChange('fecha_nacimiento')}
               />
+              {calcularEdad(form.fecha_nacimiento) !== null && (
+                <span className="jg-edad-preview">{calcularEdad(form.fecha_nacimiento)} años</span>
+              )}
             </div>
             <div className="field">
               <label>Altura (m)</label>
@@ -183,7 +183,6 @@ export default function AdminJugadores() {
                       </div>
                       <div className="jg-fila-chips">
                         {j.edad && <span className="jg-chip">{j.edad} años</span>}
-                        {j.altura && <span className="jg-chip">{j.altura} m</span>}
                         {j.peso && <span className="jg-chip">{j.peso} kg</span>}
                         {j.usuario_id ? (
                           <span className="jg-chip jg-chip-oro">Vinculado</span>

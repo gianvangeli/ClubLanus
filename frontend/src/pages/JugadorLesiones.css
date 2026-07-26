@@ -1,0 +1,82 @@
+.lesiones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lesion-item {
+  display: block;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.lesion-item:hover {
+  border-color: var(--granate-500);
+}
+
+.lesion-item-info {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lesion-item-info strong {
+  font-size: 14.5px;
+}
+
+.lesion-item-preview {
+  margin-top: 6px;
+  font-size: 13px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lesion-texto-libre {
+  margin-top: 14px;
+}
+
+.lesion-texto-libre dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.lesion-texto-libre dd {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.lesion-archivos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.lesion-archivo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+
+.lesion-archivo-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}

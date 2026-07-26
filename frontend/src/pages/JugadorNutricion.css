@@ -1,0 +1,31 @@
+.form-nutricion-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .form-nutricion-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.tabla-scroll {
+  overflow-x: auto;
+}
+
+.tabla-nutricion {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+.tabla-nutricion th,
+.tabla-nutricion td {
+  border-bottom: 1px solid var(--border);
+}
+
+.tabla-nutricion td:last-child,
+.tabla-nutricion th:last-child {
+  white-space: normal;
+}

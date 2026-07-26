@@ -39,15 +39,24 @@ export default function Layout() {
               <NavLink to="/admin/biblioteca" className="navbar-link">
                 Biblioteca
               </NavLink>
+              <NavLink to="/entrenamientos" className="navbar-link">
+                Entrenamientos
+              </NavLink>
             </>
-          ) : (
-            <NavLink to="/biblioteca" className="navbar-link">
-              Biblioteca
+          ) : usuario?.rol === 'psicologo' ? (
+            <NavLink to="/psicologia" className="navbar-link">
+              Psicología
             </NavLink>
+          ) : (
+            <>
+              <NavLink to="/biblioteca" className="navbar-link">
+                Biblioteca
+              </NavLink>
+              <NavLink to="/entrenamientos" className="navbar-link">
+                Entrenamientos
+              </NavLink>
+            </>
           )}
-          <NavLink to="/entrenamientos" className="navbar-link">
-            Entrenamientos
-          </NavLink>
         </nav>
 
         <div className="navbar-user">

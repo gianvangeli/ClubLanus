@@ -17,23 +17,41 @@ const POSICIONES_CANCHA = [
   "Delantero",
 ];
 
-// Alta de jugador (ficha del cuerpo técnico): nombre, apellido, edad, altura.
-// El peso no se carga acá: se registra desde la ficha del jugador como una
-// medición de composición corporal (peso + % grasa corporal).
-// No requiere una cuenta de usuario todavía: se crea después con
+// La edad nunca se carga a mano: se calcula siempre a partir de la fecha de
+// nacimiento, tanto en el listado como en la ficha individual.
+const calcularEdad = (fechaNacimiento) => {
+  if (!fechaNacimiento) return null;
+
+  const fecha = new Date(fechaNacimiento);
+  if (Number.isNaN(fecha.getTime())) return null;
+
+  const hoy = new Date();
+  let edad = hoy.getFullYear() - fecha.getUTCFullYear();
+  const diffMes = hoy.getMonth() - fecha.getUTCMonth();
+  if (diffMes < 0 || (diffMes === 0 && hoy.getDate() < fecha.getUTCDate())) {
+    edad--;
+  }
+
+  return edad;
+};
+
+// Alta de jugador (ficha del cuerpo técnico): nombre, apellido, fecha de
+// nacimiento, altura. El peso no se carga acá: se registra desde la ficha
+// del jugador como una medición de composición corporal (peso + % grasa
+// corporal). No requiere una cuenta de usuario todavía: se crea después con
 // crearCuentaJugador, pidiéndole el mail al jugador.
 const crearJugador = async (req, res) => {
   try {
-    const { nombre, apellido, edad, altura, usuario_id } = req.body;
+    const { nombre, apellido, fecha_nacimiento, altura, usuario_id } = req.body;
 
     if (!nombre || !apellido) {
       return res.status(400).json({ message: "Nombre y apellido son obligatorios" });
     }
 
     const [result] = await db.query(
-      `INSERT INTO jugadores (usuario_id, nombre, apellido, edad, altura)
+      `INSERT INTO jugadores (usuario_id, nombre, apellido, fecha_nacimiento, altura)
        VALUES (?, ?, ?, ?, ?)`,
-      [usuario_id || null, nombre, apellido, edad || null, altura || null]
+      [usuario_id || null, nombre, apellido, fecha_nacimiento || null, altura || null]
     );
 
     res.status(201).json({
@@ -51,12 +69,12 @@ const crearJugador = async (req, res) => {
 const listarJugadores = async (req, res) => {
   try {
     const [jugadores] = await db.query(
-      `SELECT id, usuario_id, nombre, apellido, edad, peso, altura, posicion, categoria, division_nombre, creado_en
+      `SELECT id, usuario_id, nombre, apellido, fecha_nacimiento, peso, altura, posicion, categoria, division_nombre, creado_en
        FROM jugadores
        ORDER BY apellido, nombre`
     );
 
-    res.json(jugadores);
+    res.json(jugadores.map((j) => ({ ...j, edad: calcularEdad(j.fecha_nacimiento) })));
   } catch (error) {
     res.status(500).json({
       message: "Error al listar jugadores",
@@ -152,19 +170,107 @@ const vincularUsuario = async (req, res) => {
   }
 };
 
+// Crea la cuenta del psicólogo asignado al jugador (rol 'psicologo') y la
+// vincula. Es la única cuenta con acceso a los informes psicológicos del
+// jugador: ni el cuerpo técnico ni la dirigencia pueden verlos, por eso acá
+// se pide el nombre del psicólogo (no es el jugador quien se loguea).
+const crearCuentaPsicologo = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, email } = req.body;
+
+    if (!nombre || !email) {
+      return res.status(400).json({ message: "Faltan el nombre y el mail del psicólogo" });
+    }
+
+    const [jugadores] = await db.query("SELECT id, psicologo_id FROM jugadores WHERE id = ?", [id]);
+    if (jugadores.length === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+    if (jugadores[0].psicologo_id) {
+      return res.status(409).json({ message: "Este jugador ya tiene un psicólogo asignado" });
+    }
+
+    const [existentes] = await db.query("SELECT id FROM usuarios WHERE email = ?", [email]);
+    if (existentes.length > 0) {
+      return res.status(409).json({ message: "Ya existe una cuenta con ese mail" });
+    }
+
+    const passwordProvisoria = crypto.randomBytes(6).toString("base64url");
+    const hashedPassword = await bcrypt.hash(passwordProvisoria, 10);
+
+    const [result] = await db.query(
+      "INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, 'psicologo')",
+      [nombre, email, hashedPassword]
+    );
+
+    await db.query("UPDATE jugadores SET psicologo_id = ? WHERE id = ?", [result.insertId, id]);
+
+    res.status(201).json({
+      message: "Cuenta de psicólogo creada y vinculada correctamente",
+      email,
+      password: passwordProvisoria,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al crear la cuenta del psicólogo",
+      error: error.message,
+    });
+  }
+};
+
+// Vincula al jugador con una cuenta de psicólogo ya existente (para cuando
+// el mismo psicólogo atiende a más de un jugador del plantel)
+const vincularPsicologo = async (req, res) => {
+  try {
+    const jugadorId = req.params.id;
+    const { usuario_id } = req.body;
+
+    if (!usuario_id) {
+      return res.status(400).json({ message: "Falta usuario_id" });
+    }
+
+    const [usuarios] = await db.query(
+      "SELECT id FROM usuarios WHERE id = ? AND rol = 'psicologo'",
+      [usuario_id]
+    );
+
+    if (usuarios.length === 0) {
+      return res.status(404).json({ message: "No existe un usuario psicólogo con ese id" });
+    }
+
+    await db.query("UPDATE jugadores SET psicologo_id = ? WHERE id = ?", [
+      usuario_id,
+      jugadorId,
+    ]);
+
+    res.json({
+      message: "Psicólogo vinculado correctamente",
+      jugador_id: Number(jugadorId),
+      usuario_id,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al vincular el psicólogo",
+      error: error.message,
+    });
+  }
+};
+
 // Ficha completa de un jugador: datos + última medición de composición corporal
 const obtenerJugador = async (req, res) => {
   try {
     const { id } = req.params;
 
     const [jugadores] = await db.query(
-      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.edad, j.peso, j.altura, j.nacionalidad_1, j.nacionalidad_2, j.posicion, j.categoria, j.division_nombre,
+      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.fecha_nacimiento, j.peso, j.altura, j.nacionalidad_1, j.nacionalidad_2, j.posicion, j.categoria, j.division_nombre,
               j.contrato, j.agente_nombre, j.agente_apellido, j.agente_mail, j.agente_telefono,
               j.contacto_emergencia_nombre, j.contacto_emergencia_apellido, j.contacto_emergencia_relacion, j.contacto_emergencia_telefono,
-              j.pie, j.posiciones_cancha, j.partidos_jugados,
-              j.creado_en, u.email AS usuario_email
+              j.pie, j.posiciones_cancha, j.partidos_jugados, j.psicologo_id,
+              j.creado_en, u.email AS usuario_email, p.email AS psicologo_email
        FROM jugadores j
        LEFT JOIN usuarios u ON u.id = j.usuario_id
+       LEFT JOIN usuarios p ON p.id = j.psicologo_id
        WHERE j.id = ?`,
       [id]
     );
@@ -175,6 +281,7 @@ const obtenerJugador = async (req, res) => {
 
     const jugador = jugadores[0];
     jugador.posiciones_cancha = jugador.posiciones_cancha ? JSON.parse(jugador.posiciones_cancha) : [];
+    jugador.edad = calcularEdad(jugador.fecha_nacimiento);
 
     res.json(jugador);
   } catch (error) {
@@ -185,20 +292,20 @@ const obtenerJugador = async (req, res) => {
   }
 };
 
-// Edita los datos de la ficha (el peso se carga aparte, vía composición corporal)
+// Edita los datos de la ficha. El peso se carga aparte (vía composición
+// corporal) y posición/división ya no se editan acá: posición vive en
+// Características (posiciones_cancha) y división quedó fuera de la ficha.
 const actualizarJugador = async (req, res) => {
   try {
     const { id } = req.params;
     const {
       nombre,
       apellido,
-      edad,
+      fecha_nacimiento,
       altura,
       nacionalidad_1,
       nacionalidad_2,
-      posicion,
       categoria,
-      division_nombre,
       contrato,
     } = req.body;
 
@@ -212,19 +319,17 @@ const actualizarJugador = async (req, res) => {
 
     const [result] = await db.query(
       `UPDATE jugadores
-       SET nombre = ?, apellido = ?, edad = ?, altura = ?, nacionalidad_1 = ?, nacionalidad_2 = ?,
-           posicion = ?, categoria = ?, division_nombre = ?, contrato = ?
+       SET nombre = ?, apellido = ?, fecha_nacimiento = ?, altura = ?, nacionalidad_1 = ?, nacionalidad_2 = ?,
+           categoria = ?, contrato = ?
        WHERE id = ?`,
       [
         nombre,
         apellido,
-        edad || null,
+        fecha_nacimiento || null,
         altura || null,
         nacionalidad_1 || null,
         nacionalidad_2 || null,
-        posicion || null,
         categoria || null,
-        division_nombre || null,
         contrato || null,
         id,
       ]
@@ -372,13 +477,13 @@ const actualizarContactoEmergencia = async (req, res) => {
   }
 };
 
-// Carga/edita las características del jugador: pie hábil, sectores de la
-// cancha que ocupa (uno o más) y partidos jugados. Los minutos jugados y
-// minutos por partido se llevan en Cargas Físicas, no acá.
+// Carga/edita las características del jugador: pie hábil y sectores de la
+// cancha que ocupa (uno o más). Partidos jugados no corresponde a este
+// apartado y ya no se edita acá.
 const actualizarCaracteristicas = async (req, res) => {
   try {
     const { id } = req.params;
-    const { pie, partidos_jugados } = req.body;
+    const { pie } = req.body;
     const posicionesCancha = Array.isArray(req.body.posiciones_cancha)
       ? req.body.posiciones_cancha
       : [req.body.posiciones_cancha].filter(Boolean);
@@ -393,12 +498,11 @@ const actualizarCaracteristicas = async (req, res) => {
 
     const [result] = await db.query(
       `UPDATE jugadores
-       SET pie = ?, posiciones_cancha = ?, partidos_jugados = ?
+       SET pie = ?, posiciones_cancha = ?
        WHERE id = ?`,
       [
         pie || null,
         posicionesCancha.length > 0 ? JSON.stringify(posicionesCancha) : null,
-        partidos_jugados || null,
         id,
       ]
     );
@@ -575,6 +679,8 @@ module.exports = {
   listarJugadores,
   crearCuentaJugador,
   vincularUsuario,
+  crearCuentaPsicologo,
+  vincularPsicologo,
   obtenerJugador,
   actualizarJugador,
   eliminarJugador,

@@ -1,0 +1,127 @@
+.pf-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 20px;
+}
+
+.pf-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.pf-categoria {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.pf-categoria h4 {
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.pf-indicadores-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.pf-extra-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.pf-extra-row input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.pf-picos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pf-pico-item {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.pf-pico-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.pf-pico-indicadores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pf-indicador-chip {
+  background: var(--granate-50);
+  border: 1px solid var(--granate-100);
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.pf-texto-libre {
+  margin-top: 14px;
+}
+
+.pf-texto-libre dt {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.pf-texto-libre dd {
+  margin: 0 0 4px;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.pf-tabla-scroll {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.pf-tabla-comparacion {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+.pf-tabla-comparacion th,
+.pf-tabla-comparacion td {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  font-size: 13px;
+  text-align: left;
+}
+
+@media (max-width: 700px) {
+  .pf-form-row,
+  .pf-indicadores-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pf-extra-row {
+    grid-template-columns: 1fr;
+  }
+}

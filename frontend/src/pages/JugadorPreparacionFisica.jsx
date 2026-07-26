@@ -1,0 +1,790 @@
+import { useEffect, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import api, { API_BASE, extraerError } from '../api/client'
+import { aNumero } from '../utils/numero'
+import { formatFecha } from '../utils/fecha'
+import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
+import './AdminJugadorDetalle.css'
+import './PreparacionFisica.css'
+
+const TABS = [
+  { key: 'picos', etiqueta: 'Picos de máximo rendimiento' },
+  { key: 'cargas', etiqueta: 'Cargas físicas' },
+  { key: 'informe', etiqueta: 'Informe físico' },
+  { key: 'extra', etiqueta: 'Entrenamientos extra' },
+]
+
+// Modelo de indicadores de partida, según el ejemplo pasado por el cuerpo
+// técnico. Se puede seguir ajustando: el formulario permite además cargar
+// indicadores personalizados (ver "+ Agregar indicador").
+const PLANTILLA_INDICADORES = [
+  { categoria: 'Volumen de trabajo', indicadores: ['Distancia total (m)', 'Metros/min', 'PL por minuto'] },
+  {
+    categoria: 'Alta intensidad',
+    indicadores: ['HSR', 'Metros 19-24 km/h', 'Metros > 24 km/h', 'Metros > 30 km/h'],
+  },
+  {
+    categoria: 'Explosividad y velocidad',
+    indicadores: ['Velocidad máxima (km/h)', 'Sprints', 'RHIE — total de series'],
+  },
+  {
+    categoria: 'Frenos y arranques',
+    indicadores: [
+      'Aceleraciones Z2+Z3 (esfuerzos)',
+      'Desaceleraciones Z2-Z3 (esfuerzos)',
+      'Acc/Dec Z2-Z3 (esfuerzos)',
+      'Acc/Dec Z2-Z3 (por minuto)',
+    ],
+  },
+]
+
+export default function JugadorPreparacionFisica() {
+  const { id } = useParams()
+  const [jugador, setJugador] = useState(null)
+  const [tab, setTab] = useState('picos')
+
+  useEffect(() => {
+    api.get(`/jugadores/${id}`).then(({ data }) => setJugador(data))
+  }, [id])
+
+  const jugadorNombre = jugador ? `${jugador.nombre} ${jugador.apellido}` : ''
+
+  return (
+    <div className="page">
+      <Link to={`/admin/jugadores/${id}`} className="btn btn-ghost btn-sm">
+        ← Volver a la ficha
+      </Link>
+
+      <div className="seccion-especializada-header">
+        <h1>Preparación física{jugadorNombre ? ` — ${jugadorNombre}` : ''}</h1>
+        <MenuSeccionesJugador jugadorId={id} jugadorNombre={jugadorNombre} activa="preparacion-fisica" />
+      </div>
+
+      <div className="pf-tabs">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={`btn btn-sm ${tab === t.key ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setTab(t.key)}
+          >
+            {t.etiqueta}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'picos' && <PicosRendimiento jugadorId={id} />}
+      {tab === 'cargas' && <CargasPreparacionFisica jugadorId={id} />}
+      {tab === 'informe' && <InformeFisico jugadorId={id} />}
+      {tab === 'extra' && <EntrenamientosExtra jugadorId={id} />}
+    </div>
+  )
+}
+
+function PicosRendimiento({ jugadorId }) {
+  const [picos, setPicos] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [mostrarForm, setMostrarForm] = useState(false)
+  const [fecha, setFecha] = useState('')
+  const [partido, setPartido] = useState('')
+  const [valores, setValores] = useState({})
+  const [extras, setExtras] = useState([])
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+  const [modoComparar, setModoComparar] = useState(false)
+  const [seleccionados, setSeleccionados] = useState([])
+
+  const cargar = () => {
+    setCargando(true)
+    api
+      .get(`/jugadores/${jugadorId}/picos-rendimiento`)
+      .then(({ data }) => setPicos(data))
+      .finally(() => setCargando(false))
+  }
+
+  useEffect(cargar, [jugadorId])
+
+  const abrirForm = () => {
+    setFecha(new Date().toISOString().slice(0, 10))
+    setPartido('')
+    setValores({})
+    setExtras([])
+    setError('')
+    setMostrarForm(true)
+  }
+
+  const onCambiarValor = (clave) => (e) => setValores({ ...valores, [clave]: e.target.value })
+
+  const agregarExtra = () => setExtras([...extras, { categoria: '', indicador: '', valor: '' }])
+  const cambiarExtra = (i, campo) => (e) => {
+    const copia = [...extras]
+    copia[i] = { ...copia[i], [campo]: e.target.value }
+    setExtras(copia)
+  }
+  const quitarExtra = (i) => setExtras(extras.filter((_, idx) => idx !== i))
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (!fecha || !partido.trim()) {
+      setError('Fecha y partido son obligatorios')
+      return
+    }
+
+    const indicadores = []
+    for (const { categoria, indicadores: nombres } of PLANTILLA_INDICADORES) {
+      for (const nombre of nombres) {
+        const clave = `${categoria}|${nombre}`
+        const valor = aNumero(valores[clave])
+        if (valor === undefined) {
+          setError(`"${nombre}" tiene que ser un número (podés usar coma o punto)`)
+          return
+        }
+        if (valor !== null) {
+          indicadores.push({ categoria, indicador: nombre, valor })
+        }
+      }
+    }
+
+    for (const extra of extras) {
+      if (!extra.indicador.trim()) continue
+      const valor = aNumero(extra.valor)
+      if (valor === undefined) {
+        setError(`"${extra.indicador}" tiene que ser un número (podés usar coma o punto)`)
+        return
+      }
+      if (valor !== null) {
+        indicadores.push({ categoria: extra.categoria || 'Otros', indicador: extra.indicador, valor })
+      }
+    }
+
+    if (indicadores.length === 0) {
+      setError('Cargá al menos un indicador')
+      return
+    }
+
+    setEnviando(true)
+    try {
+      await api.post(`/jugadores/${jugadorId}/picos-rendimiento`, { fecha, partido, indicadores })
+      setMostrarForm(false)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo registrar la evaluación'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const eliminar = async (pico) => {
+    if (!window.confirm(`¿Eliminar la evaluación del ${formatFecha(pico.fecha)} (${pico.partido})?`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/jugadores/${jugadorId}/picos-rendimiento/${pico.id}`)
+      setSeleccionados((prev) => prev.filter((selId) => selId !== pico.id))
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar la evaluación'))
+    }
+  }
+
+  const toggleSeleccionado = (picoId) => {
+    setSeleccionados((prev) => (prev.includes(picoId) ? prev.filter((selId) => selId !== picoId) : [...prev, picoId]))
+  }
+
+  const picosSeleccionados = picos.filter((p) => seleccionados.includes(p.id))
+  const indicadoresComparados = Array.from(
+    new Set(picosSeleccionados.flatMap((p) => p.indicadores.map((i) => `${i.categoria}|${i.indicador}`)))
+  )
+
+  return (
+    <div className="card seccion">
+      <div className="seccion-header">
+        <h3>Picos de máximo rendimiento</h3>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className={`btn btn-sm ${modoComparar ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => {
+              setModoComparar(!modoComparar)
+              setSeleccionados([])
+            }}
+          >
+            Comparar
+          </button>
+          {!mostrarForm && (
+            <button className="btn btn-primary btn-sm" onClick={abrirForm}>
+              + Nueva evaluación
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {mostrarForm && (
+        <form className="form-edicion" onSubmit={guardar}>
+          <div className="pf-form-row">
+            <div className="field">
+              <label>Fecha</label>
+              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
+            </div>
+            <div className="field">
+              <label>Partido</label>
+              <input
+                value={partido}
+                onChange={(e) => setPartido(e.target.value)}
+                placeholder="Ej: Fecha 18 vs Boca"
+                required
+              />
+            </div>
+          </div>
+
+          {PLANTILLA_INDICADORES.map(({ categoria, indicadores: nombres }) => (
+            <div key={categoria} className="pf-categoria">
+              <h4>{categoria}</h4>
+              <div className="pf-indicadores-grid">
+                {nombres.map((nombre) => {
+                  const clave = `${categoria}|${nombre}`
+                  return (
+                    <div className="field" key={clave}>
+                      <label>{nombre}</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={valores[clave] || ''}
+                        onChange={onCambiarValor(clave)}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          <div className="pf-categoria">
+            <h4>Otros indicadores</h4>
+            {extras.map((extra, i) => (
+              <div className="pf-extra-row" key={i}>
+                <input placeholder="Categoría (opcional)" value={extra.categoria} onChange={cambiarExtra(i, 'categoria')} />
+                <input placeholder="Indicador" value={extra.indicador} onChange={cambiarExtra(i, 'indicador')} />
+                <input
+                  placeholder="Valor"
+                  type="text"
+                  inputMode="decimal"
+                  value={extra.valor}
+                  onChange={cambiarExtra(i, 'valor')}
+                />
+                <button type="button" className="btn btn-ghost btn-sm btn-danger" onClick={() => quitarExtra(i)}>
+                  ✕
+                </button>
+              </div>
+            ))}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={agregarExtra}>
+              + Agregar indicador
+            </button>
+          </div>
+
+          <div className="form-edicion-botones">
+            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Guardar evaluación'}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMostrarForm(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {cargando && (
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      )}
+
+      {!cargando && picos.length === 0 && (
+        <p className="texto-muted">Todavía no hay evaluaciones cargadas para este jugador.</p>
+      )}
+
+      {!cargando && modoComparar && picosSeleccionados.length >= 2 && (
+        <div className="pf-tabla-scroll">
+          <table className="tabla pf-tabla-comparacion">
+            <thead>
+              <tr>
+                <th>Indicador</th>
+                {picosSeleccionados.map((p) => (
+                  <th key={p.id}>
+                    {formatFecha(p.fecha)} · {p.partido}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {indicadoresComparados.map((clave) => {
+                const [categoria, indicador] = clave.split('|')
+                return (
+                  <tr key={clave}>
+                    <td>
+                      {indicador} <span className="texto-muted">({categoria})</span>
+                    </td>
+                    {picosSeleccionados.map((p) => {
+                      const item = p.indicadores.find((i) => i.categoria === categoria && i.indicador === indicador)
+                      return <td key={p.id}>{item ? item.valor : '—'}</td>
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!cargando && picos.length > 0 && (
+        <div className="pf-picos-lista">
+          {picos.map((p) => (
+            <div key={p.id} className="pf-pico-item">
+              <div className="pf-pico-header">
+                {modoComparar && (
+                  <input type="checkbox" checked={seleccionados.includes(p.id)} onChange={() => toggleSeleccionado(p.id)} />
+                )}
+                <strong>{formatFecha(p.fecha)}</strong>
+                <span className="texto-muted">{p.partido}</span>
+                <button
+                  className="btn btn-ghost btn-sm btn-danger"
+                  style={{ marginLeft: 'auto' }}
+                  onClick={() => eliminar(p)}
+                >
+                  Eliminar
+                </button>
+              </div>
+              <div className="pf-pico-indicadores">
+                {p.indicadores.map((ind, i) => (
+                  <span key={i} className="pf-indicador-chip">
+                    {ind.indicador}: <strong>{ind.valor}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CargasPreparacionFisica({ jugadorId }) {
+  const [cargas, setCargas] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [mostrarForm, setMostrarForm] = useState(false)
+  const [form, setForm] = useState({ fecha: '', entrenamiento_partido: '', observaciones: '' })
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+
+  const cargar = () => {
+    setCargando(true)
+    api
+      .get(`/jugadores/${jugadorId}/cargas-preparacion-fisica`)
+      .then(({ data }) => setCargas(data))
+      .finally(() => setCargando(false))
+  }
+
+  useEffect(cargar, [jugadorId])
+
+  const abrirForm = () => {
+    setForm({ fecha: new Date().toISOString().slice(0, 10), entrenamiento_partido: '', observaciones: '' })
+    setError('')
+    setMostrarForm(true)
+  }
+
+  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (!form.fecha || !form.entrenamiento_partido.trim()) {
+      setError('Fecha y entrenamiento/partido son obligatorios')
+      return
+    }
+
+    setEnviando(true)
+    try {
+      await api.post(`/jugadores/${jugadorId}/cargas-preparacion-fisica`, form)
+      setMostrarForm(false)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo registrar la carga física'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const eliminar = async (carga) => {
+    if (!window.confirm(`¿Eliminar la carga física del ${formatFecha(carga.fecha)}?`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/jugadores/${jugadorId}/cargas-preparacion-fisica/${carga.id}`)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar la carga física'))
+    }
+  }
+
+  return (
+    <div className="card seccion">
+      <div className="seccion-header">
+        <h3>Cargas físicas</h3>
+        {!mostrarForm && (
+          <button className="btn btn-primary btn-sm" onClick={abrirForm}>
+            + Nueva carga
+          </button>
+        )}
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {mostrarForm && (
+        <form className="form-edicion" onSubmit={guardar}>
+          <div className="field">
+            <label>Fecha</label>
+            <input type="date" value={form.fecha} onChange={onChange('fecha')} required />
+          </div>
+          <div className="field">
+            <label>Entrenamiento o partido</label>
+            <input
+              value={form.entrenamiento_partido}
+              onChange={onChange('entrenamiento_partido')}
+              placeholder="Ej: Entrenamiento de fuerza, Partido vs Boca"
+              required
+            />
+          </div>
+          <div className="field">
+            <label>Observaciones</label>
+            <textarea rows={3} value={form.observaciones} onChange={onChange('observaciones')} />
+          </div>
+          <div className="form-edicion-botones">
+            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Guardar'}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMostrarForm(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {cargando && (
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      )}
+
+      {!cargando && cargas.length === 0 && <p className="texto-muted">Todavía no hay cargas físicas cargadas.</p>}
+
+      {!cargando && cargas.length > 0 && (
+        <div className="cf-lista">
+          {cargas.map((c) => (
+            <div className="cf-item" key={c.id}>
+              <div className="cf-item-info">
+                <strong>{c.entrenamiento_partido}</strong>
+                <span className="texto-muted">{formatFecha(c.fecha)}</span>
+                {c.observaciones && <span className="texto-muted">{c.observaciones}</span>}
+              </div>
+              <div className="cf-item-acciones">
+                <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(c)}>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function InformeFisico({ jugadorId }) {
+  const [informe, setInforme] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [editando, setEditando] = useState(false)
+  const [form, setForm] = useState({ fortalezas: '', debilidades: '', aspectos_mantener: '', aspectos_mejorar: '' })
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+
+  const cargar = () => {
+    setCargando(true)
+    api
+      .get(`/jugadores/${jugadorId}/informe-fisico`)
+      .then(({ data }) => setInforme(data))
+      .finally(() => setCargando(false))
+  }
+
+  useEffect(cargar, [jugadorId])
+
+  const empezarEdicion = () => {
+    setForm({
+      fortalezas: informe?.fortalezas || '',
+      debilidades: informe?.debilidades || '',
+      aspectos_mantener: informe?.aspectos_mantener || '',
+      aspectos_mejorar: informe?.aspectos_mejorar || '',
+    })
+    setError('')
+    setEditando(true)
+  }
+
+  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setError('')
+    setEnviando(true)
+    try {
+      await api.put(`/jugadores/${jugadorId}/informe-fisico`, form)
+      setEditando(false)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo guardar el informe físico'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const tieneContenido =
+    informe && (informe.fortalezas || informe.debilidades || informe.aspectos_mantener || informe.aspectos_mejorar)
+
+  return (
+    <div className="card seccion">
+      <div className="seccion-header">
+        <h3>Informe físico (portada)</h3>
+        {!editando && !cargando && (
+          <button className="btn btn-ghost btn-sm" onClick={empezarEdicion}>
+            {tieneContenido ? 'Editar' : '+ Completar'}
+          </button>
+        )}
+      </div>
+
+      <p className="texto-muted" style={{ marginBottom: 12 }}>
+        Informe único y permanente: presentación física del jugador. Se actualiza siempre en el
+        mismo lugar, no genera historial.
+      </p>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {cargando ? (
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      ) : !editando ? (
+        tieneContenido ? (
+          <div>
+            <div className="pf-texto-libre">
+              <dt>Fortalezas</dt>
+              <dd>{informe.fortalezas || <span className="texto-muted">—</span>}</dd>
+            </div>
+            <div className="pf-texto-libre">
+              <dt>Debilidades</dt>
+              <dd>{informe.debilidades || <span className="texto-muted">—</span>}</dd>
+            </div>
+            <div className="pf-texto-libre">
+              <dt>Aspectos a mantener</dt>
+              <dd>{informe.aspectos_mantener || <span className="texto-muted">—</span>}</dd>
+            </div>
+            <div className="pf-texto-libre">
+              <dt>Aspectos a mejorar</dt>
+              <dd>{informe.aspectos_mejorar || <span className="texto-muted">—</span>}</dd>
+            </div>
+          </div>
+        ) : (
+          <p className="texto-muted">Todavía no se cargó el informe físico de este jugador.</p>
+        )
+      ) : (
+        <form className="form-edicion" onSubmit={guardar}>
+          <div className="field">
+            <label>Fortalezas</label>
+            <textarea rows={3} value={form.fortalezas} onChange={onChange('fortalezas')} />
+          </div>
+          <div className="field">
+            <label>Debilidades</label>
+            <textarea rows={3} value={form.debilidades} onChange={onChange('debilidades')} />
+          </div>
+          <div className="field">
+            <label>Aspectos a mantener</label>
+            <textarea rows={3} value={form.aspectos_mantener} onChange={onChange('aspectos_mantener')} />
+          </div>
+          <div className="field">
+            <label>Aspectos a mejorar</label>
+            <textarea rows={3} value={form.aspectos_mejorar} onChange={onChange('aspectos_mejorar')} />
+          </div>
+          <div className="form-edicion-botones">
+            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Guardar'}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setEditando(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  )
+}
+
+function EntrenamientosExtra({ jugadorId }) {
+  const [planes, setPlanes] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [mostrarForm, setMostrarForm] = useState(false)
+  const [fecha, setFecha] = useState('')
+  const [informe, setInforme] = useState('')
+  const [archivo, setArchivo] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+
+  const token = localStorage.getItem('token')
+
+  const cargar = () => {
+    setCargando(true)
+    api
+      .get(`/jugadores/${jugadorId}/planes-entrenamiento-extra`)
+      .then(({ data }) => setPlanes(data))
+      .finally(() => setCargando(false))
+  }
+
+  useEffect(cargar, [jugadorId])
+
+  const abrirForm = () => {
+    setFecha(new Date().toISOString().slice(0, 10))
+    setInforme('')
+    setArchivo(null)
+    setError('')
+    setMostrarForm(true)
+  }
+
+  const guardar = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (!fecha) {
+      setError('La fecha es obligatoria')
+      return
+    }
+
+    setEnviando(true)
+    try {
+      const datos = new FormData()
+      datos.append('fecha', fecha)
+      if (informe) datos.append('informe', informe)
+      if (archivo) datos.append('archivo', archivo)
+      await api.post(`/jugadores/${jugadorId}/planes-entrenamiento-extra`, datos)
+      setMostrarForm(false)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo registrar el plan'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const eliminar = async (plan) => {
+    if (!window.confirm(`¿Eliminar el plan del ${formatFecha(plan.fecha)}?`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/jugadores/${jugadorId}/planes-entrenamiento-extra/${plan.id}`)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar el plan'))
+    }
+  }
+
+  return (
+    <div className="card seccion">
+      <div className="seccion-header">
+        <h3>Entrenamientos extra</h3>
+        {!mostrarForm && (
+          <button className="btn btn-primary btn-sm" onClick={abrirForm}>
+            + Nuevo plan
+          </button>
+        )}
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {mostrarForm && (
+        <form className="form-edicion" onSubmit={guardar}>
+          <div className="field">
+            <label>Fecha</label>
+            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label>Archivo (PDF, imagen o Word, opcional)</label>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+              onChange={(e) => setArchivo(e.target.files[0] || null)}
+            />
+          </div>
+          <div className="field">
+            <label>Informe</label>
+            <textarea
+              rows={4}
+              value={informe}
+              onChange={(e) => setInforme(e.target.value)}
+              placeholder="Por qué se eligió este plan, en qué se enfoca, etc."
+            />
+          </div>
+          <div className="form-edicion-botones">
+            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Guardar plan'}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMostrarForm(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {cargando && (
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      )}
+
+      {!cargando && planes.length === 0 && (
+        <p className="texto-muted">Todavía no hay planes de entrenamiento extra cargados.</p>
+      )}
+
+      {!cargando && planes.length > 0 && (
+        <div className="cf-lista">
+          {planes.map((p) => (
+            <div className="cf-item" key={p.id}>
+              <div className="cf-item-info">
+                <strong>Plan del {formatFecha(p.fecha)}</strong>
+                {p.informe && <span className="texto-muted">{p.informe}</span>}
+              </div>
+              <div className="cf-item-acciones">
+                {p.nombre_archivo && (
+                  <a
+                    className="btn btn-ghost btn-sm"
+                    href={`${API_BASE}/api/jugadores/${jugadorId}/planes-entrenamiento-extra/${p.id}/archivo?token=${token}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver archivo ↗
+                  </a>
+                )}
+                <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(p)}>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

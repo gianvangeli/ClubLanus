@@ -55,6 +55,28 @@
   background: var(--success-bg);
 }
 
+.detalle-header-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* --- Header de páginas de sección especializada (videos, cargas físicas) --- */
+
+.seccion-especializada-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  margin-bottom: 20px;
+}
+
+.seccion-especializada-header h1 {
+  font-size: 22px;
+}
+
 .detalle-grid {
   display: grid;
   grid-template-columns: 1fr 1.1fr;
@@ -62,13 +84,7 @@
   align-items: start;
 }
 
-.detalle-grid-secundaria {
-  margin-top: 20px;
-  grid-template-columns: 1.1fr 1fr;
-}
-
-.detalle-grid .caracteristicas-card,
-.detalle-grid .cargas-fisicas-card {
+.detalle-grid .caracteristicas-card {
   margin-top: 0;
   height: 100%;
 }
@@ -142,54 +158,6 @@
 .form-edicion-botones {
   display: flex;
   gap: 8px;
-}
-
-/* --- Composición corporal --- */
-
-.composicion-actual {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--granate-50);
-  border: 1px solid var(--granate-100);
-  border-radius: var(--radius-sm);
-  padding: 14px 16px;
-}
-
-.composicion-label {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text-muted);
-}
-
-.composicion-valor {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--granate-700);
-}
-
-.composicion-grasa {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.form-composicion {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.form-composicion-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
 }
 
 .tabla-compacta {
@@ -353,13 +321,11 @@
 }
 
 @media (max-width: 900px) {
-  .detalle-grid,
-  .detalle-grid-secundaria {
+  .detalle-grid {
     grid-template-columns: 1fr;
   }
 
-  .info-lista,
-  .form-composicion-row {
+  .info-lista {
     grid-template-columns: 1fr;
   }
 }
@@ -369,7 +335,7 @@
     flex-wrap: wrap;
   }
 
-  .detalle-header .btn {
+  .detalle-header-acciones {
     margin-left: 72px;
   }
 }

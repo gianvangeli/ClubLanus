@@ -113,6 +113,12 @@
   box-shadow: 0 0 0 3px rgba(201, 106, 124, 0.2);
 }
 
+.jg-edad-preview {
+  color: var(--jg-text-muted);
+  font-size: 12.5px;
+  margin-top: 4px;
+}
+
 /* ---------- Player list ---------- */
 
 .jg-list-header {

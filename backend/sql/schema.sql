@@ -280,7 +280,6 @@ CREATE TABLE `jugadores` (
   `usuario_id` int DEFAULT NULL,
   `nombre` varchar(100) NOT NULL,
   `apellido` varchar(100) DEFAULT NULL,
-  `edad` int DEFAULT NULL,
   `peso` decimal(5,2) DEFAULT NULL,
   `altura` decimal(4,2) DEFAULT NULL,
   `nacionalidad_1` varchar(60) DEFAULT NULL,
@@ -304,10 +303,51 @@ CREATE TABLE `jugadores` (
   `minutos_jugados` int DEFAULT NULL,
   `partidos_jugados` int DEFAULT NULL,
   `minutos_por_partido` int DEFAULT NULL,
+  `fecha_nacimiento` date DEFAULT NULL,
+  `psicologo_id` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
-  CONSTRAINT `jugadores_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
+  KEY `psicologo_id` (`psicologo_id`),
+  CONSTRAINT `jugadores_ibfk_1` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`),
+  CONSTRAINT `jugadores_ibfk_2` FOREIGN KEY (`psicologo_id`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `lesiones`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `lesiones` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `lesion` varchar(200) NOT NULL,
+  `diagnostico` text,
+  `proceso_recuperacion` text,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `lesiones_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `lesiones_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `lesiones_archivos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `lesiones_archivos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `lesion_id` int NOT NULL,
+  `tipo_documento` enum('diagnostico','resonancia','estudio','informe','otro') NOT NULL,
+  `nombre_archivo` varchar(255) NOT NULL,
+  `archivo` varchar(500) NOT NULL,
+  `subido_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `lesion_id` (`lesion_id`),
+  KEY `subido_por` (`subido_por`),
+  CONSTRAINT `lesiones_archivos_ibfk_1` FOREIGN KEY (`lesion_id`) REFERENCES `lesiones` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `lesiones_archivos_ibfk_2` FOREIGN KEY (`subido_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `marcador_etiquetas`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -321,6 +361,179 @@ CREATE TABLE `marcador_etiquetas` (
   KEY `etiqueta_id` (`etiqueta_id`),
   CONSTRAINT `marcador_etiquetas_ibfk_1` FOREIGN KEY (`marcador_id`) REFERENCES `video_marcadores` (`id`),
   CONSTRAINT `marcador_etiquetas_ibfk_2` FOREIGN KEY (`etiqueta_id`) REFERENCES `etiquetas` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `nutricion_evaluaciones`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `nutricion_evaluaciones` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `peso` decimal(5,2) NOT NULL,
+  `talla` decimal(5,2) NOT NULL,
+  `masa_muscular_kg` decimal(5,2) NOT NULL,
+  `masa_adiposa_kg` decimal(5,2) NOT NULL,
+  `sumatoria_pliegues` decimal(6,2) NOT NULL,
+  `masa_osea` decimal(5,2) NOT NULL,
+  `indice_musculo_oseo` decimal(5,2) NOT NULL,
+  `observaciones` text,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `nutricion_evaluaciones_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `nutricion_evaluaciones_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `perfiles_psicosociales`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `perfiles_psicosociales` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `contenido` text,
+  `actualizado_por` int DEFAULT NULL,
+  `actualizado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `jugador_id` (`jugador_id`),
+  KEY `actualizado_por` (`actualizado_por`),
+  CONSTRAINT `perfiles_psicosociales_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `perfiles_psicosociales_ibfk_2` FOREIGN KEY (`actualizado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `informes_psicologicos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `informes_psicologicos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `informe` text NOT NULL,
+  `plan_mejora` text,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `informes_psicologicos_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `informes_psicologicos_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `datos_bigdata`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `datos_bigdata` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `partido` varchar(200) NOT NULL,
+  `archivo` varchar(500) DEFAULT NULL,
+  `nombre_archivo` varchar(255) DEFAULT NULL,
+  `informe` text,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `datos_bigdata_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `datos_bigdata_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `analisis_futbolistico`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `analisis_futbolistico` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `tipo` enum('mensual','trimestral','anual') NOT NULL,
+  `informe` text NOT NULL,
+  `video` varchar(500) DEFAULT NULL,
+  `nombre_video` varchar(255) DEFAULT NULL,
+  `entrenamientos_recomendados` text,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `analisis_futbolistico_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `analisis_futbolistico_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `picos_rendimiento`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `picos_rendimiento` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `partido` varchar(200) NOT NULL,
+  `indicadores` text NOT NULL,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `picos_rendimiento_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `picos_rendimiento_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `cargas_preparacion_fisica`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `cargas_preparacion_fisica` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `entrenamiento_partido` varchar(200) NOT NULL,
+  `observaciones` text,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `cargas_preparacion_fisica_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `cargas_preparacion_fisica_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `informes_fisicos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `informes_fisicos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fortalezas` text,
+  `debilidades` text,
+  `aspectos_mantener` text,
+  `aspectos_mejorar` text,
+  `actualizado_por` int DEFAULT NULL,
+  `actualizado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `jugador_id` (`jugador_id`),
+  KEY `actualizado_por` (`actualizado_por`),
+  CONSTRAINT `informes_fisicos_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `informes_fisicos_ibfk_2` FOREIGN KEY (`actualizado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `planes_entrenamiento_extra`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `planes_entrenamiento_extra` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `archivo` varchar(500) DEFAULT NULL,
+  `nombre_archivo` varchar(255) DEFAULT NULL,
+  `informe` text,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `planes_entrenamiento_extra_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `planes_entrenamiento_extra_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `pizarras_tacticas`;
@@ -409,7 +622,7 @@ CREATE TABLE `usuarios` (
   `nombre` varchar(100) NOT NULL,
   `email` varchar(100) NOT NULL,
   `password` varchar(255) NOT NULL,
-  `rol` enum('admin','entrenador','preparador_fisico','jugador') NOT NULL,
+  `rol` enum('admin','entrenador','preparador_fisico','jugador','psicologo') NOT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`)

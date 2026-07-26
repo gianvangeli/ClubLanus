@@ -7,6 +7,17 @@ import BibliotecaJugador from './pages/BibliotecaJugador'
 import BibliotecaJugadorDetalle from './pages/BibliotecaJugadorDetalle'
 import AdminJugadores from './pages/AdminJugadores'
 import AdminJugadorDetalle from './pages/AdminJugadorDetalle'
+import JugadorVideos from './pages/JugadorVideos'
+import JugadorCargasFisicas from './pages/JugadorCargasFisicas'
+import JugadorNutricion from './pages/JugadorNutricion'
+import JugadorLesiones from './pages/JugadorLesiones'
+import LesionDetalle from './pages/LesionDetalle'
+import JugadorPsicologia from './pages/JugadorPsicologia'
+import JugadorPreparacionFisica from './pages/JugadorPreparacionFisica'
+import JugadorAnalisisFutbolistico from './pages/JugadorAnalisisFutbolistico'
+import JugadorDatosBigdata from './pages/JugadorDatosBigdata'
+import PsicologoInicio from './pages/PsicologoInicio'
+import PsicologoJugador from './pages/PsicologoJugador'
 import AdminBiblioteca from './pages/AdminBiblioteca'
 import AdminBibliotecaDetalle from './pages/AdminBibliotecaDetalle'
 import Entrenamientos from './pages/Entrenamientos'
@@ -23,11 +34,9 @@ function Inicio() {
   if (cargando) return null
   if (!usuario) return <Navigate to="/login" replace />
 
-  return CUERPO_TECNICO.includes(usuario.rol) ? (
-    <Navigate to="/admin/jugadores" replace />
-  ) : (
-    <Navigate to="/biblioteca" replace />
-  )
+  if (CUERPO_TECNICO.includes(usuario.rol)) return <Navigate to="/admin/jugadores" replace />
+  if (usuario.rol === 'psicologo') return <Navigate to="/psicologia" replace />
+  return <Navigate to="/biblioteca" replace />
 }
 
 export default function App() {
@@ -70,6 +79,94 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <AdminJugadorDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/videos"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorVideos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/cargas-fisicas"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorCargasFisicas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/nutricion"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorNutricion />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/lesiones"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorLesiones />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/lesiones/:lesionId"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <LesionDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/psicologia"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorPsicologia />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/psicologia"
+              element={
+                <ProtectedRoute roles={['psicologo']}>
+                  <PsicologoInicio />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/psicologia/:jugadorId"
+              element={
+                <ProtectedRoute roles={['psicologo']}>
+                  <PsicologoJugador />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/preparacion-fisica"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorPreparacionFisica />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/analisis-futbolistico"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorAnalisisFutbolistico />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/datos"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorDatosBigdata />
                 </ProtectedRoute>
               }
             />
