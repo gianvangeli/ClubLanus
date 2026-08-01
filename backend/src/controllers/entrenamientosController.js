@@ -1,5 +1,5 @@
 const db = require("../config/db");
-const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -20,7 +20,7 @@ const extraerVideosDelBody = async (req, tituloVideo) => {
     videosACrear.push({
       titulo: tituloVideo || sinExtension(archivo.originalname),
       tipo: "archivo",
-      url_video: await guardarArchivo(archivo.buffer, "videos", archivo.originalname),
+      url_video: await guardarArchivoDesdeRuta(archivo.path, "videos", archivo.originalname),
     });
   }
 
@@ -41,95 +41,34 @@ const extraerVideosDelBody = async (req, tituloVideo) => {
 };
 
 // Crea la sesión del día (o reutiliza la que ya existe para esa fecha) y le
-// agrega los videos subidos en la misma carga, junto con los datos de
-// planificación. Pensado para un uso rápido: el cuerpo técnico elige la
-// fecha (por defecto hoy) y sube 1 o 2 videos; después puede completar el
-// resto desde la página propia de la sesión.
+// agrega los videos subidos en la misma carga. Pensado para un uso rápido:
+// el cuerpo técnico elige la fecha (por defecto hoy) y sube 1 o 2 videos;
+// después puede completar el resto desde la página propia de la sesión.
+// La planificación (tipo, objetivo, materiales, etc.) ya no vive acá: se
+// carga ejercicio por ejercicio (ver ejerciciosController.js).
 const crearEntrenamiento = async (req, res) => {
   const conn = await db.getConnection();
   try {
-    const {
-      fecha,
-      titulo,
-      descripcion,
-      titulo_video,
-      tipo_entrenamiento,
-      duracion_minutos,
-      objetivo,
-      observaciones,
-      cantidad_jugadores,
-      materiales,
-      espacios,
-    } = req.body;
+    const { fecha, titulo, descripcion, titulo_video } = req.body;
     const creadoPor = req.usuario.id;
     const fechaSesion = fecha || new Date().toISOString().slice(0, 10);
-    const archivoDibujo = (req.files?.dibujo || [])[0];
-    const dibujoUrl = archivoDibujo
-      ? await guardarArchivo(archivoDibujo.buffer, "imagenes", archivoDibujo.originalname)
-      : null;
     const videosACrear = await extraerVideosDelBody(req, titulo_video);
 
     await conn.beginTransaction();
 
-    const [existentes] = await conn.query(
-      "SELECT id, dibujo_url FROM entrenamientos WHERE fecha = ?",
-      [fechaSesion]
-    );
+    const [existentes] = await conn.query("SELECT id FROM entrenamientos WHERE fecha = ?", [fechaSesion]);
 
     let entrenamientoId;
     if (existentes.length > 0) {
       entrenamientoId = existentes[0].id;
       await conn.query(
-        `UPDATE entrenamientos SET
-           titulo = COALESCE(?, titulo),
-           descripcion = COALESCE(?, descripcion),
-           tipo_entrenamiento = COALESCE(?, tipo_entrenamiento),
-           duracion_minutos = COALESCE(?, duracion_minutos),
-           objetivo = COALESCE(?, objetivo),
-           observaciones = COALESCE(?, observaciones),
-           cantidad_jugadores = COALESCE(?, cantidad_jugadores),
-           materiales = COALESCE(?, materiales),
-           espacios = COALESCE(?, espacios),
-           dibujo_url = COALESCE(?, dibujo_url)
-         WHERE id = ?`,
-        [
-          titulo || null,
-          descripcion || null,
-          tipo_entrenamiento || null,
-          duracion_minutos || null,
-          objetivo || null,
-          observaciones || null,
-          cantidad_jugadores || null,
-          materiales || null,
-          espacios || null,
-          dibujoUrl,
-          entrenamientoId,
-        ]
+        `UPDATE entrenamientos SET titulo = COALESCE(?, titulo), descripcion = COALESCE(?, descripcion) WHERE id = ?`,
+        [titulo || null, descripcion || null, entrenamientoId]
       );
-
-      if (archivoDibujo && existentes[0].dibujo_url) {
-        eliminarArchivo(existentes[0].dibujo_url);
-      }
     } else {
       const [result] = await conn.query(
-        `INSERT INTO entrenamientos
-           (fecha, titulo, descripcion, tipo_entrenamiento, duracion_minutos, objetivo, observaciones,
-            cantidad_jugadores, materiales, espacios, dibujo_url, creado_por)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          fechaSesion,
-          titulo || null,
-          descripcion || null,
-          tipo_entrenamiento || null,
-          duracion_minutos || null,
-          objetivo || null,
-          observaciones || null,
-          cantidad_jugadores || null,
-          materiales || null,
-          espacios || null,
-          dibujoUrl,
-          creadoPor,
-        ]
+        `INSERT INTO entrenamientos (fecha, titulo, descripcion, creado_por) VALUES (?, ?, ?, ?)`,
+        [fechaSesion, titulo || null, descripcion || null, creadoPor]
       );
       entrenamientoId = result.insertId;
     }
@@ -164,64 +103,30 @@ const crearEntrenamiento = async (req, res) => {
   }
 };
 
-// Edita los datos de una sesión ya existente (título, descripción,
-// planificación) y opcionalmente agrega más videos o reemplaza el dibujo.
-// Es la página propia de cada entrenamiento: acá el cuerpo técnico completa
-// o corrige lo que cargó rápido desde la agenda.
+// Edita los datos de una sesión ya existente (título, descripción) y
+// opcionalmente agrega más videos. Es la página propia de cada
+// entrenamiento: acá el cuerpo técnico completa o corrige lo que cargó
+// rápido desde la agenda.
 const actualizarEntrenamiento = async (req, res) => {
   const conn = await db.getConnection();
   try {
     const { id } = req.params;
-    const {
-      titulo,
-      descripcion,
-      titulo_video,
-      tipo_entrenamiento,
-      duracion_minutos,
-      objetivo,
-      observaciones,
-      cantidad_jugadores,
-      materiales,
-      espacios,
-    } = req.body;
+    const { titulo, descripcion, titulo_video } = req.body;
     const creadoPor = req.usuario.id;
-    const archivoDibujo = (req.files?.dibujo || [])[0];
-    const dibujoUrl = archivoDibujo
-      ? await guardarArchivo(archivoDibujo.buffer, "imagenes", archivoDibujo.originalname)
-      : null;
     const videosACrear = await extraerVideosDelBody(req, titulo_video);
 
-    const [existentes] = await conn.query("SELECT id, fecha, dibujo_url FROM entrenamientos WHERE id = ?", [id]);
+    const [existentes] = await conn.query("SELECT id, fecha FROM entrenamientos WHERE id = ?", [id]);
     if (existentes.length === 0) {
       return res.status(404).json({ message: "Entrenamiento no encontrado" });
     }
 
     await conn.beginTransaction();
 
-    await conn.query(
-      `UPDATE entrenamientos SET
-         titulo = ?, descripcion = ?, tipo_entrenamiento = ?, duracion_minutos = ?,
-         objetivo = ?, observaciones = ?, cantidad_jugadores = ?, materiales = ?,
-         espacios = ?, dibujo_url = COALESCE(?, dibujo_url)
-       WHERE id = ?`,
-      [
-        titulo || null,
-        descripcion || null,
-        tipo_entrenamiento || null,
-        duracion_minutos || null,
-        objetivo || null,
-        observaciones || null,
-        cantidad_jugadores || null,
-        materiales || null,
-        espacios || null,
-        dibujoUrl,
-        id,
-      ]
-    );
-
-    if (archivoDibujo && existentes[0].dibujo_url) {
-      eliminarArchivo(existentes[0].dibujo_url);
-    }
+    await conn.query(`UPDATE entrenamientos SET titulo = ?, descripcion = ? WHERE id = ?`, [
+      titulo || null,
+      descripcion || null,
+      id,
+    ]);
 
     for (const video of videosACrear) {
       const [videoResult] = await conn.query(
@@ -251,15 +156,13 @@ const actualizarEntrenamiento = async (req, res) => {
 };
 
 // Agenda: una fila por día con sesión cargada, más reciente primero.
-// El jugador solo recibe título + fecha + cantidad de videos; los datos de
-// planificación quedan reservados al cuerpo técnico.
+// El jugador solo recibe título + fecha + cantidad de videos.
 const listarEntrenamientos = async (req, res) => {
   try {
     const esCuerpoTecnico = CUERPO_TECNICO.includes(req.usuario.rol);
 
     const [entrenamientos] = await db.query(
-      `SELECT e.id, e.fecha, e.titulo, e.descripcion, e.tipo_entrenamiento, e.duracion_minutos, e.objetivo,
-              e.observaciones, e.cantidad_jugadores, e.materiales, e.espacios, e.dibujo_url, e.creado_en,
+      `SELECT e.id, e.fecha, e.titulo, e.descripcion, e.creado_en,
               (SELECT COUNT(*) FROM entrenamiento_videos ev WHERE ev.entrenamiento_id = e.id) AS cantidad_videos
        FROM entrenamientos e
        ORDER BY e.fecha DESC, e.id DESC`
@@ -274,17 +177,15 @@ const listarEntrenamientos = async (req, res) => {
   }
 };
 
-// Página propia de un entrenamiento. El cuerpo técnico ve todo (título,
-// descripción, planificación y videos); el jugador solo título + fecha + videos.
+// Página propia de un entrenamiento. El cuerpo técnico ve título +
+// descripción + videos; el jugador solo título + fecha + videos.
 const obtenerEntrenamiento = async (req, res) => {
   try {
     const { id } = req.params;
     const esCuerpoTecnico = CUERPO_TECNICO.includes(req.usuario.rol);
 
     const [entrenamientos] = await db.query(
-      `SELECT id, fecha, titulo, descripcion, tipo_entrenamiento, duracion_minutos, objetivo,
-              observaciones, cantidad_jugadores, materiales, espacios, dibujo_url, creado_en
-       FROM entrenamientos WHERE id = ?`,
+      `SELECT id, fecha, titulo, descripcion, creado_en FROM entrenamientos WHERE id = ?`,
       [id]
     );
 
@@ -349,7 +250,7 @@ const eliminarEntrenamiento = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [entrenamientos] = await conn.query("SELECT id, dibujo_url FROM entrenamientos WHERE id = ?", [id]);
+    const [entrenamientos] = await conn.query("SELECT id FROM entrenamientos WHERE id = ?", [id]);
     if (entrenamientos.length === 0) {
       return res.status(404).json({ message: "Entrenamiento no encontrado" });
     }
@@ -374,9 +275,6 @@ const eliminarEntrenamiento = async (req, res) => {
       if (video.tipo === "archivo") {
         eliminarArchivo(video.url_video);
       }
-    }
-    if (entrenamientos[0].dibujo_url) {
-      eliminarArchivo(entrenamientos[0].dibujo_url);
     }
 
     res.json({ message: "Entrenamiento eliminado correctamente" });
@@ -410,30 +308,6 @@ const obtenerArchivoVideo = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el archivo",
-      error: error.message,
-    });
-  }
-};
-
-// Sirve la imagen del dibujo táctico de una sesión. Solo cuerpo técnico
-// (es un dato de planificación, no debe llegar al jugador).
-const obtenerArchivoDibujo = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [entrenamientos] = await db.query(
-      "SELECT dibujo_url FROM entrenamientos WHERE id = ?",
-      [id]
-    );
-
-    if (entrenamientos.length === 0 || !entrenamientos[0].dibujo_url) {
-      return res.status(404).json({ message: "Imagen no encontrada" });
-    }
-
-    await servirArchivo(req, res, entrenamientos[0].dibujo_url);
-  } catch (error) {
-    res.status(500).json({
-      message: "Error al obtener la imagen",
       error: error.message,
     });
   }
@@ -525,7 +399,6 @@ module.exports = {
   eliminarVideoEntrenamiento,
   eliminarEntrenamiento,
   obtenerArchivoVideo,
-  obtenerArchivoDibujo,
   obtenerReflexion,
   actualizarReflexion,
 };

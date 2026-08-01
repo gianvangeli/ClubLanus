@@ -6,10 +6,12 @@ import Login from './pages/Login'
 import BibliotecaJugador from './pages/BibliotecaJugador'
 import BibliotecaJugadorDetalle from './pages/BibliotecaJugadorDetalle'
 import AdminJugadores from './pages/AdminJugadores'
+import AdminGeneral from './pages/AdminGeneral'
 import AdminJugadorDetalle from './pages/AdminJugadorDetalle'
-import JugadorVideos from './pages/JugadorVideos'
-import JugadorCargasFisicas from './pages/JugadorCargasFisicas'
 import JugadorNutricion from './pages/JugadorNutricion'
+import JugadorNutricionEvaluaciones from './pages/JugadorNutricionEvaluaciones'
+import JugadorNutricionDieta from './pages/JugadorNutricionDieta'
+import AdminObjetivosNutricionales from './pages/AdminObjetivosNutricionales'
 import JugadorLesiones from './pages/JugadorLesiones'
 import LesionDetalle from './pages/LesionDetalle'
 import JugadorPsicologia from './pages/JugadorPsicologia'
@@ -67,6 +69,14 @@ export default function App() {
             />
 
             <Route
+              path="/admin/general"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <AdminGeneral />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/jugadores"
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
@@ -83,26 +93,34 @@ export default function App() {
               }
             />
             <Route
-              path="/admin/jugadores/:id/videos"
-              element={
-                <ProtectedRoute roles={CUERPO_TECNICO}>
-                  <JugadorVideos />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/jugadores/:id/cargas-fisicas"
-              element={
-                <ProtectedRoute roles={CUERPO_TECNICO}>
-                  <JugadorCargasFisicas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/admin/jugadores/:id/nutricion"
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <JugadorNutricion />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/nutricion/evaluaciones"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorNutricionEvaluaciones />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/nutricion/dieta"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorNutricionDieta />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/objetivos-nutricionales"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <AdminObjetivosNutricionales />
                 </ProtectedRoute>
               }
             />

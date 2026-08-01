@@ -28,10 +28,38 @@ export default function JugadorPsicologia() {
         <MenuSeccionesJugador jugadorId={id} jugadorNombre={jugadorNombre} activa="psicologia" />
       </div>
 
+      {jugador && <SemaforoPsicologicoLectura jugador={jugador} />}
+
       <div className="detalle-grid">
         <PerfilPsicosocial jugadorId={id} />
         {jugador && <CuentaPsicologo jugador={jugador} onActualizado={cargarJugador} />}
       </div>
+    </div>
+  )
+}
+
+const SEMAFOROS_INFO = {
+  verde: { etiqueta: 'Verde', color: '#0ca30c' },
+  amarillo: { etiqueta: 'Amarillo', color: '#fab219' },
+  rojo: { etiqueta: 'Rojo', color: '#d03b3b' },
+}
+
+function SemaforoPsicologicoLectura({ jugador }) {
+  const info = SEMAFOROS_INFO[jugador.semaforo_psicologico]
+
+  return (
+    <div className="card seccion" style={{ marginBottom: 18 }}>
+      <h3>Semáforo del psicólogo</h3>
+      <p className="texto-muted" style={{ marginBottom: 10 }}>
+        Solo lectura: lo define el psicólogo asignado desde su cuenta privada.
+      </p>
+      {info ? (
+        <span className="badge" style={{ background: `${info.color}22`, color: info.color }}>
+          ● {info.etiqueta}
+        </span>
+      ) : (
+        <span className="texto-muted">Todavía no fue evaluado.</span>
+      )}
     </div>
   )
 }

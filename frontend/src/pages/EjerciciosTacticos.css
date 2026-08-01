@@ -1,0 +1,15 @@
+.et-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.et-subtabs {
+  margin-bottom: 20px;
+}
+
+.et-pizarra-solo-lectura {
+  margin-top: 14px;
+  pointer-events: none;
+}

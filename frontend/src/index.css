@@ -226,6 +226,12 @@ button {
   border: 1px solid rgba(31, 157, 85, 0.2);
 }
 
+.alert-warning {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border: 1px solid rgba(184, 121, 15, 0.2);
+}
+
 .page {
   max-width: 1080px;
   margin: 0 auto;

@@ -8,7 +8,6 @@ const {
   eliminarRutina,
   listarRutinasJugador,
   obtenerRutinaJugador,
-  actualizarCompletado,
   obtenerArchivoVideo,
 } = require("../controllers/rutinasController");
 
@@ -35,10 +34,7 @@ router.delete("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), elimina
 router.get("/", verificarToken, autorizarRoles("jugador"), listarRutinasJugador);
 router.get("/:id", verificarToken, autorizarRoles("jugador"), obtenerRutinaJugador);
 
-// El jugador marca (o desmarca) el cumplimiento
-router.put("/:id/completado", verificarToken, autorizarRoles("jugador"), actualizarCompletado);
-
-// Archivo de video de la rutina
+// Archivo de video del entrenamiento desglosado
 router.get("/videos/:videoId/archivo", verificarToken, obtenerArchivoVideo);
 
 module.exports = router;

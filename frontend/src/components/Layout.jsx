@@ -33,6 +33,9 @@ export default function Layout() {
         <nav className="navbar-links">
           {esCuerpoTecnico ? (
             <>
+              <NavLink to="/admin/general" className="navbar-link">
+                General
+              </NavLink>
               <NavLink to="/admin/jugadores" className="navbar-link">
                 Jugadores
               </NavLink>

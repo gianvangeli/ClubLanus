@@ -7,19 +7,12 @@ import './EjercicioDetalle.css'
 
 const CAMPOS_VACIOS = {
   dia: '',
-  sesion_numero: '',
-  turno: '',
   tipo_trabajo: '',
   espacio: '',
-  materiales: '',
   objetivo: '',
   n_jugadores: '',
   duracion: '',
   descripcion: '',
-  puntuacion: '',
-  entrenador_a_cargo: '',
-  jugadores: '',
-  pechera: '',
 }
 
 export default function EjercicioDetalle() {
@@ -41,19 +34,12 @@ export default function EjercicioDetalle() {
         setEjercicio(data)
         setForm({
           dia: data.dia ? String(data.dia).slice(0, 10) : '',
-          sesion_numero: data.sesion_numero || '',
-          turno: data.turno || '',
           tipo_trabajo: data.tipo_trabajo || '',
           espacio: data.espacio || '',
-          materiales: data.materiales || '',
           objetivo: data.objetivo || '',
           n_jugadores: data.n_jugadores || '',
           duracion: data.duracion || '',
           descripcion: data.descripcion || '',
-          puntuacion: data.puntuacion || '',
-          entrenador_a_cargo: data.entrenador_a_cargo || '',
-          jugadores: data.jugadores || '',
-          pechera: data.pechera || '',
         })
         setDibujo(data.dibujo_json || ESCENA_VACIA)
       })
@@ -128,12 +114,6 @@ export default function EjercicioDetalle() {
               <label>Día:</label>
               <input type="date" value={form.dia} onChange={onChange('dia')} />
             </div>
-            <div className="ej-header-campo">
-              <label>Sesión N°:</label>
-              <input value={form.sesion_numero} onChange={onChange('sesion_numero')} />
-              <label>Turno:</label>
-              <input value={form.turno} onChange={onChange('turno')} />
-            </div>
           </div>
         </div>
 
@@ -148,13 +128,6 @@ export default function EjercicioDetalle() {
           <div className="ej-campo">
             <label>Espacio:</label>
             <input value={form.espacio} onChange={onChange('espacio')} />
-          </div>
-        </div>
-
-        <div className="ej-fila">
-          <div className="ej-campo">
-            <label>Materiales:</label>
-            <input value={form.materiales} onChange={onChange('materiales')} />
           </div>
         </div>
 
@@ -185,25 +158,6 @@ export default function EjercicioDetalle() {
               <label>Descripción del ejercicio:</label>
               <textarea rows={10} value={form.descripcion} onChange={onChange('descripcion')} />
             </div>
-            <div className="ej-campo ej-campo-grande">
-              <label>Puntuación:</label>
-              <textarea rows={6} value={form.puntuacion} onChange={onChange('puntuacion')} />
-            </div>
-          </div>
-        </div>
-
-        <div className="ej-fila ej-fila-3 ej-footer">
-          <div className="ej-campo">
-            <label>Entrenador a cargo:</label>
-            <input value={form.entrenador_a_cargo} onChange={onChange('entrenador_a_cargo')} />
-          </div>
-          <div className="ej-campo">
-            <label>Jugadores:</label>
-            <input value={form.jugadores} onChange={onChange('jugadores')} placeholder="Ej: Pérez, Gómez, López..." />
-          </div>
-          <div className="ej-campo">
-            <label>Pechera:</label>
-            <input value={form.pechera} onChange={onChange('pechera')} placeholder="Ej: Rojo vs. Amarillo" />
           </div>
         </div>
       </div>

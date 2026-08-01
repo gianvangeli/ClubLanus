@@ -22,6 +22,19 @@ export default function AdminBiblioteca() {
 
   useEffect(cargar, [])
 
+  const eliminar = async (publicacion) => {
+    if (!window.confirm(`¿Eliminar la publicación "${publicacion.titulo}"? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      await api.delete(`/biblioteca/${publicacion.id}`)
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar la publicación'))
+    }
+  }
+
   const crearPublicacion = async (e) => {
     e.preventDefault()
     setCreando(true)
@@ -43,7 +56,6 @@ export default function AdminBiblioteca() {
       <div className="page-header">
         <div>
           <h1>Biblioteca</h1>
-          <p>Publicaciones de video para el plantel</p>
         </div>
       </div>
 
@@ -77,19 +89,28 @@ export default function AdminBiblioteca() {
 
       <div className="publicaciones-list">
         {publicaciones.map((p) => (
-          <Link to={`/admin/biblioteca/${p.id}`} className="publicacion-row card" key={p.id}>
-            <div>
-              <h3>{p.titulo}</h3>
-              {p.descripcion && <p>{p.descripcion}</p>}
-            </div>
-            <div className="publicacion-row-meta">
-              <span className={`badge ${p.estado === 'publicado' ? 'badge-success' : 'badge-warning'}`}>
-                {p.estado}
-              </span>
-              <span>{p.cantidad_videos} video(s)</span>
-              <span>{p.cantidad_jugadores} jugador(es)</span>
-            </div>
-          </Link>
+          <div className="publicacion-fila card" key={p.id}>
+            <Link to={`/admin/biblioteca/${p.id}`} className="publicacion-row">
+              <div>
+                <h3>{p.titulo}</h3>
+                {p.descripcion && <p>{p.descripcion}</p>}
+              </div>
+              <div className="publicacion-row-meta">
+                <span className={`badge ${p.estado === 'publicado' ? 'badge-success' : 'badge-warning'}`}>
+                  {p.estado}
+                </span>
+                <span>{p.cantidad_videos} video(s)</span>
+                <span>{p.cantidad_jugadores} jugador(es)</span>
+              </div>
+            </Link>
+            <button
+              className="publicacion-eliminar"
+              title="Eliminar publicación"
+              onClick={() => eliminar(p)}
+            >
+              ✕
+            </button>
+          </div>
         ))}
       </div>
     </div>

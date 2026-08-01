@@ -16,21 +16,15 @@ const {
   actualizarCaracteristicas,
   agregarComposicion,
   listarComposicion,
-  agregarVideoJugador,
-  listarVideosJugador,
 } = require("../controllers/jugadoresController");
-
-const {
-  agregarCargaFisica,
-  listarCargasFisicas,
-  obtenerArchivoCargaFisica,
-  eliminarCargaFisica,
-} = require("../controllers/cargasFisicasController");
 
 const {
   agregarEvaluacionNutricional,
   listarEvaluacionesNutricionales,
+  obtenerResumenNutricional,
 } = require("../controllers/nutricionController");
+
+const { obtenerDieta, guardarDieta } = require("../controllers/dietaJugadorController");
 
 const {
   obtenerPerfilPsicosocial,
@@ -66,6 +60,7 @@ const {
   listarAnalisis,
   obtenerVideoAnalisis,
   eliminarAnalisis,
+  actualizarSemaforoAnalisis,
 } = require("../controllers/analisisFutbolisticoController");
 
 const {
@@ -77,7 +72,6 @@ const {
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
-const uploadPdf = require("../middlewares/uploadPdfMiddleware");
 const uploadDocumento = require("../middlewares/uploadDocumentoMiddleware");
 const uploadDatos = require("../middlewares/uploadDatosMiddleware");
 
@@ -184,57 +178,6 @@ router.get(
   listarComposicion
 );
 
-// Videos del jugador: cualquier formato (archivo o link), sin categorías.
-// Admite varios archivos en una sola carga (hasta 20).
-router.post(
-  "/:id/videos",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  uploadVideo.array("videos", 20),
-  agregarVideoJugador
-);
-
-// Videos del jugador: listado
-router.get(
-  "/:id/videos",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  listarVideosJugador
-);
-
-// Cargas físicas: subir un reporte en PDF
-router.post(
-  "/:id/cargas-fisicas",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  uploadPdf.single("archivo"),
-  agregarCargaFisica
-);
-
-// Cargas físicas: listado
-router.get(
-  "/:id/cargas-fisicas",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  listarCargasFisicas
-);
-
-// Cargas físicas: descargar/ver el PDF
-router.get(
-  "/:id/cargas-fisicas/:cargaId/archivo",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  obtenerArchivoCargaFisica
-);
-
-// Cargas físicas: eliminar una carga puntual
-router.delete(
-  "/:id/cargas-fisicas/:cargaId",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  eliminarCargaFisica
-);
-
 // Nutrición: cargar una nueva evaluación (siempre un registro nuevo, nunca
 // se sobrescribe una evaluación anterior)
 router.post(
@@ -250,6 +193,28 @@ router.get(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   listarEvaluacionesNutricionales
+);
+
+// Nutrición: resumen para la página principal (última evaluación + objetivos)
+router.get(
+  "/:id/nutricion/resumen",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  obtenerResumenNutricional
+);
+
+// Dieta personalizada: informe único y permanente por jugador
+router.get(
+  "/:id/dieta",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  obtenerDieta
+);
+router.put(
+  "/:id/dieta",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  guardarDieta
 );
 
 // Preparación física — a) Picos de máximo rendimiento: alta, listado
@@ -360,6 +325,15 @@ router.delete(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   eliminarAnalisis
+);
+
+// Análisis futbolístico: semáforo de chances de jugar en primera (estado
+// único y actual, lo carga el cuerpo técnico)
+router.put(
+  "/:id/analisis-futbolistico/semaforo",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  actualizarSemaforoAnalisis
 );
 
 // Datos (Big Data): importación de datos estadísticos por partido. Se

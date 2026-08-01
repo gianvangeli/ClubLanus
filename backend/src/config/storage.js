@@ -56,6 +56,45 @@ const guardarArchivo = async (buffer, carpeta, nombreOriginal) => {
   return key;
 };
 
+// Igual que guardarArchivo, pero para archivos grandes (videos) que ya
+// llegaron escritos a un archivo temporal en disco (multer.diskStorage), en
+// vez de un buffer entero en memoria. Subir un video de varios cientos de
+// MB como buffer agotaba la RAM del proceso en Render y colgaba el
+// servidor; acá se lee el archivo en streaming, tanto para copiarlo a
+// uploads/ (modo local) como para subirlo a B2 en partes (modo nube).
+const guardarArchivoDesdeRuta = async (rutaTemporal, carpeta, nombreOriginal) => {
+  const key = `${carpeta}/${nombreUnico(nombreOriginal)}`;
+
+  if (!modoNube) {
+    const rutaCarpeta = path.join(uploadsDir, carpeta);
+    fs.mkdirSync(rutaCarpeta, { recursive: true });
+    const destino = path.join(uploadsDir, key);
+    try {
+      await fs.promises.rename(rutaTemporal, destino);
+    } catch {
+      await fs.promises.copyFile(rutaTemporal, destino);
+      await fs.promises.unlink(rutaTemporal).catch(() => {});
+    }
+    return `/uploads/${key}`;
+  }
+
+  try {
+    const { Upload } = require("@aws-sdk/lib-storage");
+    const upload = new Upload({
+      client: getClienteS3(),
+      params: {
+        Bucket: process.env.B2_BUCKET,
+        Key: key,
+        Body: fs.createReadStream(rutaTemporal),
+      },
+    });
+    await upload.done();
+    return key;
+  } finally {
+    fs.unlink(rutaTemporal, () => {});
+  }
+};
+
 // Envía el archivo al cliente: en disco lo manda directo, en la nube
 // redirige a una URL firmada (temporal) para no hacer pasar el video/PDF
 // entero por el servidor.
@@ -93,4 +132,4 @@ const eliminarArchivo = (key) => {
     .catch(() => {});
 };
 
-module.exports = { guardarArchivo, servirArchivo, eliminarArchivo, modoNube };
+module.exports = { guardarArchivo, guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo, modoNube };

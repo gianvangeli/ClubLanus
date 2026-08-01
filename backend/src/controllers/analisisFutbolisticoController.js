@@ -1,7 +1,37 @@
 const db = require("../config/db");
-const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
 
 const TIPOS_INFORME = ["mensual", "trimestral", "anual"];
+const SEMAFOROS = ["verde", "amarillo", "rojo"];
+
+// Semáforo de "chances de jugar en primera": lo define un integrante del
+// cuerpo técnico, es un estado único y actual (no un historial).
+const actualizarSemaforoAnalisis = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { semaforo } = req.body;
+
+    if (semaforo !== null && !SEMAFOROS.includes(semaforo)) {
+      return res.status(400).json({ message: "Semáforo inválido" });
+    }
+
+    const [result] = await db.query(
+      "UPDATE jugadores SET semaforo_analisis = ? WHERE id = ?",
+      [semaforo || null, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+
+    res.json({ message: "Semáforo actualizado correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al actualizar el semáforo",
+      error: error.message,
+    });
+  }
+};
 
 // Registra un nuevo informe de análisis futbolístico (técnico/táctico).
 // Cada informe es un registro propio: se acumulan cronológicamente, nunca
@@ -28,7 +58,7 @@ const crearAnalisis = async (req, res) => {
     let video = null;
     let nombreVideo = null;
     if (req.file) {
-      video = await guardarArchivo(req.file.buffer, "analisis-futbolistico", req.file.originalname);
+      video = await guardarArchivoDesdeRuta(req.file.path, "analisis-futbolistico", req.file.originalname);
       nombreVideo = req.file.originalname;
     }
 
@@ -126,4 +156,5 @@ module.exports = {
   listarAnalisis,
   obtenerVideoAnalisis,
   eliminarAnalisis,
+  actualizarSemaforoAnalisis,
 };

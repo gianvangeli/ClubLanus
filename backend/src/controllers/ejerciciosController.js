@@ -3,22 +3,7 @@ const db = require("../config/db");
 // Los ejercicios son material de planificación exclusivo del cuerpo técnico:
 // el jugador nunca accede a estas rutas (ver entrenamientosRoutes/autorizarRoles).
 
-const CAMPOS_EDITABLES = [
-  "dia",
-  "sesion_numero",
-  "turno",
-  "tipo_trabajo",
-  "espacio",
-  "materiales",
-  "objetivo",
-  "n_jugadores",
-  "duracion",
-  "descripcion",
-  "puntuacion",
-  "entrenador_a_cargo",
-  "jugadores",
-  "pechera",
-];
+const CAMPOS_EDITABLES = ["dia", "tipo_trabajo", "espacio", "objetivo", "n_jugadores", "duracion", "descripcion"];
 
 // Alta de un nuevo ejercicio en blanco para la sesión: se numera
 // correlativamente ("Ejercicio 01", "02"...) según los que ya existan.

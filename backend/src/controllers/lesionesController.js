@@ -9,7 +9,7 @@ const TIPOS_DOCUMENTO = ["diagnostico", "resonancia", "estudio", "informe", "otr
 const crearLesion = async (req, res) => {
   try {
     const { jugadorId } = req.params;
-    const { fecha, lesion, diagnostico, proceso_recuperacion } = req.body;
+    const { fecha, lesion, diagnostico, proceso_recuperacion, fecha_alta } = req.body;
     const registradoPor = req.usuario.id;
 
     if (!fecha || !lesion) {
@@ -22,9 +22,9 @@ const crearLesion = async (req, res) => {
     }
 
     const [result] = await db.query(
-      `INSERT INTO lesiones (jugador_id, fecha, lesion, diagnostico, proceso_recuperacion, registrado_por)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [jugadorId, fecha, lesion, diagnostico || null, proceso_recuperacion || null, registradoPor]
+      `INSERT INTO lesiones (jugador_id, fecha, lesion, diagnostico, proceso_recuperacion, fecha_alta, registrado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [jugadorId, fecha, lesion, diagnostico || null, proceso_recuperacion || null, fecha_alta || null, registradoPor]
     );
 
     res.status(201).json({
@@ -44,7 +44,7 @@ const listarLesiones = async (req, res) => {
     const { jugadorId } = req.params;
 
     const [lesiones] = await db.query(
-      `SELECT id, fecha, lesion, diagnostico, proceso_recuperacion, creado_en
+      `SELECT id, fecha, lesion, diagnostico, proceso_recuperacion, fecha_alta, creado_en
        FROM lesiones
        WHERE jugador_id = ?
        ORDER BY fecha DESC, id DESC`,
@@ -67,7 +67,7 @@ const obtenerLesion = async (req, res) => {
     const { id } = req.params;
 
     const [lesiones] = await db.query(
-      `SELECT id, jugador_id, fecha, lesion, diagnostico, proceso_recuperacion, creado_en
+      `SELECT id, jugador_id, fecha, lesion, diagnostico, proceso_recuperacion, fecha_alta, creado_en
        FROM lesiones WHERE id = ?`,
       [id]
     );
@@ -99,7 +99,7 @@ const obtenerLesion = async (req, res) => {
 const actualizarLesion = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fecha, lesion, diagnostico, proceso_recuperacion } = req.body;
+    const { fecha, lesion, diagnostico, proceso_recuperacion, fecha_alta } = req.body;
 
     if (!fecha || !lesion) {
       return res.status(400).json({ message: "Fecha y lesión son obligatorios" });
@@ -107,9 +107,9 @@ const actualizarLesion = async (req, res) => {
 
     const [result] = await db.query(
       `UPDATE lesiones
-       SET fecha = ?, lesion = ?, diagnostico = ?, proceso_recuperacion = ?
+       SET fecha = ?, lesion = ?, diagnostico = ?, proceso_recuperacion = ?, fecha_alta = ?
        WHERE id = ?`,
-      [fecha, lesion, diagnostico || null, proceso_recuperacion || null, id]
+      [fecha, lesion, diagnostico || null, proceso_recuperacion || null, fecha_alta || null, id]
     );
 
     if (result.affectedRows === 0) {

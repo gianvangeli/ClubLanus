@@ -99,7 +99,7 @@ export default function LesionDetalle() {
 
 function InfoLesion({ lesion, onActualizado, onEliminar }) {
   const [editando, setEditando] = useState(false)
-  const [form, setForm] = useState({ fecha: '', lesion: '', diagnostico: '', proceso_recuperacion: '' })
+  const [form, setForm] = useState({ fecha: '', lesion: '', diagnostico: '', proceso_recuperacion: '', fecha_alta: '' })
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
 
@@ -109,6 +109,7 @@ function InfoLesion({ lesion, onActualizado, onEliminar }) {
       lesion: lesion.lesion || '',
       diagnostico: lesion.diagnostico || '',
       proceso_recuperacion: lesion.proceso_recuperacion || '',
+      fecha_alta: aInputDate(lesion.fecha_alta) || '',
     })
     setError('')
     setEditando(true)
@@ -155,6 +156,16 @@ function InfoLesion({ lesion, onActualizado, onEliminar }) {
           <dl className="info-lista">
             <Dato label="Fecha" valor={formatFecha(lesion.fecha)} />
             <Dato label="Lesión" valor={lesion.lesion} />
+            <Dato
+              label="Estado"
+              valor={
+                lesion.fecha_alta ? (
+                  <span className="badge badge-success">Resuelta — alta el {formatFecha(lesion.fecha_alta)}</span>
+                ) : (
+                  <span className="badge badge-danger">Activa</span>
+                )
+              }
+            />
           </dl>
           <div className="lesion-texto-libre">
             <dt>Diagnóstico</dt>
@@ -182,6 +193,11 @@ function InfoLesion({ lesion, onActualizado, onEliminar }) {
           <div className="field">
             <label>Proceso de recuperación</label>
             <textarea rows={3} value={form.proceso_recuperacion} onChange={onChange('proceso_recuperacion')} />
+          </div>
+          <div className="field">
+            <label>Fecha de alta médica</label>
+            <input type="date" value={form.fecha_alta} onChange={onChange('fecha_alta')} />
+            <span className="texto-muted">Dejar vacío mientras la lesión esté activa.</span>
           </div>
           <div className="form-edicion-botones">
             <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>

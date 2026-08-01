@@ -8,8 +8,11 @@ const jugadoresRoutes = require("./routes/jugadoresRoutes");
 const entrenamientosRoutes = require("./routes/entrenamientosRoutes");
 const rutinasRoutes = require("./routes/rutinasRoutes");
 const ejerciciosRoutes = require("./routes/ejerciciosRoutes");
+const ejerciciosTacticosRoutes = require("./routes/ejerciciosTacticosRoutes");
 const lesionesRoutes = require("./routes/lesionesRoutes");
 const psicologiaRoutes = require("./routes/psicologiaRoutes");
+const objetivosNutricionalesRoutes = require("./routes/objetivosNutricionalesRoutes");
+const generalRoutes = require("./routes/generalRoutes");
 const app = express();
 
 app.use(cors());
@@ -20,8 +23,11 @@ app.use("/api/jugadores", jugadoresRoutes);
 app.use("/api/entrenamientos", entrenamientosRoutes);
 app.use("/api/rutinas", rutinasRoutes);
 app.use("/api/ejercicios", ejerciciosRoutes);
+app.use("/api/ejercicios-tacticos", ejerciciosTacticosRoutes);
 app.use("/api/lesiones", lesionesRoutes);
 app.use("/api/psicologia", psicologiaRoutes);
+app.use("/api/objetivos-nutricionales", objetivosNutricionalesRoutes);
+app.use("/api/general", generalRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Backend funcionando correctamente" });

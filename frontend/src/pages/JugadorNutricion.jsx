@@ -1,34 +1,43 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
-import { aNumero } from '../utils/numero'
 import { formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
+import NutricionTabs from '../components/NutricionTabs'
 import './AdminJugadorDetalle.css'
 import './JugadorNutricion.css'
 
-const FORM_VACIO = {
-  fecha: '',
-  peso: '',
-  talla: '',
-  masa_muscular_kg: '',
-  masa_adiposa_kg: '',
-  sumatoria_pliegues: '',
-  masa_osea: '',
-  indice_musculo_oseo: '',
-  observaciones: '',
-}
+// Colores por masa: identidad (categórico), no estado — orden fijo,
+// validado con el script de la skill de dataviz (5 slots, --pairs all,
+// modo claro): sin fallos duros de separación CVD/contraste.
+const MASAS = [
+  { key: 'masa_muscular_pct', etiqueta: 'Masa muscular', color: '#2a78d6' },
+  { key: 'masa_adiposa_pct', etiqueta: 'Masa adiposa', color: '#e34948' },
+  { key: 'masa_osea_pct', etiqueta: 'Masa ósea', color: '#4a3aa7' },
+  { key: 'masa_residual_pct', etiqueta: 'Masa residual', color: '#eda100' },
+  { key: 'masa_piel_pct', etiqueta: 'Masa de la piel', color: '#008300' },
+]
 
-// Campos numéricos obligatorios del formulario, con la etiqueta a mostrar
-// en el mensaje de error si faltan o no son un número válido.
-const CAMPOS_NUMERICOS = [
-  ['peso', 'El peso'],
-  ['talla', 'La talla'],
-  ['masa_muscular_kg', 'La masa muscular'],
-  ['masa_adiposa_kg', 'La masa adiposa'],
-  ['sumatoria_pliegues', 'La sumatoria de 6 pliegues'],
-  ['masa_osea', 'La masa ósea'],
-  ['indice_musculo_oseo', 'El índice músculo-óseo'],
+// Zonas de estado (good/warning/serious/critical) — paleta fija, nunca
+// usada para identidad de serie.
+const COLOR_GOOD = '#0ca30c'
+const COLOR_WARNING = '#fab219'
+const COLOR_SERIOUS = '#ec835a'
+const COLOR_CRITICAL = '#d03b3b'
+
+// Escalas de referencia (fijas para todo el club).
+const ZONAS_INDICE_MO = [
+  { desde: 2.8, hasta: 3.6, color: COLOR_CRITICAL, etiqueta: 'Pobre' },
+  { desde: 3.6, hasta: 4.2, color: COLOR_SERIOUS, etiqueta: 'Deficiente' },
+  { desde: 4.2, hasta: 5.2, color: COLOR_WARNING, etiqueta: 'Bueno' },
+  { desde: 5.2, hasta: 6.0, color: COLOR_GOOD, etiqueta: 'Excelente' },
+]
+
+const ZONAS_SUMA_6PL = [
+  { desde: 33.8, hasta: 43.58, color: COLOR_GOOD, etiqueta: 'Excelente' },
+  { desde: 43.58, hasta: 53.35, color: COLOR_WARNING, etiqueta: 'Muy buena' },
+  { desde: 53.35, hasta: 63.13, color: COLOR_SERIOUS, etiqueta: 'Regular' },
+  { desde: 63.13, hasta: 72.9, color: COLOR_CRITICAL, etiqueta: 'Pobre' },
 ]
 
 export default function JugadorNutricion() {
@@ -52,190 +61,359 @@ export default function JugadorNutricion() {
         <MenuSeccionesJugador jugadorId={id} jugadorNombre={jugadorNombre} activa="nutricion" />
       </div>
 
-      <NutricionJugador jugadorId={id} />
+      <NutricionTabs jugadorId={id} activa="informe" />
+
+      <InformeNutricional jugadorId={id} />
     </div>
   )
 }
 
-function NutricionJugador({ jugadorId }) {
-  const [evaluaciones, setEvaluaciones] = useState([])
+function InformeNutricional({ jugadorId }) {
+  const [resumen, setResumen] = useState(null)
+  const [historial, setHistorial] = useState([])
   const [cargando, setCargando] = useState(true)
-  const [mostrarForm, setMostrarForm] = useState(false)
-  const [form, setForm] = useState(FORM_VACIO)
-  const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
 
-  const cargar = () => {
+  useEffect(() => {
     setCargando(true)
-    api
-      .get(`/jugadores/${jugadorId}/nutricion`)
-      .then(({ data }) => setEvaluaciones(data))
-      .finally(() => setCargando(false))
-  }
-
-  useEffect(cargar, [jugadorId])
-
-  const abrirForm = () => {
-    setForm({ ...FORM_VACIO, fecha: new Date().toISOString().slice(0, 10) })
-    setError('')
-    setMostrarForm(true)
-  }
-
-  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
-
-  const guardar = async (e) => {
-    e.preventDefault()
-    setError('')
-
-    if (!form.fecha) {
-      setError('La fecha es obligatoria')
-      return
-    }
-
-    const valores = {}
-    for (const [campo, etiqueta] of CAMPOS_NUMERICOS) {
-      const valor = aNumero(form[campo])
-      if (!valor) {
-        setError(`${etiqueta} es obligatoria y tiene que ser un número (podés usar coma o punto)`)
-        return
-      }
-      valores[campo] = valor
-    }
-
-    setEnviando(true)
-    try {
-      await api.post(`/jugadores/${jugadorId}/nutricion`, {
-        fecha: form.fecha,
-        ...valores,
-        observaciones: form.observaciones,
+    Promise.all([
+      api.get(`/jugadores/${jugadorId}/nutricion/resumen`),
+      api.get(`/jugadores/${jugadorId}/nutricion`),
+    ])
+      .then(([resumenRes, historialRes]) => {
+        setResumen(resumenRes.data)
+        setHistorial(historialRes.data)
       })
-      setMostrarForm(false)
-      cargar()
-    } catch (err) {
-      setError(extraerError(err, 'No se pudo registrar la evaluación'))
-    } finally {
-      setEnviando(false)
-    }
+      .catch((err) => setError(extraerError(err, 'No se pudo cargar el informe nutricional')))
+      .finally(() => setCargando(false))
+  }, [jugadorId])
+
+  if (cargando) {
+    return (
+      <div className="empty-state">
+        <span className="spinner spinner-dark" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return <div className="alert alert-error">{error}</div>
+  }
+
+  const { categoria, ultima_evaluacion: ultima, objetivos } = resumen
+
+  if (!ultima) {
+    return (
+      <div className="empty-state card">
+        <p>Todavía no hay evaluaciones nutricionales cargadas para este jugador.</p>
+        <Link to={`/admin/jugadores/${jugadorId}/nutricion/evaluaciones`} className="btn btn-primary btn-sm">
+          Cargar la primera evaluación
+        </Link>
+      </div>
+    )
   }
 
   return (
-    <div className="card seccion nutricion-card">
-      <div className="seccion-header">
-        <h3>Evaluaciones nutricionales</h3>
-        {!mostrarForm && (
-          <button className="btn btn-primary btn-sm" onClick={abrirForm}>
-            + Nueva evaluación
-          </button>
-        )}
+    <div className="nutri-informe">
+      <ObjetivosBanner categoria={categoria} objetivos={objetivos} />
+
+      <DatosHeader evaluacion={ultima} />
+
+      <p className="texto-muted nutri-fecha-evaluacion">
+        Última evaluación: {formatFecha(ultima.fecha)}
+      </p>
+
+      <div className="nutri-graficos-grid">
+        <PieFraccionamiento evaluacion={ultima} />
+        <BarraGauge
+          titulo="Índice M.O."
+          valor={ultima.indice_musculo_oseo}
+          min={2.8}
+          max={6.0}
+          zonas={ZONAS_INDICE_MO}
+        />
+        <BarraGauge
+          titulo="Suma de 6 pliegues"
+          valor={ultima.sumatoria_pliegues}
+          min={33.8}
+          max={72.9}
+          zonas={ZONAS_SUMA_6PL}
+          unidad=" mm"
+        />
       </div>
 
-      {error && <div className="alert alert-error">{error}</div>}
+      <CuadranteImcSuma6pl
+        imc={ultima.imc}
+        suma6pl={ultima.sumatoria_pliegues}
+        objetivoSuma6pl={objetivos?.suma_6_pliegues_objetivo}
+        objetivoImc={objetivos?.imc_objetivo}
+      />
 
-      {mostrarForm && (
-        <form className="form-edicion form-nutricion" onSubmit={guardar}>
-          <div className="form-nutricion-grid">
-            <div className="field">
-              <label>Fecha</label>
-              <input type="date" value={form.fecha} onChange={onChange('fecha')} required />
-            </div>
-            <div className="field">
-              <label>Peso (kg)</label>
-              <input type="text" inputMode="decimal" placeholder="Ej: 64,00" value={form.peso} onChange={onChange('peso')} />
-            </div>
-            <div className="field">
-              <label>Talla (cm)</label>
-              <input type="text" inputMode="decimal" placeholder="Ej: 168,00" value={form.talla} onChange={onChange('talla')} />
-            </div>
-            <div className="field">
-              <label>Masa muscular (kg)</label>
-              <input type="text" inputMode="decimal" value={form.masa_muscular_kg} onChange={onChange('masa_muscular_kg')} />
-            </div>
-            <div className="field">
-              <label>Masa adiposa (kg)</label>
-              <input type="text" inputMode="decimal" value={form.masa_adiposa_kg} onChange={onChange('masa_adiposa_kg')} />
-            </div>
-            <div className="field">
-              <label>Sumatoria de 6 pliegues</label>
-              <input type="text" inputMode="decimal" value={form.sumatoria_pliegues} onChange={onChange('sumatoria_pliegues')} />
-            </div>
-            <div className="field">
-              <label>Masa ósea</label>
-              <input type="text" inputMode="decimal" value={form.masa_osea} onChange={onChange('masa_osea')} />
-            </div>
-            <div className="field">
-              <label>Índice músculo-óseo</label>
-              <input type="text" inputMode="decimal" value={form.indice_musculo_oseo} onChange={onChange('indice_musculo_oseo')} />
-            </div>
-          </div>
+      <HistorialTabla evaluaciones={historial} />
+    </div>
+  )
+}
 
-          <div className="field">
-            <label>Observaciones</label>
-            <input value={form.observaciones} onChange={onChange('observaciones')} />
-          </div>
+function DatosHeader({ evaluacion }) {
+  const edad = evaluacion.edad_decimal != null ? Math.floor(evaluacion.edad_decimal) : null
 
-          <div className="form-edicion-botones">
-            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
-              {enviando ? <span className="spinner" /> : 'Guardar evaluación'}
-            </button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMostrarForm(false)}>
-              Cancelar
-            </button>
-          </div>
-        </form>
-      )}
+  return (
+    <div className="nutri-datos-header">
+      <div className="nutri-dato-box">
+        <span className="nutri-dato-label">Peso</span>
+        <strong>{evaluacion.peso} kg</strong>
+      </div>
+      <div className="nutri-dato-box">
+        <span className="nutri-dato-label">Talla</span>
+        <strong>{evaluacion.talla} cm</strong>
+      </div>
+      <div className="nutri-dato-box">
+        <span className="nutri-dato-label">Edad</span>
+        <strong>{edad != null ? `${edad} años` : '—'}</strong>
+      </div>
+    </div>
+  )
+}
 
-      {cargando && (
-        <div className="empty-state">
-          <span className="spinner spinner-dark" />
-        </div>
-      )}
+function HistorialTabla({ evaluaciones }) {
+  if (evaluaciones.length === 0) return null
 
-      {!cargando && evaluaciones.length === 0 && (
-        <p className="texto-muted">Todavía no hay evaluaciones nutricionales cargadas para este jugador.</p>
-      )}
-
-      {!cargando && evaluaciones.length > 0 && (
-        <div className="tabla-scroll">
-          <table className="tabla tabla-compacta tabla-nutricion">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Edad dec.</th>
-                <th>Peso</th>
-                <th>Talla</th>
-                <th>MM (kg)</th>
-                <th>MM (%)</th>
-                <th>MA (kg)</th>
-                <th>MA (%)</th>
-                <th>Sum 6p</th>
-                <th>M. ósea</th>
-                <th>Índice M/O</th>
-                <th>IMC</th>
-                <th>Observaciones</th>
+  return (
+    <div className="card nutri-grafico nutri-grafico-ancho">
+      <h4>Historial de 5 componentes</h4>
+      <div className="tabla-scroll">
+        <table className="tabla tabla-compacta tabla-nutricion">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Peso (kg)</th>
+              <th>Kg MM</th>
+              <th>Kg MA</th>
+              <th>IMC</th>
+              <th>Σ 6 PL (mm)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {evaluaciones.map((e) => (
+              <tr key={e.id}>
+                <td>{formatFecha(e.fecha)}</td>
+                <td>{e.peso}</td>
+                <td>{e.masa_muscular_kg}</td>
+                <td>{e.masa_adiposa_kg}</td>
+                <td>{e.imc ?? '—'}</td>
+                <td>{e.sumatoria_pliegues}</td>
               </tr>
-            </thead>
-            <tbody>
-              {evaluaciones.map((e) => (
-                <tr key={e.id}>
-                  <td>{formatFecha(e.fecha)}</td>
-                  <td>{e.edad_decimal ?? '—'}</td>
-                  <td>{e.peso}</td>
-                  <td>{e.talla}</td>
-                  <td>{e.masa_muscular_kg}</td>
-                  <td>{e.masa_muscular_pct != null ? `${e.masa_muscular_pct}%` : '—'}</td>
-                  <td>{e.masa_adiposa_kg}</td>
-                  <td>{e.masa_adiposa_pct != null ? `${e.masa_adiposa_pct}%` : '—'}</td>
-                  <td>{e.sumatoria_pliegues}</td>
-                  <td>{e.masa_osea}</td>
-                  <td>{e.indice_musculo_oseo}</td>
-                  <td>{e.imc ?? '—'}</td>
-                  <td className="texto-muted">{e.observaciones || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function ObjetivosBanner({ categoria, objetivos }) {
+  if (!objetivos) {
+    return (
+      <div className="alert alert-warning">
+        No hay objetivos nutricionales configurados para la categoría {categoria || '(sin categoría asignada)'}.{' '}
+        <Link to="/admin/objetivos-nutricionales">Configurarlos</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="card nutri-objetivos">
+      <div className="nutri-objetivos-header">
+        <h4>Objetivos vigentes — {categoria}</h4>
+        <Link to="/admin/objetivos-nutricionales" className="btn btn-ghost btn-sm">
+          Ver configuración
+        </Link>
+      </div>
+      <div className="nutri-objetivos-grid">
+        <div className="nutri-objetivo">
+          <span className="nutri-objetivo-label">Rango de peso óptimo</span>
+          <strong>
+            {objetivos.peso_min ?? '—'} a {objetivos.peso_max ?? '—'} kg
+          </strong>
         </div>
-      )}
+        <div className="nutri-objetivo">
+          <span className="nutri-objetivo-label">Suma de 6 pliegues</span>
+          <strong>Inferior a {objetivos.suma_6_pliegues_objetivo ?? '—'} mm</strong>
+        </div>
+        <div className="nutri-objetivo">
+          <span className="nutri-objetivo-label">Índice M.O.</span>
+          <strong>Igual o superior a {objetivos.indice_musculo_oseo_objetivo ?? '—'}</strong>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PieFraccionamiento({ evaluacion }) {
+  const datos = MASAS.map((m) => ({ ...m, valor: Number(evaluacion[m.key]) || 0 })).filter((m) => m.valor > 0)
+  const total = datos.reduce((acc, d) => acc + d.valor, 0) || 1
+
+  const cx = 100
+  const cy = 100
+  const r = 90
+  const polar = (angulo) => {
+    const rad = ((angulo - 90) * Math.PI) / 180
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)]
+  }
+
+  let acumulado = 0
+  const slices = datos.map((d) => {
+    const desde = (acumulado / total) * 360
+    acumulado += d.valor
+    const hasta = (acumulado / total) * 360
+    return { ...d, desde, hasta }
+  })
+
+  return (
+    <div className="card nutri-grafico">
+      <h4>Fraccionamiento de 5 masas</h4>
+      <div className="nutri-pie-wrap">
+        <svg viewBox="0 0 200 200" className="nutri-pie-svg" role="img" aria-label="Fraccionamiento de 5 masas corporales">
+          {slices.length === 1 ? (
+            <circle cx={cx} cy={cy} r={r} fill={slices[0].color} />
+          ) : (
+            slices.map((s) => {
+              const [x1, y1] = polar(s.desde)
+              const [x2, y2] = polar(s.hasta)
+              const largeArc = s.hasta - s.desde > 180 ? 1 : 0
+              return (
+                <path
+                  key={s.key}
+                  d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`}
+                  fill={s.color}
+                  stroke="var(--surface)"
+                  strokeWidth="2"
+                />
+              )
+            })
+          )}
+        </svg>
+        <ul className="nutri-pie-legend">
+          {datos.map((d) => (
+            <li key={d.key}>
+              <span className="nutri-dot" style={{ background: d.color }} />
+              {d.etiqueta} <strong>{d.valor}%</strong>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function BarraGauge({ titulo, valor, min, max, zonas, unidad }) {
+  const pct = (v) => Math.min(100, Math.max(0, ((v - min) / (max - min)) * 100))
+  const valorNum = valor != null ? Number(valor) : null
+
+  return (
+    <div className="card nutri-grafico">
+      <h4>{titulo}</h4>
+      <div className="nutri-gauge-legend">
+        {zonas.map((z) => (
+          <span key={z.etiqueta} className="nutri-gauge-legend-item">
+            <span className="nutri-dot" style={{ background: z.color }} />
+            {z.etiqueta}
+          </span>
+        ))}
+      </div>
+      <div className="nutri-gauge-track">
+        {zonas.map((z) => (
+          <div
+            key={z.etiqueta}
+            className="nutri-gauge-zona"
+            style={{ left: `${pct(z.desde)}%`, width: `${Math.max(0, pct(z.hasta) - pct(z.desde))}%`, background: z.color }}
+          />
+        ))}
+        {valorNum != null && (
+          <div className="nutri-gauge-marcador" style={{ left: `${pct(valorNum)}%` }}>
+            <span className="nutri-gauge-marcador-etiqueta">
+              {valorNum}
+              {unidad || ''}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="nutri-gauge-escala">
+        <span>{min}</span>
+        <span>{max}</span>
+      </div>
+    </div>
+  )
+}
+
+function CuadranteImcSuma6pl({ imc, suma6pl, objetivoSuma6pl, objetivoImc }) {
+  if (objetivoSuma6pl == null || objetivoImc == null) {
+    return (
+      <div className="card nutri-grafico nutri-grafico-ancho">
+        <h4>Diagnóstico: IMC y Suma de 6 pliegues</h4>
+        <p className="texto-muted">
+          Para ver este gráfico hace falta configurar el objetivo de suma de 6 pliegues y el IMC de referencia de la
+          categoría.
+        </p>
+      </div>
+    )
+  }
+
+  if (imc == null || suma6pl == null) {
+    return (
+      <div className="card nutri-grafico nutri-grafico-ancho">
+        <h4>Diagnóstico: IMC y Suma de 6 pliegues</h4>
+        <p className="texto-muted">La última evaluación no tiene IMC o suma de 6 pliegues cargados.</p>
+      </div>
+    )
+  }
+
+  const margenX = 15
+  const margenY = 6
+  const xMin = Math.min(objetivoSuma6pl - margenX, suma6pl - margenX / 2)
+  const xMax = Math.max(objetivoSuma6pl + margenX, suma6pl + margenX / 2)
+  const yMin = Math.min(objetivoImc - margenY, imc - margenY / 2)
+  const yMax = Math.max(objetivoImc + margenY, imc + margenY / 2)
+
+  const w = 360
+  const h = 240
+  const pad = 40
+  // Eje X invertido: la suma de 6 pliegues crece hacia la izquierda, así
+  // que a la derecha (menos pliegues = menos grasa) queda la zona óptima.
+  const escalaX = (v) => pad + ((xMax - v) / (xMax - xMin)) * (w - pad * 2)
+  const escalaY = (v) => h - pad - ((v - yMin) / (yMax - yMin)) * (h - pad * 2)
+
+  const divisorX = escalaX(objetivoSuma6pl)
+  const divisorY = escalaY(objetivoImc)
+  const puntoX = escalaX(suma6pl)
+  const puntoY = escalaY(imc)
+
+  return (
+    <div className="card nutri-grafico nutri-grafico-ancho">
+      <h4>Diagnóstico: IMC y Suma de 6 pliegues</h4>
+      <svg viewBox={`0 0 ${w} ${h}`} className="nutri-cuadrante-svg" role="img" aria-label="Diagnóstico de IMC contra suma de 6 pliegues">
+        <rect x={pad} y={pad} width={divisorX - pad} height={divisorY - pad} fill={COLOR_CRITICAL} opacity="0.2" />
+        <rect x={divisorX} y={pad} width={w - pad - divisorX} height={divisorY - pad} fill={COLOR_WARNING} opacity="0.22" />
+        <rect x={pad} y={divisorY} width={divisorX - pad} height={h - pad - divisorY} fill={COLOR_WARNING} opacity="0.22" />
+        <rect x={divisorX} y={divisorY} width={w - pad - divisorX} height={h - pad - divisorY} fill={COLOR_GOOD} opacity="0.16" />
+
+        <line x1={divisorX} y1={pad} x2={divisorX} y2={h - pad} stroke="var(--border)" strokeDasharray="4 3" />
+        <line x1={pad} y1={divisorY} x2={w - pad} y2={divisorY} stroke="var(--border)" strokeDasharray="4 3" />
+
+        <line x1={pad} y1={pad} x2={pad} y2={h - pad} stroke="var(--text-muted)" />
+        <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="var(--text-muted)" />
+
+        <text x={pad + 6} y={pad + 16} className="nutri-cuadrante-etiqueta">Bajar MA / Subir MM</text>
+        <text x={w - pad - 6} y={pad + 16} textAnchor="end" className="nutri-cuadrante-etiqueta">Bajar masa adiposa</text>
+        <text x={pad + 6} y={h - pad - 8} className="nutri-cuadrante-etiqueta">Subir masa muscular</text>
+        <text x={w - pad - 6} y={h - pad - 8} textAnchor="end" className="nutri-cuadrante-etiqueta">Óptimo</text>
+
+        <circle cx={puntoX} cy={puntoY} r="6" fill="var(--granate-700)" stroke="#fff" strokeWidth="2" />
+      </svg>
+      <div className="nutri-cuadrante-ejes">
+        <span>Eje horizontal: Suma de 6 pliegues (mm) — menor valor hacia la derecha</span>
+        <span>Eje vertical: IMC</span>
+      </div>
     </div>
   )
 }

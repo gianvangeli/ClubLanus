@@ -9,7 +9,6 @@ const {
   eliminarVideoEntrenamiento,
   eliminarEntrenamiento,
   obtenerArchivoVideo,
-  obtenerArchivoDibujo,
   obtenerReflexion,
   actualizarReflexion,
 } = require("../controllers/entrenamientosController");
@@ -31,23 +30,17 @@ router.post(
   "/",
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
-  uploadEntrenamiento.fields([
-    { name: "videos", maxCount: 10 },
-    { name: "dibujo", maxCount: 1 },
-  ]),
+  uploadEntrenamiento.fields([{ name: "videos", maxCount: 10 }]),
   crearEntrenamiento
 );
 
-// Página propia de la sesión: editar título/descripción/planificación y
-// opcionalmente agregar más videos o reemplazar el dibujo
+// Página propia de la sesión: editar título/descripción y opcionalmente
+// agregar más videos
 router.put(
   "/:id",
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
-  uploadEntrenamiento.fields([
-    { name: "videos", maxCount: 10 },
-    { name: "dibujo", maxCount: 1 },
-  ]),
+  uploadEntrenamiento.fields([{ name: "videos", maxCount: 10 }]),
   actualizarEntrenamiento
 );
 
@@ -64,14 +57,6 @@ router.delete(
 
 // Sirve el archivo de un video de entrenamiento
 router.get("/videos/:videoId/archivo", verificarToken, obtenerArchivoVideo);
-
-// Sirve la imagen del dibujo táctico de una sesión (solo cuerpo técnico)
-router.get(
-  "/:id/dibujo",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  obtenerArchivoDibujo
-);
 
 // Página de reflexión post-entrenamiento (solo cuerpo técnico)
 router.get("/:id/reflexion", verificarToken, autorizarRoles(...CUERPO_TECNICO), obtenerReflexion);

@@ -1,7 +1,6 @@
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const db = require("../config/db");
-const { guardarArchivo, eliminarArchivo } = require("../config/storage");
 
 // Posiciones válidas para el gráfico de cancha (ver POSICIONES_CANCHA en el frontend)
 const POSICIONES_CANCHA = [
@@ -267,6 +266,7 @@ const obtenerJugador = async (req, res) => {
               j.contrato, j.agente_nombre, j.agente_apellido, j.agente_mail, j.agente_telefono,
               j.contacto_emergencia_nombre, j.contacto_emergencia_apellido, j.contacto_emergencia_relacion, j.contacto_emergencia_telefono,
               j.pie, j.posiciones_cancha, j.partidos_jugados, j.psicologo_id,
+              j.semaforo_psicologico, j.semaforo_analisis,
               j.creado_en, u.email AS usuario_email, p.email AS psicologo_email
        FROM jugadores j
        LEFT JOIN usuarios u ON u.id = j.usuario_id
@@ -350,8 +350,7 @@ const actualizarJugador = async (req, res) => {
 
 // Elimina la ficha de un jugador (por si el cuerpo técnico se equivocó al
 // cargarlo). Borra en cascada todo lo que depende de él: composición
-// corporal, videos individuales (y su archivo en disco si no lo usa nadie
-// más) y las tablas legadas con FK hacia jugadores.
+// corporal y las tablas legadas con FK hacia jugadores.
 const eliminarJugador = async (req, res) => {
   const conn = await db.getConnection();
   try {
@@ -364,42 +363,13 @@ const eliminarJugador = async (req, res) => {
 
     await conn.beginTransaction();
 
-    const [videosDelJugador] = await conn.query(
-      "SELECT video_id FROM video_jugadores WHERE jugador_id = ?",
-      [id]
-    );
-
-    await conn.query("DELETE FROM video_jugadores WHERE jugador_id = ?", [id]);
     await conn.query("DELETE FROM composicion_corporal WHERE jugador_id = ?", [id]);
-    await conn.query("DELETE FROM cargas_fisicas WHERE jugador_id = ?", [id]);
     await conn.query("DELETE FROM entrenamiento_jugadores WHERE jugador_id = ?", [id]);
     await conn.query("DELETE FROM informes WHERE jugador_id = ?", [id]);
-
-    const archivosABorrar = [];
-    for (const { video_id } of videosDelJugador) {
-      const [[{ total }]] = await conn.query(
-        `SELECT
-           (SELECT COUNT(*) FROM video_jugadores WHERE video_id = ?) +
-           (SELECT COUNT(*) FROM biblioteca_videos WHERE video_id = ?) AS total`,
-        [video_id, video_id]
-      );
-
-      if (total === 0) {
-        const [videoRows] = await conn.query("SELECT tipo, url_video FROM videos WHERE id = ?", [video_id]);
-        if (videoRows[0]?.tipo === "archivo") {
-          archivosABorrar.push(videoRows[0].url_video);
-        }
-        await conn.query("DELETE FROM videos WHERE id = ?", [video_id]);
-      }
-    }
 
     await conn.query("DELETE FROM jugadores WHERE id = ?", [id]);
 
     await conn.commit();
-
-    for (const urlVideo of archivosABorrar) {
-      eliminarArchivo(urlVideo);
-    }
 
     res.json({ message: "Jugador eliminado correctamente" });
   } catch (error) {
@@ -578,102 +548,6 @@ const listarComposicion = async (req, res) => {
   }
 };
 
-const sinExtension = (nombreArchivo) => nombreArchivo.replace(/\.[^/.]+$/, "");
-
-// Videos propios del jugador (distinto de la Biblioteca): cualquier formato,
-// sin categoría/rival/resultado ni datos de competencia.
-// Admite varios archivos y/o varios links en una sola carga. El título es
-// opcional: si se sube más de un video se usa el nombre de archivo (o el link).
-const agregarVideoJugador = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { titulo, descripcion, url_video } = req.body;
-    const subidoPor = req.usuario.id;
-
-    const [jugadores] = await db.query("SELECT id FROM jugadores WHERE id = ?", [id]);
-    if (jugadores.length === 0) {
-      return res.status(404).json({ message: "Jugador no encontrado" });
-    }
-
-    const videosACrear = [];
-
-    for (const archivo of req.files || []) {
-      videosACrear.push({
-        titulo: titulo || sinExtension(archivo.originalname),
-        tipo: "archivo",
-        url_video: await guardarArchivo(archivo.buffer, "videos", archivo.originalname),
-      });
-    }
-
-    const urls = (Array.isArray(url_video) ? url_video : [url_video])
-      .flatMap((valor) => (valor ? valor.split("\n") : []))
-      .map((valor) => valor.trim())
-      .filter(Boolean);
-
-    urls.forEach((url, i) => {
-      videosACrear.push({
-        titulo: titulo || (urls.length > 1 ? `Video ${i + 1}` : url),
-        tipo: "link",
-        url_video: url,
-      });
-    });
-
-    if (videosACrear.length === 0) {
-      return res.status(400).json({
-        message: "Subí al menos un archivo o un link de video",
-      });
-    }
-
-    const idsCreados = [];
-    for (const video of videosACrear) {
-      const [videoResult] = await db.query(
-        `INSERT INTO videos (titulo, descripcion, tipo, url_video, categoria_video, subido_por)
-         VALUES (?, ?, ?, ?, 'individual', ?)`,
-        [video.titulo, descripcion || null, video.tipo, video.url_video, subidoPor]
-      );
-
-      await db.query(
-        "INSERT INTO video_jugadores (video_id, jugador_id) VALUES (?, ?)",
-        [videoResult.insertId, id]
-      );
-
-      idsCreados.push(videoResult.insertId);
-    }
-
-    res.status(201).json({
-      message: `${idsCreados.length} video(s) agregado(s) correctamente`,
-      video_ids: idsCreados,
-    });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error al agregar los videos",
-      error: error.message,
-    });
-  }
-};
-
-const listarVideosJugador = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [videos] = await db.query(
-      `SELECT v.id, v.titulo, v.descripcion, v.tipo, v.url_video, v.fecha_subida
-       FROM video_jugadores vj
-       JOIN videos v ON v.id = vj.video_id
-       WHERE vj.jugador_id = ?
-       ORDER BY vj.id DESC`,
-      [id]
-    );
-
-    res.json(videos);
-  } catch (error) {
-    res.status(500).json({
-      message: "Error al listar los videos del jugador",
-      error: error.message,
-    });
-  }
-};
-
 module.exports = {
   crearJugador,
   listarJugadores,
@@ -689,6 +563,4 @@ module.exports = {
   actualizarCaracteristicas,
   agregarComposicion,
   listarComposicion,
-  agregarVideoJugador,
-  listarVideosJugador,
 };

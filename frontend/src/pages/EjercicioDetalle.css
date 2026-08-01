@@ -91,12 +91,6 @@
   gap: 0 24px;
 }
 
-.ej-fila-3 {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0 24px;
-}
-
 .ej-campo label {
   display: block;
   font-size: 11px;
@@ -171,8 +165,7 @@
   .ej-cuerpo {
     grid-template-columns: 1fr;
   }
-  .ej-fila-2,
-  .ej-fila-3 {
+  .ej-fila-2 {
     grid-template-columns: 1fr;
     gap: 10px;
   }

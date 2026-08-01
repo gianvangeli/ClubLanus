@@ -39,7 +39,7 @@ const obtenerJugadorAsignado = async (req, res) => {
     }
 
     const [jugadores] = await db.query(
-      "SELECT id, nombre, apellido FROM jugadores WHERE id = ?",
+      "SELECT id, nombre, apellido, semaforo_psicologico FROM jugadores WHERE id = ?",
       [jugadorId]
     );
 
@@ -47,6 +47,36 @@ const obtenerJugadorAsignado = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el jugador",
+      error: error.message,
+    });
+  }
+};
+
+const SEMAFOROS = ["verde", "amarillo", "rojo"];
+
+// Semáforo psicológico: lo define exclusivamente el psicólogo asignado.
+// Ni el cuerpo técnico ni nadie más puede editarlo (solo verlo desde la
+// ficha del jugador y desde el módulo General).
+const actualizarSemaforo = async (req, res) => {
+  try {
+    const { jugadorId } = req.params;
+    const { semaforo } = req.body;
+
+    if (semaforo !== null && !SEMAFOROS.includes(semaforo)) {
+      return res.status(400).json({ message: "Semáforo inválido" });
+    }
+
+    const asignado = await estaAsignado(jugadorId, req.usuario.id);
+    if (!asignado) {
+      return res.status(403).json({ message: "No tenés acceso a este jugador" });
+    }
+
+    await db.query("UPDATE jugadores SET semaforo_psicologico = ? WHERE id = ?", [semaforo || null, jugadorId]);
+
+    res.json({ message: "Semáforo actualizado correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al actualizar el semáforo",
       error: error.message,
     });
   }
@@ -117,4 +147,5 @@ module.exports = {
   obtenerJugadorAsignado,
   crearInforme,
   listarInformes,
+  actualizarSemaforo,
 };

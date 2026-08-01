@@ -18,19 +18,21 @@ const calcularEdadDecimal = (fechaNacimiento, fechaReferencia) => {
   return redondear2((diasReferencia - diasNacimiento) / msPorDia / 365.25);
 };
 
-// Masa muscular %, masa adiposa % e IMC se calculan siempre a partir de los
-// valores cargados (kg/peso y peso/talla²), nunca se cargan a mano.
+// Los % de las 5 masas (fraccionamiento) y el IMC se calculan siempre a
+// partir de los kg cargados y el peso/talla, nunca se cargan a mano.
 const calcularCamposDerivados = (evaluacion, fechaNacimientoJugador) => {
   const peso = Number(evaluacion.peso);
   const talla = Number(evaluacion.talla);
-  const masaMuscularKg = Number(evaluacion.masa_muscular_kg);
-  const masaAdiposaKg = Number(evaluacion.masa_adiposa_kg);
+  const pct = (kg) => (peso && kg !== null && kg !== undefined ? redondear2((Number(kg) / peso) * 100) : null);
 
   return {
     ...evaluacion,
     edad_decimal: calcularEdadDecimal(fechaNacimientoJugador, evaluacion.fecha),
-    masa_muscular_pct: peso ? redondear2((masaMuscularKg / peso) * 100) : null,
-    masa_adiposa_pct: peso ? redondear2((masaAdiposaKg / peso) * 100) : null,
+    masa_muscular_pct: pct(evaluacion.masa_muscular_kg),
+    masa_adiposa_pct: pct(evaluacion.masa_adiposa_kg),
+    masa_osea_pct: pct(evaluacion.masa_osea_kg),
+    masa_residual_pct: pct(evaluacion.masa_residual_kg),
+    masa_piel_pct: pct(evaluacion.masa_piel_kg),
     imc: peso && talla ? redondear2(peso / (talla / 100) ** 2) : null,
   };
 };
@@ -41,9 +43,50 @@ const CAMPOS_OBLIGATORIOS = [
   "talla",
   "masa_muscular_kg",
   "masa_adiposa_kg",
-  "sumatoria_pliegues",
-  "masa_osea",
+  "masa_osea_kg",
+  "masa_residual_kg",
+  "masa_piel_kg",
   "indice_musculo_oseo",
+  "pliegue_triceps",
+  "pliegue_subescapular",
+  "pliegue_supraespinal",
+  "pliegue_abdominal",
+  "pliegue_muslo",
+  "pliegue_pantorrilla",
+];
+
+// Campos antropométricos de registro (básicos extra, diámetros y
+// perímetros): opcionales, no alimentan ningún gráfico, solo quedan
+// guardados como historial de la medición.
+const CAMPOS_ANTROPOMETRIA_OPCIONALES = [
+  "talla_sentado_cm",
+  "envergadura_cm",
+  "altura_pie_cm",
+  "diametro_biacromial",
+  "diametro_torax_transverso",
+  "diametro_torax_anteroposterior",
+  "diametro_biiliocrestideo",
+  "diametro_humeral",
+  "diametro_femoral",
+  "perimetro_cabeza",
+  "perimetro_brazo_relajado",
+  "perimetro_brazo_flexionado",
+  "perimetro_antebrazo",
+  "perimetro_torax_mesoesternal",
+  "perimetro_cintura",
+  "perimetro_caderas",
+  "perimetro_muslo_superior",
+  "perimetro_muslo_medial",
+  "perimetro_pantorrilla",
+];
+
+const CAMPOS_PLIEGUES = [
+  "pliegue_triceps",
+  "pliegue_subescapular",
+  "pliegue_supraespinal",
+  "pliegue_abdominal",
+  "pliegue_muslo",
+  "pliegue_pantorrilla",
 ];
 
 // Registra una nueva evaluación nutricional. Cada carga es un registro
@@ -58,8 +101,9 @@ const agregarEvaluacionNutricional = async (req, res) => {
       talla,
       masa_muscular_kg,
       masa_adiposa_kg,
-      sumatoria_pliegues,
-      masa_osea,
+      masa_osea_kg,
+      masa_residual_kg,
+      masa_piel_kg,
       indice_musculo_oseo,
       observaciones,
     } = req.body;
@@ -75,19 +119,39 @@ const agregarEvaluacionNutricional = async (req, res) => {
       return res.status(404).json({ message: "Jugador no encontrado" });
     }
 
+    // La suma de 6 pliegues nunca se carga a mano: se calcula sumando los
+    // 6 pliegues individuales cargados.
+    const sumatoriaPliegues = CAMPOS_PLIEGUES.reduce((acc, campo) => acc + Number(req.body[campo]), 0);
+
+    const antropometria = CAMPOS_ANTROPOMETRIA_OPCIONALES.map((campo) => (req.body[campo] === undefined || req.body[campo] === "" ? null : req.body[campo]));
+    const pliegues = CAMPOS_PLIEGUES.map((campo) => req.body[campo]);
+
     const [result] = await db.query(
       `INSERT INTO nutricion_evaluaciones
-         (jugador_id, fecha, peso, talla, masa_muscular_kg, masa_adiposa_kg, sumatoria_pliegues, masa_osea, indice_musculo_oseo, observaciones, registrado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (jugador_id, fecha, peso, talla,
+          talla_sentado_cm, envergadura_cm, altura_pie_cm,
+          diametro_biacromial, diametro_torax_transverso, diametro_torax_anteroposterior,
+          diametro_biiliocrestideo, diametro_humeral, diametro_femoral,
+          perimetro_cabeza, perimetro_brazo_relajado, perimetro_brazo_flexionado, perimetro_antebrazo,
+          perimetro_torax_mesoesternal, perimetro_cintura, perimetro_caderas,
+          perimetro_muslo_superior, perimetro_muslo_medial, perimetro_pantorrilla,
+          pliegue_triceps, pliegue_subescapular, pliegue_supraespinal, pliegue_abdominal, pliegue_muslo, pliegue_pantorrilla,
+          masa_muscular_kg, masa_adiposa_kg, sumatoria_pliegues,
+          masa_osea_kg, masa_residual_kg, masa_piel_kg, indice_musculo_oseo, observaciones, registrado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         fecha,
         peso,
         talla,
+        ...antropometria,
+        ...pliegues,
         masa_muscular_kg,
         masa_adiposa_kg,
-        sumatoria_pliegues,
-        masa_osea,
+        redondear2(sumatoriaPliegues),
+        masa_osea_kg,
+        masa_residual_kg,
+        masa_piel_kg,
         indice_musculo_oseo,
         observaciones || null,
         registradoPor,
@@ -106,6 +170,14 @@ const agregarEvaluacionNutricional = async (req, res) => {
   }
 };
 
+const CAMPOS_EVALUACION =
+  "id, fecha, peso, talla, talla_sentado_cm, envergadura_cm, altura_pie_cm, " +
+  "diametro_biacromial, diametro_torax_transverso, diametro_torax_anteroposterior, diametro_biiliocrestideo, diametro_humeral, diametro_femoral, " +
+  "perimetro_cabeza, perimetro_brazo_relajado, perimetro_brazo_flexionado, perimetro_antebrazo, perimetro_torax_mesoesternal, perimetro_cintura, " +
+  "perimetro_caderas, perimetro_muslo_superior, perimetro_muslo_medial, perimetro_pantorrilla, " +
+  "pliegue_triceps, pliegue_subescapular, pliegue_supraespinal, pliegue_abdominal, pliegue_muslo, pliegue_pantorrilla, " +
+  "masa_muscular_kg, masa_adiposa_kg, sumatoria_pliegues, masa_osea_kg, masa_residual_kg, masa_piel_kg, indice_musculo_oseo, observaciones, creado_en";
+
 const listarEvaluacionesNutricionales = async (req, res) => {
   try {
     const { id } = req.params;
@@ -116,10 +188,7 @@ const listarEvaluacionesNutricionales = async (req, res) => {
     }
 
     const [evaluaciones] = await db.query(
-      `SELECT id, fecha, peso, talla, masa_muscular_kg, masa_adiposa_kg, sumatoria_pliegues, masa_osea, indice_musculo_oseo, observaciones, creado_en
-       FROM nutricion_evaluaciones
-       WHERE jugador_id = ?
-       ORDER BY fecha DESC, id DESC`,
+      `SELECT ${CAMPOS_EVALUACION} FROM nutricion_evaluaciones WHERE jugador_id = ? ORDER BY fecha DESC, id DESC`,
       [id]
     );
 
@@ -133,7 +202,42 @@ const listarEvaluacionesNutricionales = async (req, res) => {
   }
 };
 
+// Resumen para la página principal ("Informe nutricional"): la última
+// evaluación (con sus campos derivados) + los objetivos configurados para
+// la categoría del jugador. No se puede editar nada desde acá.
+const obtenerResumenNutricional = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [jugadores] = await db.query("SELECT fecha_nacimiento, categoria FROM jugadores WHERE id = ?", [id]);
+    if (jugadores.length === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+    const { fecha_nacimiento: fechaNacimiento, categoria } = jugadores[0];
+
+    const [evaluaciones] = await db.query(
+      `SELECT ${CAMPOS_EVALUACION} FROM nutricion_evaluaciones WHERE jugador_id = ? ORDER BY fecha DESC, id DESC LIMIT 1`,
+      [id]
+    );
+    const ultima = evaluaciones[0] ? calcularCamposDerivados(evaluaciones[0], fechaNacimiento) : null;
+
+    let objetivos = null;
+    if (categoria) {
+      const [filas] = await db.query("SELECT * FROM objetivos_nutricionales WHERE categoria = ?", [categoria]);
+      objetivos = filas[0] || null;
+    }
+
+    res.json({ categoria, ultima_evaluacion: ultima, objetivos });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener el resumen nutricional",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   agregarEvaluacionNutricional,
   listarEvaluacionesNutricionales,
+  obtenerResumenNutricional,
 };

@@ -17,9 +17,11 @@ export default function PsicologoJugador() {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const cargarJugador = () => {
     api.get(`/psicologia/jugador/${jugadorId}`).then(({ data }) => setJugador(data))
-  }, [jugadorId])
+  }
+
+  useEffect(cargarJugador, [jugadorId])
 
   const cargar = () => {
     setCargando(true)
@@ -72,6 +74,8 @@ export default function PsicologoJugador() {
       <div className="seccion-especializada-header">
         <h1>Informes psicológicos{jugadorNombre ? ` — ${jugadorNombre}` : ''}</h1>
       </div>
+
+      {jugador && <SemaforoPsicologico jugadorId={jugadorId} jugador={jugador} onActualizado={cargarJugador} />}
 
       <div className="card seccion">
         <div className="seccion-header">
@@ -139,6 +143,65 @@ export default function PsicologoJugador() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  )
+}
+
+const SEMAFOROS = [
+  { valor: 'verde', etiqueta: 'Verde', color: '#0ca30c' },
+  { valor: 'amarillo', etiqueta: 'Amarillo', color: '#fab219' },
+  { valor: 'rojo', etiqueta: 'Rojo', color: '#d03b3b' },
+]
+
+function SemaforoPsicologico({ jugadorId, jugador, onActualizado }) {
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  const elegir = async (valor) => {
+    setError('')
+    setGuardando(true)
+    try {
+      const nuevo = jugador.semaforo_psicologico === valor ? null : valor
+      await api.put(`/psicologia/jugador/${jugadorId}/semaforo`, { semaforo: nuevo })
+      onActualizado()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo actualizar el semáforo'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="card seccion">
+      <h3>Semáforo del jugador</h3>
+      <p className="texto-muted" style={{ marginBottom: 12 }}>
+        Solo vos lo definís. Lo va a ver el cuerpo técnico en la ficha del jugador y en el módulo General
+        (los informes de arriba siguen siendo privados).
+      </p>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        {SEMAFOROS.map((s) => (
+          <button
+            key={s.valor}
+            type="button"
+            disabled={guardando}
+            onClick={() => elegir(s.valor)}
+            className="btn btn-sm"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              border: `2px solid ${s.color}`,
+              background: jugador.semaforo_psicologico === s.valor ? s.color : 'transparent',
+              color: jugador.semaforo_psicologico === s.valor ? '#fff' : 'var(--text)',
+            }}
+          >
+            {s.etiqueta}
+          </button>
+        ))}
       </div>
     </div>
   )

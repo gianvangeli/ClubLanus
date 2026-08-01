@@ -6,7 +6,7 @@ import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import './AdminJugadorDetalle.css'
 import './JugadorLesiones.css'
 
-const FORM_VACIO = { fecha: '', lesion: '', diagnostico: '', proceso_recuperacion: '' }
+const FORM_VACIO = { fecha: '', lesion: '', diagnostico: '', proceso_recuperacion: '', fecha_alta: '' }
 
 export default function JugadorLesiones() {
   const { id } = useParams()
@@ -117,6 +117,11 @@ function ListaLesiones({ jugadorId }) {
             <label>Proceso de recuperación</label>
             <textarea rows={3} value={form.proceso_recuperacion} onChange={onChange('proceso_recuperacion')} />
           </div>
+          <div className="field">
+            <label>Fecha de alta médica</label>
+            <input type="date" value={form.fecha_alta} onChange={onChange('fecha_alta')} />
+            <span className="texto-muted">Dejar vacío mientras la lesión esté activa.</span>
+          </div>
           <div className="form-edicion-botones">
             <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
               {enviando ? <span className="spinner" /> : 'Guardar lesión'}
@@ -145,6 +150,11 @@ function ListaLesiones({ jugadorId }) {
               <div className="lesion-item-info">
                 <strong>{l.lesion}</strong>
                 <span className="texto-muted">{formatFecha(l.fecha)}</span>
+                {l.fecha_alta ? (
+                  <span className="badge badge-success">Resuelta</span>
+                ) : (
+                  <span className="badge badge-danger">Activa</span>
+                )}
               </div>
               {l.diagnostico && <p className="texto-muted lesion-item-preview">{l.diagnostico}</p>}
             </Link>

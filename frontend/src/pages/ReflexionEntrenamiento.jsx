@@ -154,12 +154,7 @@ export default function ReflexionEntrenamiento() {
             <div className="ref-pregunta" key={p.campo}>
               <div className="ref-pregunta-header">{p.titulo}</div>
               <p className="ref-pregunta-ayuda">{p.ayuda}</p>
-              <textarea
-                rows={6}
-                value={form[p.campo]}
-                onChange={onChange(p.campo)}
-                placeholder="Escribí tu reflexión acá..."
-              />
+              <textarea rows={6} value={form[p.campo]} onChange={onChange(p.campo)} />
             </div>
           ))}
         </div>
@@ -171,7 +166,7 @@ export default function ReflexionEntrenamiento() {
           </div>
           <div className="ej-campo">
             <label>Firma:</label>
-            <input value={form.reflexion_firma} onChange={onChange('reflexion_firma')} placeholder="Nombre y apellido" />
+            <input value={form.reflexion_firma} onChange={onChange('reflexion_firma')} />
           </div>
         </div>
       </div>

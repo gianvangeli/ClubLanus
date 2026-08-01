@@ -99,31 +99,6 @@ CREATE TABLE `biblioteca_visualizaciones` (
   CONSTRAINT `biblioteca_visualizaciones_ibfk_2` FOREIGN KEY (`usuario_id`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `cargas_fisicas`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `cargas_fisicas` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `jugador_id` int NOT NULL,
-  `fecha` date NOT NULL,
-  `titulo` varchar(150) DEFAULT NULL,
-  `archivo_pdf` varchar(255) DEFAULT NULL,
-  `peso` decimal(5,2) DEFAULT NULL,
-  `altura` decimal(4,2) DEFAULT NULL,
-  `distancia_recorrida` decimal(8,2) DEFAULT NULL,
-  `sprint_maximo` decimal(5,2) DEFAULT NULL,
-  `rpe` int DEFAULT NULL,
-  `estado` enum('excelente','bueno','normal','fatigado','lesionado') DEFAULT 'normal',
-  `observaciones` text,
-  `registrado_por` int DEFAULT NULL,
-  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `jugador_id` (`jugador_id`),
-  KEY `registrado_por` (`registrado_por`),
-  CONSTRAINT `cargas_fisicas_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`),
-  CONSTRAINT `cargas_fisicas_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `composicion_corporal`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -151,19 +126,12 @@ CREATE TABLE `ejercicios` (
   `entrenamiento_id` int NOT NULL,
   `numero` int NOT NULL,
   `dia` date DEFAULT NULL,
-  `sesion_numero` varchar(20) DEFAULT NULL,
-  `turno` varchar(50) DEFAULT NULL,
   `tipo_trabajo` varchar(150) DEFAULT NULL,
   `espacio` varchar(150) DEFAULT NULL,
-  `materiales` text,
   `objetivo` text,
   `n_jugadores` varchar(50) DEFAULT NULL,
   `duracion` varchar(50) DEFAULT NULL,
   `descripcion` text,
-  `puntuacion` text,
-  `entrenador_a_cargo` varchar(150) DEFAULT NULL,
-  `jugadores` text,
-  `pechera` varchar(150) DEFAULT NULL,
   `dibujo_json` longtext,
   `creado_por` int DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -173,6 +141,28 @@ CREATE TABLE `ejercicios` (
   CONSTRAINT `ejercicios_creado_por_fk` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`),
   CONSTRAINT `ejercicios_entrenamiento_fk` FOREIGN KEY (`entrenamiento_id`) REFERENCES `entrenamientos` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `ejercicios_tacticos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ejercicios_tacticos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `categoria` varchar(30) NOT NULL,
+  `subcategoria` varchar(60) NOT NULL,
+  `titulo` varchar(150) NOT NULL,
+  `fecha` date DEFAULT NULL,
+  `descripcion` text,
+  `cantidad_jugadores` int DEFAULT NULL,
+  `video_tipo` enum('archivo','link') DEFAULT NULL,
+  `video_url` varchar(500) DEFAULT NULL,
+  `video_nombre_original` varchar(255) DEFAULT NULL,
+  `dibujo_json` longtext,
+  `creado_por` int DEFAULT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ejercicios_tacticos_creado_por_fk` (`creado_por`),
+  CONSTRAINT `ejercicios_tacticos_creado_por_fk` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `entrenamiento_jugadores`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -215,14 +205,6 @@ CREATE TABLE `entrenamientos` (
   `fecha` date NOT NULL,
   `titulo` varchar(150) DEFAULT NULL,
   `descripcion` text,
-  `tipo_entrenamiento` varchar(100) DEFAULT NULL,
-  `duracion_minutos` int DEFAULT NULL,
-  `cantidad_jugadores` int DEFAULT NULL,
-  `objetivo` text,
-  `observaciones` text,
-  `materiales` text,
-  `espacios` varchar(255) DEFAULT NULL,
-  `dibujo_url` varchar(255) DEFAULT NULL,
   `creado_por` int DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `reflexion_dia` date DEFAULT NULL,
@@ -305,6 +287,8 @@ CREATE TABLE `jugadores` (
   `minutos_por_partido` int DEFAULT NULL,
   `fecha_nacimiento` date DEFAULT NULL,
   `psicologo_id` int DEFAULT NULL,
+  `semaforo_psicologico` enum('verde','amarillo','rojo') DEFAULT NULL,
+  `semaforo_analisis` enum('verde','amarillo','rojo') DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `usuario_id` (`usuario_id`),
   KEY `psicologo_id` (`psicologo_id`),
@@ -322,6 +306,7 @@ CREATE TABLE `lesiones` (
   `lesion` varchar(200) NOT NULL,
   `diagnostico` text,
   `proceso_recuperacion` text,
+  `fecha_alta` date DEFAULT NULL,
   `registrado_por` int NOT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -372,10 +357,37 @@ CREATE TABLE `nutricion_evaluaciones` (
   `fecha` date NOT NULL,
   `peso` decimal(5,2) NOT NULL,
   `talla` decimal(5,2) NOT NULL,
+  `talla_sentado_cm` decimal(5,2) DEFAULT NULL,
+  `envergadura_cm` decimal(5,2) DEFAULT NULL,
+  `altura_pie_cm` decimal(5,2) DEFAULT NULL,
+  `diametro_biacromial` decimal(5,2) DEFAULT NULL,
+  `diametro_torax_transverso` decimal(5,2) DEFAULT NULL,
+  `diametro_torax_anteroposterior` decimal(5,2) DEFAULT NULL,
+  `diametro_biiliocrestideo` decimal(5,2) DEFAULT NULL,
+  `diametro_humeral` decimal(5,2) DEFAULT NULL,
+  `diametro_femoral` decimal(5,2) DEFAULT NULL,
+  `perimetro_cabeza` decimal(5,2) DEFAULT NULL,
+  `perimetro_brazo_relajado` decimal(5,2) DEFAULT NULL,
+  `perimetro_brazo_flexionado` decimal(5,2) DEFAULT NULL,
+  `perimetro_antebrazo` decimal(5,2) DEFAULT NULL,
+  `perimetro_torax_mesoesternal` decimal(5,2) DEFAULT NULL,
+  `perimetro_cintura` decimal(5,2) DEFAULT NULL,
+  `perimetro_caderas` decimal(5,2) DEFAULT NULL,
+  `perimetro_muslo_superior` decimal(5,2) DEFAULT NULL,
+  `perimetro_muslo_medial` decimal(5,2) DEFAULT NULL,
+  `perimetro_pantorrilla` decimal(5,2) DEFAULT NULL,
+  `pliegue_triceps` decimal(5,2) NOT NULL,
+  `pliegue_subescapular` decimal(5,2) NOT NULL,
+  `pliegue_supraespinal` decimal(5,2) NOT NULL,
+  `pliegue_abdominal` decimal(5,2) NOT NULL,
+  `pliegue_muslo` decimal(5,2) NOT NULL,
+  `pliegue_pantorrilla` decimal(5,2) NOT NULL,
   `masa_muscular_kg` decimal(5,2) NOT NULL,
   `masa_adiposa_kg` decimal(5,2) NOT NULL,
   `sumatoria_pliegues` decimal(6,2) NOT NULL,
-  `masa_osea` decimal(5,2) NOT NULL,
+  `masa_osea_kg` decimal(5,2) NOT NULL,
+  `masa_residual_kg` decimal(5,2) DEFAULT NULL,
+  `masa_piel_kg` decimal(5,2) DEFAULT NULL,
   `indice_musculo_oseo` decimal(5,2) NOT NULL,
   `observaciones` text,
   `registrado_por` int NOT NULL,
@@ -385,6 +397,41 @@ CREATE TABLE `nutricion_evaluaciones` (
   KEY `registrado_por` (`registrado_por`),
   CONSTRAINT `nutricion_evaluaciones_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
   CONSTRAINT `nutricion_evaluaciones_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `objetivos_nutricionales`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `objetivos_nutricionales` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `categoria` varchar(100) NOT NULL,
+  `peso_min` decimal(5,2) DEFAULT NULL,
+  `peso_max` decimal(5,2) DEFAULT NULL,
+  `suma_6_pliegues_objetivo` decimal(6,2) DEFAULT NULL,
+  `indice_musculo_oseo_objetivo` decimal(5,2) DEFAULT NULL,
+  `imc_objetivo` decimal(5,2) DEFAULT NULL,
+  `actualizado_por` int DEFAULT NULL,
+  `actualizado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `categoria` (`categoria`),
+  KEY `objetivos_nutricionales_actualizado_por_fk` (`actualizado_por`),
+  CONSTRAINT `objetivos_nutricionales_actualizado_por_fk` FOREIGN KEY (`actualizado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `dietas_jugador`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `dietas_jugador` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `plan` text,
+  `actualizado_por` int DEFAULT NULL,
+  `actualizado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `jugador_id` (`jugador_id`),
+  KEY `dietas_jugador_actualizado_por_fk` (`actualizado_por`),
+  CONSTRAINT `dietas_jugador_actualizado_por_fk` FOREIGN KEY (`actualizado_por`) REFERENCES `usuarios` (`id`),
+  CONSTRAINT `dietas_jugador_jugador_fk` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `perfiles_psicosociales`;
@@ -555,22 +602,6 @@ CREATE TABLE `pizarras_tacticas` (
   CONSTRAINT `pizarras_tacticas_ibfk_2` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `rutina_completados`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `rutina_completados` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `rutina_id` int NOT NULL,
-  `jugador_id` int NOT NULL,
-  `completado` tinyint(1) NOT NULL DEFAULT '0',
-  `completado_en` timestamp NULL DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_rutina_completado` (`rutina_id`,`jugador_id`),
-  KEY `rutina_completados_jugador_fk` (`jugador_id`),
-  CONSTRAINT `rutina_completados_jugador_fk` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `rutina_completados_rutina_fk` FOREIGN KEY (`rutina_id`) REFERENCES `rutinas` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `rutina_jugadores`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -605,7 +636,9 @@ DROP TABLE IF EXISTS `rutinas`;
 CREATE TABLE `rutinas` (
   `id` int NOT NULL AUTO_INCREMENT,
   `titulo` varchar(150) NOT NULL,
+  `fecha` date DEFAULT NULL,
   `descripcion` text,
+  `cantidad_jugadores` int DEFAULT NULL,
   `alcance` enum('general','individual') NOT NULL DEFAULT 'general',
   `creado_por` int DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -641,21 +674,6 @@ CREATE TABLE `video_etiquetas` (
   CONSTRAINT `video_etiquetas_ibfk_1` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`),
   CONSTRAINT `video_etiquetas_ibfk_2` FOREIGN KEY (`etiqueta_id`) REFERENCES `etiquetas` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `video_jugadores`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `video_jugadores` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `video_id` int NOT NULL,
-  `jugador_id` int NOT NULL,
-  `compartido_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `video_id` (`video_id`),
-  KEY `jugador_id` (`jugador_id`),
-  CONSTRAINT `video_jugadores_ibfk_1` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`),
-  CONSTRAINT `video_jugadores_ibfk_2` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `video_marcadores`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

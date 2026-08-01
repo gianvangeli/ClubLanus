@@ -6,6 +6,7 @@ const {
   obtenerJugadorAsignado,
   crearInforme,
   listarInformes,
+  actualizarSemaforo,
 } = require("../controllers/informesPsicologicosController");
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
@@ -18,5 +19,6 @@ router.get("/mis-jugadores", listarMisJugadores);
 router.get("/jugador/:jugadorId", obtenerJugadorAsignado);
 router.post("/jugador/:jugadorId/informes", crearInforme);
 router.get("/jugador/:jugadorId/informes", listarInformes);
+router.put("/jugador/:jugadorId/semaforo", actualizarSemaforo);
 
 module.exports = router;

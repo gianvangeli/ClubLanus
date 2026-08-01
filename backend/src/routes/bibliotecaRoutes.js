@@ -12,6 +12,7 @@ const {
   obtenerArchivoVideo,
   listarBibliotecaStaff,
   verDetallePublicacion,
+  eliminarPublicacion,
   listarUsuariosJugadores,
 } = require("../controllers/bibliotecaController");
 
@@ -105,6 +106,14 @@ router.get(
   "/:id",
   verificarToken,
   verDetallePublicacion
+);
+
+//Eliminar una publicación (y todo lo que dependa de ella)
+router.delete(
+  "/:id",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  eliminarPublicacion
 );
 
 module.exports = router;

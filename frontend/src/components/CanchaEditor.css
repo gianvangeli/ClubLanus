@@ -68,6 +68,16 @@
   outline: 2px solid var(--granate-700);
 }
 
+.ce-seleccion-info {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ce-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .ce-stage-wrap {
   border-radius: var(--radius-sm);
   overflow: hidden;

@@ -1,5 +1,5 @@
 const db = require("../config/db");
-const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -85,7 +85,7 @@ const agregarVideoABiblioteca = async (req, res) => {
 
     if (req.file) {
       tipo = "archivo";
-      urlFinal = await guardarArchivo(req.file.buffer, "videos", req.file.originalname);
+      urlFinal = await guardarArchivoDesdeRuta(req.file.path, "videos", req.file.originalname);
     } else if (url_video) {
       tipo = "link";
       urlFinal = url_video;
@@ -464,6 +464,68 @@ const verDetallePublicacion = async (req, res) => {
   }
 };
 
+// Elimina una publicación completa: sus videos, las asignaciones a
+// jugadores y el historial de visualizaciones. Borra el archivo de cada
+// video si no lo usa nadie más (ficha de jugador o entrenamiento).
+const eliminarPublicacion = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const { id } = req.params;
+
+    const [publicaciones] = await conn.query("SELECT id FROM biblioteca WHERE id = ?", [id]);
+    if (publicaciones.length === 0) {
+      return res.status(404).json({ message: "Publicación no encontrada" });
+    }
+
+    const [videosDeLaPublicacion] = await conn.query(
+      "SELECT video_id FROM biblioteca_videos WHERE biblioteca_id = ?",
+      [id]
+    );
+
+    await conn.beginTransaction();
+
+    await conn.query("DELETE FROM biblioteca_visualizaciones WHERE biblioteca_id = ?", [id]);
+    await conn.query("DELETE FROM biblioteca_usuarios WHERE biblioteca_id = ?", [id]);
+    await conn.query("DELETE FROM biblioteca_videos WHERE biblioteca_id = ?", [id]);
+
+    const archivosABorrar = [];
+    for (const { video_id } of videosDeLaPublicacion) {
+      const [[{ total }]] = await conn.query(
+        `SELECT
+           (SELECT COUNT(*) FROM entrenamiento_videos WHERE video_id = ?) +
+           (SELECT COUNT(*) FROM biblioteca_videos WHERE video_id = ?) AS total`,
+        [video_id, video_id]
+      );
+
+      if (total === 0) {
+        const [videoRows] = await conn.query("SELECT tipo, url_video FROM videos WHERE id = ?", [video_id]);
+        if (videoRows[0]?.tipo === "archivo") {
+          archivosABorrar.push(videoRows[0].url_video);
+        }
+        await conn.query("DELETE FROM videos WHERE id = ?", [video_id]);
+      }
+    }
+
+    await conn.query("DELETE FROM biblioteca WHERE id = ?", [id]);
+
+    await conn.commit();
+
+    for (const urlVideo of archivosABorrar) {
+      eliminarArchivo(urlVideo);
+    }
+
+    res.json({ message: "Publicación eliminada correctamente" });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({
+      message: "Error al eliminar la publicación",
+      error: error.message,
+    });
+  } finally {
+    conn.release();
+  }
+};
+
 // Cuentas de jugadores registradas (para el selector de "asignar a")
 const listarUsuariosJugadores = async (req, res) => {
   try {
@@ -490,5 +552,6 @@ module.exports = {
     obtenerArchivoVideo,
     listarBibliotecaStaff,
     verDetallePublicacion,
+    eliminarPublicacion,
     listarUsuariosJugadores,
 };

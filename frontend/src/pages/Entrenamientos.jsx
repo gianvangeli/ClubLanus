@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import api, { API_BASE, extraerError } from '../api/client'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
+import EjerciciosTacticos from './EjerciciosTacticos'
 import './Entrenamientos.css'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
@@ -16,7 +17,7 @@ export default function Entrenamientos() {
       <div className="page-header">
         <div>
           <h1>Entrenamientos</h1>
-          <p>Agenda de videos por día y rutinas extra — visible para todo el plantel</p>
+          <p>Agenda de videos por día y entrenamientos desglosados — visible para todo el plantel</p>
         </div>
       </div>
 
@@ -31,11 +32,11 @@ export default function Entrenamientos() {
           className={`btn btn-sm ${vista === 'extra' ? 'btn-primary' : 'btn-ghost'}`}
           onClick={() => setVista('extra')}
         >
-          Entrenamientos extra
+          Entrenamientos desglosados
         </button>
       </div>
 
-      {vista === 'agenda' ? <AgendaDiaria /> : <RutinasExtra />}
+      {vista === 'agenda' ? <AgendaDiaria /> : <EntrenamientosDesglosados />}
     </div>
   )
 }
@@ -122,45 +123,6 @@ function AgendaDiaria() {
   )
 }
 
-export function Planificacion({ sesion }) {
-  const token = localStorage.getItem('token')
-  const s = sesion || {}
-  const datos = [
-    ['Tipo', s.tipo_entrenamiento],
-    ['Duración', s.duracion_minutos ? `${s.duracion_minutos} min` : null],
-    ['Cantidad de jugadores', s.cantidad_jugadores],
-    ['Objetivo', s.objetivo],
-    ['Materiales', s.materiales],
-    ['Espacios', s.espacios],
-    ['Observaciones', s.observaciones],
-  ].filter(([, valor]) => valor)
-
-  if (datos.length === 0 && !s.dibujo_url) return null
-
-  return (
-    <div className="entren-planificacion">
-      <h4>Planificación (solo cuerpo técnico)</h4>
-      {datos.length > 0 && (
-        <dl className="info-lista">
-          {datos.map(([label, valor]) => (
-            <div className="info-dato" key={label}>
-              <dt>{label}</dt>
-              <dd>{valor}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {s.dibujo_url && (
-        <img
-          className="entren-dibujo"
-          src={`${API_BASE}/api/entrenamientos/${s.id}/dibujo?token=${token}`}
-          alt="Dibujo táctico de la sesión"
-        />
-      )}
-    </div>
-  )
-}
-
 export function VideoEntrenamiento({ video, puedeEliminar, onEliminar }) {
   const token = localStorage.getItem('token')
 
@@ -192,16 +154,6 @@ export function VideoEntrenamiento({ video, puedeEliminar, onEliminar }) {
   )
 }
 
-const PLANIFICACION_VACIA = {
-  tipo_entrenamiento: '',
-  duracion_minutos: '',
-  objetivo: '',
-  cantidad_jugadores: '',
-  materiales: '',
-  espacios: '',
-  observaciones: '',
-}
-
 function NuevaSesion({ onCreado }) {
   const [fecha, setFecha] = useState(hoyISO())
   const [titulo, setTitulo] = useState('')
@@ -210,15 +162,9 @@ function NuevaSesion({ onCreado }) {
   const [modo, setModo] = useState('archivo')
   const [archivos, setArchivos] = useState([])
   const [urlVideo, setUrlVideo] = useState('')
-  const [mostrarPlanificacion, setMostrarPlanificacion] = useState(false)
-  const [planificacion, setPlanificacion] = useState(PLANIFICACION_VACIA)
-  const [dibujo, setDibujo] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
-
-  const onCambioPlanificacion = (campo) => (e) =>
-    setPlanificacion({ ...planificacion, [campo]: e.target.value })
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -237,10 +183,6 @@ function NuevaSesion({ onCreado }) {
       } else if (urlVideo.trim()) {
         datos.append('url_video', urlVideo)
       }
-      Object.entries(planificacion).forEach(([campo, valor]) => {
-        if (valor) datos.append(campo, valor)
-      })
-      if (dibujo) datos.append('dibujo', dibujo)
 
       await api.post('/entrenamientos', datos)
       setMensaje('Sesión guardada correctamente')
@@ -249,8 +191,6 @@ function NuevaSesion({ onCreado }) {
       setTituloVideo('')
       setArchivos([])
       setUrlVideo('')
-      setPlanificacion(PLANIFICACION_VACIA)
-      setDibujo(null)
       onCreado()
     } catch (err) {
       setError(extraerError(err, 'No se pudo guardar la sesión'))
@@ -273,21 +213,13 @@ function NuevaSesion({ onCreado }) {
         </div>
         <div className="field" style={{ flex: 1 }}>
           <label>Título del entrenamiento (opcional)</label>
-          <input
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            placeholder="Ej: Entrenamiento de velocidad — visible para el jugador"
-          />
+          <input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
         </div>
       </div>
 
       <div className="field">
         <label>Descripción de la sesión (opcional, solo cuerpo técnico)</label>
-        <input
-          value={descripcion}
-          onChange={(e) => setDescripcion(e.target.value)}
-          placeholder="Ej: Semanita de impacto — sesión de velocidad"
-        />
+        <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
       </div>
 
       <div className="field">
@@ -324,91 +256,14 @@ function NuevaSesion({ onCreado }) {
       ) : (
         <div className="field">
           <label>URLs del video (una por línea si son varios)</label>
-          <textarea
-            rows={2}
-            value={urlVideo}
-            onChange={(e) => setUrlVideo(e.target.value)}
-            placeholder={'https://...\nhttps://...'}
-          />
+          <textarea rows={2} value={urlVideo} onChange={(e) => setUrlVideo(e.target.value)} />
         </div>
       )}
 
       <div className="field">
         <label>Título del video {modo === 'archivo' ? '(opcional si subís varios)' : '(opcional)'}</label>
-        <input
-          value={tituloVideo}
-          onChange={(e) => setTituloVideo(e.target.value)}
-          placeholder={modo === 'archivo' ? 'Se usa el nombre del archivo si lo dejás vacío' : 'Se usa el link si lo dejás vacío'}
-        />
+        <input value={tituloVideo} onChange={(e) => setTituloVideo(e.target.value)} />
       </div>
-
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => setMostrarPlanificacion((v) => !v)}
-      >
-        {mostrarPlanificacion ? '− Ocultar' : '+ Agregar'} planificación de la sesión (solo cuerpo técnico)
-      </button>
-
-      {mostrarPlanificacion && (
-        <div className="entren-planificacion-form">
-          <div className="entren-form-row">
-            <div className="field">
-              <label>Tipo de entrenamiento</label>
-              <input
-                value={planificacion.tipo_entrenamiento}
-                onChange={onCambioPlanificacion('tipo_entrenamiento')}
-                placeholder="Ej: Táctico, Fuerza, Recuperación"
-              />
-            </div>
-            <div className="field">
-              <label>Duración (minutos)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={planificacion.duracion_minutos}
-                onChange={onCambioPlanificacion('duracion_minutos')}
-              />
-            </div>
-            <div className="field">
-              <label>Cantidad de jugadores</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={planificacion.cantidad_jugadores}
-                onChange={onCambioPlanificacion('cantidad_jugadores')}
-              />
-            </div>
-          </div>
-
-          <div className="field">
-            <label>Objetivo</label>
-            <input value={planificacion.objetivo} onChange={onCambioPlanificacion('objetivo')} />
-          </div>
-          <div className="field">
-            <label>Materiales</label>
-            <input value={planificacion.materiales} onChange={onCambioPlanificacion('materiales')} placeholder="Ej: Conos, pecheras, vallas" />
-          </div>
-          <div className="field">
-            <label>Espacios</label>
-            <input value={planificacion.espacios} onChange={onCambioPlanificacion('espacios')} placeholder="Ej: Media cancha, campo reducido" />
-          </div>
-          <div className="field">
-            <label>Observaciones</label>
-            <textarea
-              rows={2}
-              value={planificacion.observaciones}
-              onChange={onCambioPlanificacion('observaciones')}
-            />
-          </div>
-          <div className="field">
-            <label>Dibujo táctico (imagen, opcional)</label>
-            <input type="file" accept="image/*" onChange={(e) => setDibujo(e.target.files[0] || null)} />
-            {dibujo && <span className="texto-muted">{dibujo.name}</span>}
-          </div>
-        </div>
-      )}
 
       <button className="btn btn-primary" type="submit" disabled={enviando}>
         {enviando ? <span className="spinner" /> : 'Guardar sesión'}
@@ -418,17 +273,40 @@ function NuevaSesion({ onCreado }) {
 }
 
 // ---------------------------------------------------------------------------
-// Entrenamientos extra: rutinas para que el jugador trabaje fuera del club.
-// El CT las carga (generales o individuales) y el jugador marca si las
-// completó o no.
+// Entrenamientos desglosados: videos cortos de ejercicios ya realizados en
+// la cancha (dinámica, cantidad de jugadores), para repasarlos. El CT los
+// carga (para todo el plantel o para jugadores puntuales); no hay nada que
+// "completar", es un archivo de consulta.
 // ---------------------------------------------------------------------------
 
-function RutinasExtra() {
+function EntrenamientosDesglosados() {
   const { esCuerpoTecnico } = useAuth()
-  return esCuerpoTecnico ? <RutinasExtraStaff /> : <RutinasExtraJugador />
+  const [sub, setSub] = useState('general')
+
+  return (
+    <div>
+      <div className="et-tabs">
+        <button className={`btn btn-sm ${sub === 'general' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setSub('general')}>
+          General
+        </button>
+        <button className={`btn btn-sm ${sub === 'rondos' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setSub('rondos')}>
+          Rondos
+        </button>
+        <button
+          className={`btn btn-sm ${sub === 'pelota_parada' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setSub('pelota_parada')}
+        >
+          Pelota parada
+        </button>
+      </div>
+
+      {sub === 'general' && (esCuerpoTecnico ? <EntrenamientosDesglosadosStaff /> : <EntrenamientosDesglosadosJugador />)}
+      {(sub === 'rondos' || sub === 'pelota_parada') && <EjerciciosTacticos categoriaFija={sub} />}
+    </div>
+  )
 }
 
-function RutinasExtraJugador() {
+function EntrenamientosDesglosadosJugador() {
   const [rutinas, setRutinas] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
@@ -440,7 +318,7 @@ function RutinasExtraJugador() {
     api
       .get('/rutinas')
       .then(({ data }) => setRutinas(data))
-      .catch((err) => setError(extraerError(err, 'No se pudo cargar los entrenamientos extra')))
+      .catch((err) => setError(extraerError(err, 'No se pudo cargar los entrenamientos desglosados')))
       .finally(() => setCargando(false))
   }
 
@@ -461,16 +339,6 @@ function RutinasExtraJugador() {
     }
   }
 
-  const marcarCompletado = async (id, completado) => {
-    try {
-      await api.put(`/rutinas/${id}/completado`, { completado })
-      setRutinas((prev) => prev.map((r) => (r.id === id ? { ...r, completado } : r)))
-      setDetalles((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], completado } } : prev))
-    } catch (err) {
-      setError(extraerError(err, 'No se pudo actualizar el estado'))
-    }
-  }
-
   return (
     <div>
       {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
@@ -483,19 +351,22 @@ function RutinasExtraJugador() {
 
       {!cargando && rutinas.length === 0 && (
         <div className="empty-state card">
-          <p>Todavía no tenés entrenamientos extra asignados.</p>
+          <p>Todavía no hay entrenamientos desglosados cargados.</p>
         </div>
       )}
 
       <div className="entren-lista">
         {rutinas.map((r) => (
-          <div className={`card entren-sesion ${r.completado ? 'rutina-completada' : ''}`} key={r.id}>
+          <div className="card entren-sesion" key={r.id}>
             <button className="entren-sesion-header" onClick={() => alternar(r.id)}>
               <div className="entren-sesion-fecha">{r.titulo}</div>
               <div className="entren-sesion-meta">
-                <span className={`entren-count-chip ${r.completado ? 'entren-count-chip-ok' : ''}`}>
-                  {r.completado ? 'Completado ✓' : 'Pendiente'}
-                </span>
+                {r.fecha && (
+                  <span className="texto-muted">
+                    {new Date(r.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                )}
+                {r.cantidad_jugadores && <span className="entren-count-chip">{r.cantidad_jugadores} jugador(es)</span>}
                 <span className="entren-chevron">{abierta === r.id ? '▲' : '▼'}</span>
               </div>
             </button>
@@ -515,13 +386,6 @@ function RutinasExtraJugador() {
                     <VideoRutina key={v.id} video={v} />
                   ))}
                 </div>
-
-                <button
-                  className={`btn btn-sm ${r.completado ? 'btn-ghost' : 'btn-primary'}`}
-                  onClick={() => marcarCompletado(r.id, !r.completado)}
-                >
-                  {r.completado ? 'Desmarcar como completado' : 'Marcar como completado'}
-                </button>
               </div>
             )}
           </div>
@@ -556,9 +420,9 @@ function VideoRutina({ video }) {
   )
 }
 
-const RUTINA_VACIA = { titulo: '', descripcion: '', alcance: 'general' }
+const RUTINA_VACIA = { titulo: '', fecha: hoyISO(), descripcion: '', cantidad_jugadores: '', alcance: 'general' }
 
-function RutinasExtraStaff() {
+function EntrenamientosDesglosadosStaff() {
   const [rutinas, setRutinas] = useState([])
   const [jugadores, setJugadores] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -571,7 +435,7 @@ function RutinasExtraStaff() {
     api
       .get('/rutinas/admin')
       .then(({ data }) => setRutinas(data))
-      .catch((err) => setError(extraerError(err, 'No se pudo cargar los entrenamientos extra')))
+      .catch((err) => setError(extraerError(err, 'No se pudo cargar los entrenamientos desglosados')))
       .finally(() => setCargando(false))
   }
 
@@ -579,8 +443,6 @@ function RutinasExtraStaff() {
     cargar()
     api.get('/jugadores').then(({ data }) => setJugadores(data)).catch(() => {})
   }, [])
-
-  const vinculados = jugadores.filter((j) => j.usuario_id).length
 
   const alternar = (id) => {
     if (abierta === id) {
@@ -596,12 +458,12 @@ function RutinasExtraStaff() {
   }
 
   const eliminar = async (id) => {
-    if (!window.confirm('¿Eliminar este entrenamiento extra? Esta acción no se puede deshacer.')) return
+    if (!window.confirm('¿Eliminar este entrenamiento desglosado? Esta acción no se puede deshacer.')) return
     try {
       await api.delete(`/rutinas/${id}`)
       cargar()
     } catch (err) {
-      setError(extraerError(err, 'No se pudo eliminar el entrenamiento extra'))
+      setError(extraerError(err, 'No se pudo eliminar el entrenamiento desglosado'))
     }
   }
 
@@ -619,7 +481,7 @@ function RutinasExtraStaff() {
 
       {!cargando && rutinas.length === 0 && (
         <div className="empty-state card">
-          <p>Todavía no hay entrenamientos extra cargados.</p>
+          <p>Todavía no hay entrenamientos desglosados cargados.</p>
         </div>
       )}
 
@@ -630,9 +492,12 @@ function RutinasExtraStaff() {
               <div className="entren-sesion-fecha">{r.titulo}</div>
               <div className="entren-sesion-meta">
                 <span className="texto-muted">{r.alcance === 'individual' ? 'Individual' : 'Todo el plantel'}</span>
-                <span className="entren-count-chip">
-                  {r.completados}/{r.alcance === 'individual' ? r.asignados : vinculados} completado(s)
-                </span>
+                {r.fecha && (
+                  <span className="texto-muted">
+                    {new Date(r.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                )}
+                {r.cantidad_jugadores && <span className="entren-count-chip">{r.cantidad_jugadores} jugador(es)</span>}
                 <span className="entren-chevron">{abierta === r.id ? '▲' : '▼'}</span>
               </div>
             </button>
@@ -657,35 +522,20 @@ function RutinasExtraStaff() {
                       ))}
                     </div>
 
-                    <table className="tabla tabla-compacta" style={{ marginTop: 14 }}>
-                      <thead>
-                        <tr>
-                          <th>Jugador</th>
-                          <th>Estado</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                    {r.alcance === 'individual' && (
+                      <ul className="rutina-jugadores-lista">
                         {detalles[r.id]?.jugadores?.map((j) => (
-                          <tr key={j.id}>
-                            <td>{j.nombre} {j.apellido}</td>
-                            <td>
-                              {j.completado ? (
-                                <span className="entren-count-chip entren-count-chip-ok">Completado ✓</span>
-                              ) : (
-                                <span className="texto-muted">Pendiente</span>
-                              )}
-                            </td>
-                          </tr>
+                          <li key={j.id}>{j.nombre} {j.apellido}</li>
                         ))}
-                      </tbody>
-                    </table>
+                      </ul>
+                    )}
 
                     <button
                       className="btn btn-ghost btn-sm btn-danger"
                       style={{ marginTop: 14 }}
                       onClick={() => eliminar(r.id)}
                     >
-                      Eliminar entrenamiento extra
+                      Eliminar entrenamiento desglosado
                     </button>
                   </>
                 )}
@@ -728,7 +578,9 @@ function NuevaRutina({ jugadores, onCreado }) {
     try {
       const datos = new FormData()
       datos.append('titulo', form.titulo)
+      if (form.fecha) datos.append('fecha', form.fecha)
       if (form.descripcion) datos.append('descripcion', form.descripcion)
+      if (form.cantidad_jugadores) datos.append('cantidad_jugadores', form.cantidad_jugadores)
       datos.append('alcance', form.alcance)
       jugadorIds.forEach((id) => datos.append('jugador_ids', id))
       if (modo === 'archivo' && archivo) {
@@ -738,14 +590,14 @@ function NuevaRutina({ jugadores, onCreado }) {
       }
 
       await api.post('/rutinas', datos)
-      setMensaje('Entrenamiento extra guardado correctamente')
+      setMensaje('Entrenamiento desglosado guardado correctamente')
       setForm(RUTINA_VACIA)
       setJugadorIds([])
       setArchivo(null)
       setUrlVideo('')
       onCreado()
     } catch (err) {
-      setError(extraerError(err, 'No se pudo guardar el entrenamiento extra'))
+      setError(extraerError(err, 'No se pudo guardar el entrenamiento desglosado'))
     } finally {
       setEnviando(false)
     }
@@ -753,27 +605,37 @@ function NuevaRutina({ jugadores, onCreado }) {
 
   return (
     <form className="card entren-form" onSubmit={onSubmit}>
-      <h3>Nuevo entrenamiento extra</h3>
+      <h3>Nuevo entrenamiento desglosado</h3>
       <p className="texto-muted" style={{ marginTop: -8 }}>
-        Para que el jugador trabaje fuera del club. Puede ser para todo el plantel o para jugadores puntuales.
+        Video corto de un ejercicio ya realizado en la cancha, para repasar su dinámica. Puede ser para todo el plantel o para jugadores puntuales.
       </p>
 
       {error && <div className="alert alert-error">{error}</div>}
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
 
-      <div className="field">
-        <label>Título</label>
-        <input value={form.titulo} onChange={onChange('titulo')} placeholder="Ej: Rutina de fuerza — semana 1" required />
+      <div className="entren-form-row">
+        <div className="field">
+          <label>Fecha</label>
+          <input type="date" value={form.fecha} onChange={onChange('fecha')} />
+        </div>
+        <div className="field" style={{ flex: 1 }}>
+          <label>Título / ejercicio</label>
+          <input value={form.titulo} onChange={onChange('titulo')} required />
+        </div>
+        <div className="field">
+          <label>Cantidad de jugadores</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={form.cantidad_jugadores}
+            onChange={onChange('cantidad_jugadores')}
+          />
+        </div>
       </div>
 
       <div className="field">
-        <label>Rutina / instrucciones</label>
-        <textarea
-          rows={4}
-          value={form.descripcion}
-          onChange={onChange('descripcion')}
-          placeholder={'Ej:\n3x15 sentadillas\n4x10 flexiones\n3x30" plancha'}
-        />
+        <label>Descripción de la dinámica</label>
+        <textarea rows={4} value={form.descripcion} onChange={onChange('descripcion')} />
       </div>
 
       <div className="modo-toggle">
@@ -835,12 +697,12 @@ function NuevaRutina({ jugadores, onCreado }) {
       ) : (
         <div className="field">
           <label>Link del video (opcional)</label>
-          <input value={urlVideo} onChange={(e) => setUrlVideo(e.target.value)} placeholder="https://..." />
+          <input value={urlVideo} onChange={(e) => setUrlVideo(e.target.value)} />
         </div>
       )}
 
       <button className="btn btn-primary" type="submit" disabled={enviando}>
-        {enviando ? <span className="spinner" /> : 'Guardar entrenamiento extra'}
+        {enviando ? <span className="spinner" /> : 'Guardar entrenamiento desglosado'}
       </button>
     </form>
   )

@@ -2,21 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api, { extraerError } from '../api/client'
-import { Planificacion, VideoEntrenamiento } from './Entrenamientos'
+import { VideoEntrenamiento } from './Entrenamientos'
 import './Entrenamientos.css'
 import './EntrenamientoDetalle.css'
-
-const PLANIFICACION_VACIA = {
-  titulo: '',
-  descripcion: '',
-  tipo_entrenamiento: '',
-  duracion_minutos: '',
-  objetivo: '',
-  cantidad_jugadores: '',
-  materiales: '',
-  espacios: '',
-  observaciones: '',
-}
 
 export default function EntrenamientoDetalle() {
   const { id } = useParams()
@@ -105,7 +93,7 @@ export default function EntrenamientoDetalle() {
 
       {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-      {esCuerpoTecnico && editando ? (
+      {esCuerpoTecnico && editando && (
         <EdicionSesion
           sesion={sesion}
           onGuardado={() => {
@@ -114,8 +102,6 @@ export default function EntrenamientoDetalle() {
           }}
           onCancelar={() => setEditando(false)}
         />
-      ) : (
-        esCuerpoTecnico && <Planificacion sesion={sesion} />
       )}
 
       <div className="card seccion" style={{ marginTop: 16 }}>
@@ -152,15 +138,7 @@ function EdicionSesion({ sesion, onGuardado, onCancelar }) {
   const [form, setForm] = useState({
     titulo: sesion.titulo || '',
     descripcion: sesion.descripcion || '',
-    tipo_entrenamiento: sesion.tipo_entrenamiento || '',
-    duracion_minutos: sesion.duracion_minutos ?? '',
-    objetivo: sesion.objetivo || '',
-    cantidad_jugadores: sesion.cantidad_jugadores ?? '',
-    materiales: sesion.materiales || '',
-    espacios: sesion.espacios || '',
-    observaciones: sesion.observaciones || '',
   })
-  const [dibujo, setDibujo] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
 
@@ -175,7 +153,6 @@ function EdicionSesion({ sesion, onGuardado, onCancelar }) {
       Object.entries(form).forEach(([campo, valor]) => {
         if (valor !== '') datos.append(campo, valor)
       })
-      if (dibujo) datos.append('dibujo', dibujo)
       await api.put(`/entrenamientos/${sesion.id}`, datos)
       onGuardado()
     } catch (err) {
@@ -191,48 +168,11 @@ function EdicionSesion({ sesion, onGuardado, onCancelar }) {
 
       <div className="field">
         <label>Título del entrenamiento (visible para el jugador)</label>
-        <input value={form.titulo} onChange={onChange('titulo')} placeholder="Ej: Entrenamiento de velocidad" />
+        <input value={form.titulo} onChange={onChange('titulo')} />
       </div>
       <div className="field">
         <label>Descripción de la sesión (solo cuerpo técnico)</label>
         <input value={form.descripcion} onChange={onChange('descripcion')} />
-      </div>
-
-      <div className="entren-form-row">
-        <div className="field">
-          <label>Tipo de entrenamiento</label>
-          <input value={form.tipo_entrenamiento} onChange={onChange('tipo_entrenamiento')} placeholder="Ej: Táctico, Fuerza, Recuperación" />
-        </div>
-        <div className="field">
-          <label>Duración (minutos)</label>
-          <input type="text" inputMode="numeric" value={form.duracion_minutos} onChange={onChange('duracion_minutos')} />
-        </div>
-        <div className="field">
-          <label>Cantidad de jugadores</label>
-          <input type="text" inputMode="numeric" value={form.cantidad_jugadores} onChange={onChange('cantidad_jugadores')} />
-        </div>
-      </div>
-
-      <div className="field">
-        <label>Objetivo</label>
-        <input value={form.objetivo} onChange={onChange('objetivo')} />
-      </div>
-      <div className="field">
-        <label>Materiales</label>
-        <input value={form.materiales} onChange={onChange('materiales')} placeholder="Ej: Conos, pecheras, vallas" />
-      </div>
-      <div className="field">
-        <label>Espacios</label>
-        <input value={form.espacios} onChange={onChange('espacios')} placeholder="Ej: Media cancha, campo reducido" />
-      </div>
-      <div className="field">
-        <label>Observaciones</label>
-        <textarea rows={2} value={form.observaciones} onChange={onChange('observaciones')} />
-      </div>
-      <div className="field">
-        <label>Dibujo táctico (imagen, opcional — reemplaza el actual)</label>
-        <input type="file" accept="image/*" onChange={(e) => setDibujo(e.target.files[0] || null)} />
-        {dibujo && <span className="texto-muted">{dibujo.name}</span>}
       </div>
 
       <div className="form-edicion-botones">

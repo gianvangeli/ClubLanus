@@ -5,11 +5,9 @@ import './MenuSeccionesJugador.css'
 // Cada área del jugador es un módulo independiente (su propia info,
 // historial y archivos), accesible desde cualquier página del perfil a
 // través de este panel. Para sumar una nueva área, agregarla acá y crear
-// su página (ver JugadorVideos.jsx / JugadorCargasFisicas.jsx como modelo).
+// su página (ver JugadorLesiones.jsx como modelo).
 const SECCIONES = [
   { key: 'presentacion', etiqueta: 'Presentación', icono: 'P', to: (id) => `/admin/jugadores/${id}` },
-  { key: 'videos', etiqueta: 'Videos', icono: 'V', to: (id) => `/admin/jugadores/${id}/videos` },
-  { key: 'cargas-fisicas', etiqueta: 'Cargas físicas', icono: 'C', to: (id) => `/admin/jugadores/${id}/cargas-fisicas` },
   { key: 'nutricion', etiqueta: 'Nutrición del jugador', icono: 'N', to: (id) => `/admin/jugadores/${id}/nutricion` },
   { key: 'lesiones', etiqueta: 'Historial de lesiones', icono: 'L', to: (id) => `/admin/jugadores/${id}/lesiones` },
   { key: 'psicologia', etiqueta: 'Psicología del jugador', icono: 'Ps', to: (id) => `/admin/jugadores/${id}/psicologia` },

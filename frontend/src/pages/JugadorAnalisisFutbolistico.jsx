@@ -20,9 +20,11 @@ export default function JugadorAnalisisFutbolistico() {
   const { id } = useParams()
   const [jugador, setJugador] = useState(null)
 
-  useEffect(() => {
+  const cargarJugador = () => {
     api.get(`/jugadores/${id}`).then(({ data }) => setJugador(data))
-  }, [id])
+  }
+
+  useEffect(cargarJugador, [id])
 
   const jugadorNombre = jugador ? `${jugador.nombre} ${jugador.apellido}` : ''
 
@@ -37,7 +39,67 @@ export default function JugadorAnalisisFutbolistico() {
         <MenuSeccionesJugador jugadorId={id} jugadorNombre={jugadorNombre} activa="analisis-futbolistico" />
       </div>
 
+      {jugador && <SemaforoAnalisis jugadorId={id} jugador={jugador} onActualizado={cargarJugador} />}
+
       <ListaAnalisis jugadorId={id} />
+    </div>
+  )
+}
+
+const SEMAFOROS = [
+  { valor: 'verde', etiqueta: 'Verde', color: '#0ca30c' },
+  { valor: 'amarillo', etiqueta: 'Amarillo', color: '#fab219' },
+  { valor: 'rojo', etiqueta: 'Rojo', color: '#d03b3b' },
+]
+
+function SemaforoAnalisis({ jugadorId, jugador, onActualizado }) {
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  const elegir = async (valor) => {
+    setError('')
+    setGuardando(true)
+    try {
+      const nuevo = jugador.semaforo_analisis === valor ? null : valor
+      await api.put(`/jugadores/${jugadorId}/analisis-futbolistico/semaforo`, { semaforo: nuevo })
+      onActualizado()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo actualizar el semáforo'))
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <div className="card seccion" style={{ marginBottom: 18 }}>
+      <h3>Chances de jugar en primera</h3>
+      <p className="texto-muted" style={{ marginBottom: 12 }}>
+        Semáforo actual del jugador, a criterio del cuerpo técnico. Se ve también en el módulo General.
+      </p>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div style={{ display: 'flex', gap: 10 }}>
+        {SEMAFOROS.map((s) => (
+          <button
+            key={s.valor}
+            type="button"
+            disabled={guardando}
+            onClick={() => elegir(s.valor)}
+            className="btn btn-sm"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              border: `2px solid ${s.color}`,
+              background: jugador.semaforo_analisis === s.valor ? s.color : 'transparent',
+              color: jugador.semaforo_analisis === s.valor ? '#fff' : 'var(--text)',
+            }}
+          >
+            {s.etiqueta}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
