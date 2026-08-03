@@ -29,7 +29,7 @@ const listarResumenGeneral = async (req, res) => {
       "SELECT categoria, suma_6_pliegues_objetivo, imc_objetivo FROM objetivos_nutricionales"
     );
     const [lesionesActivas] = await db.query(
-      "SELECT jugador_id, COUNT(*) AS activas FROM lesiones WHERE fecha_alta IS NULL GROUP BY jugador_id"
+      "SELECT jugador_id, COUNT(*) AS activas FROM lesiones WHERE fecha_alta IS NULL OR fecha_alta > CURDATE() GROUP BY jugador_id"
     );
 
     const mapaEvaluaciones = new Map(evaluaciones.map((e) => [e.jugador_id, e]));

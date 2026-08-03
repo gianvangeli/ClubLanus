@@ -4,6 +4,7 @@ import api, { API_BASE, extraerError } from '../api/client'
 import CanchaEditor, { ESCENA_VACIA } from '../components/CanchaEditor'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
+import { formatFechaUTC } from '../utils/fecha'
 import './Entrenamientos.css'
 import './EjerciciosTacticos.css'
 
@@ -129,7 +130,7 @@ function ListaEjercicios({ categoria, subcategoria }) {
               <div className="entren-sesion-meta">
                 {ej.fecha && (
                   <span className="texto-muted">
-                    {new Date(ej.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {formatFechaUTC(ej.fecha, { day: '2-digit', month: 'short', year: 'numeric' })}
                   </span>
                 )}
                 {ej.cantidad_jugadores && <span className="entren-count-chip">{ej.cantidad_jugadores} jugador(es)</span>}

@@ -121,14 +121,15 @@
 
 .ej-cuerpo {
   display: grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: minmax(0, 440px) 1fr;
   gap: 20px;
   padding: 16px 20px;
 }
 
 .ej-cancha-col {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
+  min-width: 0;
 }
 
 .ej-texto-col {

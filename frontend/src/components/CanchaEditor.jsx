@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Rect, Line, Circle, Arrow, Text, Group } from 'react-konva'
+import { Stage, Layer, Rect, Line, Circle, Ellipse, Arrow, Text, Group, Arc } from 'react-konva'
 import './CanchaEditor.css'
 
 const ANCHO = 420
@@ -33,10 +33,11 @@ export const ESCENA_VACIA = {
   figuras: [],
   textos: [],
   trazos: [],
+  zonas: [],
 }
 
 // Completa con arrays vacíos las listas que un dibujo guardado con una
-// versión anterior de la pizarra (sin texto/lápiz) todavía no tiene.
+// versión anterior de la pizarra (sin texto/lápiz/zonas) todavía no tiene.
 const normalizarEscena = (v) => ({
   campo: v?.campo || ESCENA_VACIA.campo,
   jugadores: v?.jugadores || [],
@@ -44,10 +45,53 @@ const normalizarEscena = (v) => ({
   figuras: v?.figuras || [],
   textos: v?.textos || [],
   trazos: v?.trazos || [],
+  zonas: v?.zonas || [],
 })
 
 let idSeq = 1
 const nuevoId = () => `el-${Date.now()}-${idSeq++}`
+
+// Proporciones a escala real de una cancha (105m x 68m — ANCHO=420px equivale
+// a 68m, o sea ~6.17px/m), para que el área, el arco y el círculo central se
+// vean como los de una cancha de verdad y no un esquema achicado.
+const AREA_ANCHO = 260
+const AREA_ALTO = 100
+const AREA_CHICA_ANCHO = 120
+const AREA_CHICA_ALTO = 36
+const RADIO_CIRCULO = 55
+const PUNTO_PENAL = 70
+const RADIO_CORNER = 10
+
+// Ángulo (en grados) donde el círculo del arco del área queda tapado por la
+// línea del área: solo se dibuja la porción de afuera (la "D").
+const ANGULO_ARCO = (Math.asin((AREA_ALTO - PUNTO_PENAL) / RADIO_CIRCULO) * 180) / Math.PI
+
+function ArcoArea({ x, y, orientacion, color }) {
+  const rotacion = orientacion === 'arriba' ? ANGULO_ARCO : 180 + ANGULO_ARCO
+  return (
+    <Arc
+      x={x}
+      y={y}
+      innerRadius={RADIO_CIRCULO}
+      outerRadius={RADIO_CIRCULO}
+      angle={180 - ANGULO_ARCO * 2}
+      rotation={rotacion}
+      stroke={color}
+      strokeWidth={2}
+    />
+  )
+}
+
+function ArcosCorner({ w, h, color }) {
+  return (
+    <>
+      <Arc x={4} y={4} innerRadius={RADIO_CORNER} outerRadius={RADIO_CORNER} angle={90} rotation={0} stroke={color} strokeWidth={2} />
+      <Arc x={w - 4} y={4} innerRadius={RADIO_CORNER} outerRadius={RADIO_CORNER} angle={90} rotation={90} stroke={color} strokeWidth={2} />
+      <Arc x={w - 4} y={h - 4} innerRadius={RADIO_CORNER} outerRadius={RADIO_CORNER} angle={90} rotation={180} stroke={color} strokeWidth={2} />
+      <Arc x={4} y={h - 4} innerRadius={RADIO_CORNER} outerRadius={RADIO_CORNER} angle={90} rotation={270} stroke={color} strokeWidth={2} />
+    </>
+  )
+}
 
 // Dibuja las líneas de la cancha (todas relativas al ancho/alto del Stage)
 function LineasCampo({ tipo, alto, color }) {
@@ -56,25 +100,32 @@ function LineasCampo({ tipo, alto, color }) {
   const lineas = []
 
   lineas.push(<Rect key="borde" x={4} y={4} width={w - 8} height={h - 8} stroke={color} strokeWidth={2} />)
+  lineas.push(<ArcosCorner key="corners" w={w} h={h} color={color} />)
 
   if (tipo === 'completa') {
     lineas.push(<Line key="medio" points={[4, h / 2, w - 4, h / 2]} stroke={color} strokeWidth={2} />)
-    lineas.push(<Circle key="circulo" x={w / 2} y={h / 2} radius={45} stroke={color} strokeWidth={2} />)
+    lineas.push(<Circle key="circulo" x={w / 2} y={h / 2} radius={RADIO_CIRCULO} stroke={color} strokeWidth={2} />)
     lineas.push(<Circle key="puntomedio" x={w / 2} y={h / 2} radius={2.5} fill={color} />)
+
     // Área y arco superior
-    lineas.push(<Rect key="areaSup" x={w / 2 - 90} y={4} width={180} height={80} stroke={color} strokeWidth={2} />)
-    lineas.push(<Rect key="areaChicaSup" x={w / 2 - 40} y={4} width={80} height={30} stroke={color} strokeWidth={2} />)
-    lineas.push(<Circle key="puntoSup" x={w / 2} y={68} radius={2.5} fill={color} />)
+    lineas.push(<Rect key="areaSup" x={w / 2 - AREA_ANCHO / 2} y={4} width={AREA_ANCHO} height={AREA_ALTO} stroke={color} strokeWidth={2} />)
+    lineas.push(<Rect key="areaChicaSup" x={w / 2 - AREA_CHICA_ANCHO / 2} y={4} width={AREA_CHICA_ANCHO} height={AREA_CHICA_ALTO} stroke={color} strokeWidth={2} />)
+    lineas.push(<Circle key="puntoSup" x={w / 2} y={4 + PUNTO_PENAL} radius={2.5} fill={color} />)
+    lineas.push(<ArcoArea key="arcoSup" x={w / 2} y={4 + PUNTO_PENAL} orientacion="arriba" color={color} />)
+
     // Área y arco inferior
-    lineas.push(<Rect key="areaInf" x={w / 2 - 90} y={h - 84} width={180} height={80} stroke={color} strokeWidth={2} />)
-    lineas.push(<Rect key="areaChicaInf" x={w / 2 - 40} y={h - 34} width={80} height={30} stroke={color} strokeWidth={2} />)
-    lineas.push(<Circle key="puntoInf" x={w / 2} y={h - 68} radius={2.5} fill={color} />)
+    lineas.push(<Rect key="areaInf" x={w / 2 - AREA_ANCHO / 2} y={h - 4 - AREA_ALTO} width={AREA_ANCHO} height={AREA_ALTO} stroke={color} strokeWidth={2} />)
+    lineas.push(<Rect key="areaChicaInf" x={w / 2 - AREA_CHICA_ANCHO / 2} y={h - 4 - AREA_CHICA_ALTO} width={AREA_CHICA_ANCHO} height={AREA_CHICA_ALTO} stroke={color} strokeWidth={2} />)
+    lineas.push(<Circle key="puntoInf" x={w / 2} y={h - 4 - PUNTO_PENAL} radius={2.5} fill={color} />)
+    lineas.push(<ArcoArea key="arcoInf" x={w / 2} y={h - 4 - PUNTO_PENAL} orientacion="abajo" color={color} />)
   } else {
-    // Media cancha: solo un área/arco, mirando hacia arriba
-    lineas.push(<Rect key="areaSup" x={w / 2 - 90} y={4} width={180} height={110} stroke={color} strokeWidth={2} />)
-    lineas.push(<Rect key="areaChicaSup" x={w / 2 - 40} y={4} width={80} height={45} stroke={color} strokeWidth={2} />)
-    lineas.push(<Circle key="puntoSup" x={w / 2} y={92} radius={2.5} fill={color} />)
-    lineas.push(<Circle key="circulo" x={w / 2} y={h - 4} radius={45} stroke={color} strokeWidth={2} />)
+    // Media cancha: solo un área/arco, mirando hacia arriba, con el círculo
+    // central asomando desde el borde inferior (la línea de mitad de cancha)
+    lineas.push(<Rect key="areaSup" x={w / 2 - AREA_ANCHO / 2} y={4} width={AREA_ANCHO} height={AREA_ALTO} stroke={color} strokeWidth={2} />)
+    lineas.push(<Rect key="areaChicaSup" x={w / 2 - AREA_CHICA_ANCHO / 2} y={4} width={AREA_CHICA_ANCHO} height={AREA_CHICA_ALTO} stroke={color} strokeWidth={2} />)
+    lineas.push(<Circle key="puntoSup" x={w / 2} y={4 + PUNTO_PENAL} radius={2.5} fill={color} />)
+    lineas.push(<ArcoArea key="arcoSup" x={w / 2} y={4 + PUNTO_PENAL} orientacion="arriba" color={color} />)
+    lineas.push(<Circle key="circulo" x={w / 2} y={h - 4} radius={RADIO_CIRCULO} stroke={color} strokeWidth={2} />)
   }
 
   return <>{lineas}</>
@@ -123,7 +174,10 @@ export default function CanchaEditor({ value, onChange, editable }) {
   const [punteada, setPunteada] = useState(false)
   const [tipoLinea, setTipoLinea] = useState('flecha')
   const [figuraTipo, setFiguraTipo] = useState('cono')
+  const [zonaTipo, setZonaTipo] = useState('rectangulo')
+  const [zonaRelleno, setZonaRelleno] = useState(false)
   const [dibujando, setDibujando] = useState(null)
+  const [dibujandoZona, setDibujandoZona] = useState(null)
   const [trazoActual, setTrazoActual] = useState(null)
   const [seleccionRect, setSeleccionRect] = useState(null)
   const [seleccionados, setSeleccionados] = useState([])
@@ -207,7 +261,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
 
   const vaciarCancha = () => {
     if (!window.confirm('¿Vaciar todo el dibujo de la cancha?')) return
-    actualizar({ jugadores: [], flechas: [], figuras: [], textos: [], trazos: [] })
+    actualizar({ jugadores: [], flechas: [], figuras: [], textos: [], trazos: [], zonas: [] })
     setSeleccionados([])
   }
 
@@ -345,6 +399,11 @@ export default function CanchaEditor({ value, onChange, editable }) {
       return
     }
 
+    if (herramienta === 'zona') {
+      setDibujandoZona({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y })
+      return
+    }
+
     if (herramienta === 'lapiz') {
       setTrazoActual([pos.x, pos.y])
       return
@@ -361,6 +420,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
     const pos = posicionRelativa(stage)
     if (!pos) return
     if (dibujando) setDibujando({ ...dibujando, x2: pos.x, y2: pos.y })
+    if (dibujandoZona) setDibujandoZona({ ...dibujandoZona, x2: pos.x, y2: pos.y })
     if (trazoActual) setTrazoActual((prev) => [...prev, pos.x, pos.y])
     if (seleccionRect) setSeleccionRect({ ...seleccionRect, x2: pos.x, y2: pos.y })
   }
@@ -397,6 +457,32 @@ export default function CanchaEditor({ value, onChange, editable }) {
         })
       }
       setDibujando(null)
+    }
+
+    if (dibujandoZona) {
+      const { x1, y1, x2, y2 } = dibujandoZona
+      const ancho = Math.abs(x2 - x1)
+      const altoZona = Math.abs(y2 - y1)
+      if (ancho > 8 && altoZona > 8) {
+        actualizar({
+          zonas: [
+            ...escena.zonas,
+            {
+              id: nuevoId(),
+              tipo: zonaTipo,
+              x: Math.min(x1, x2),
+              y: Math.min(y1, y2),
+              width: ancho,
+              height: altoZona,
+              color: colorDibujo,
+              grosor: grosorDibujo,
+              punteada,
+              relleno: zonaRelleno,
+            },
+          ],
+        })
+      }
+      setDibujandoZona(null)
     }
 
     if (trazoActual) {
@@ -471,7 +557,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
           <div className="ce-grupo">
             <label>Herramienta</label>
             <div className="ce-herramientas">
-              {['mover', 'seleccionar', 'linea', 'lapiz', 'texto', 'figura', 'candado', 'borrar'].map((h) => (
+              {['mover', 'seleccionar', 'linea', 'zona', 'lapiz', 'texto', 'figura', 'candado', 'borrar'].map((h) => (
                 <button
                   key={h}
                   type="button"
@@ -482,6 +568,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
                     mover: 'Mover',
                     seleccionar: 'Seleccionar',
                     linea: 'Línea',
+                    zona: 'Zona',
                     lapiz: 'Lápiz',
                     texto: 'Texto',
                     figura: 'Figura',
@@ -514,6 +601,26 @@ export default function CanchaEditor({ value, onChange, editable }) {
             </div>
           )}
 
+          {herramienta === 'zona' && (
+            <div className="ce-grupo">
+              <select value={zonaTipo} onChange={(e) => setZonaTipo(e.target.value)}>
+                <option value="rectangulo">Rectángulo</option>
+                <option value="ovalo">Óvalo</option>
+              </select>
+              <label className="ce-check">
+                <input type="checkbox" checked={punteada} onChange={(e) => setPunteada(e.target.checked)} /> Punteada
+              </label>
+              <label className="ce-check">
+                <input type="checkbox" checked={zonaRelleno} onChange={(e) => setZonaRelleno(e.target.checked)} /> Rellena
+              </label>
+              <select value={grosorDibujo} onChange={(e) => setGrosorDibujo(Number(e.target.value))}>
+                {GROSORES.map((g) => (
+                  <option key={g} value={g}>{g}px</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {herramienta === 'lapiz' && (
             <div className="ce-grupo">
               <select value={grosorDibujo} onChange={(e) => setGrosorDibujo(Number(e.target.value))}>
@@ -534,7 +641,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
             </div>
           )}
 
-          {(herramienta === 'linea' || herramienta === 'lapiz' || herramienta === 'figura' || herramienta === 'texto') && (
+          {(herramienta === 'linea' || herramienta === 'zona' || herramienta === 'lapiz' || herramienta === 'figura' || herramienta === 'texto') && (
             <div className="ce-grupo ce-paleta">
               {PALETA.map((c) => (
                 <button
@@ -581,6 +688,48 @@ export default function CanchaEditor({ value, onChange, editable }) {
           <Layer>
             <Rect x={0} y={0} width={ANCHO} height={alto} fill={coloresCampo.fondo} />
             {escena.campo.lineas && <LineasCampo tipo={escena.campo.tipo} alto={alto} color={coloresCampo.linea} />}
+
+            {escena.zonas.map((z) => {
+              const comun = {
+                stroke: z.color,
+                strokeWidth: z.grosor || 3,
+                dash: z.punteada ? [10, 6] : undefined,
+                fill: z.relleno ? `${z.color}33` : undefined,
+                opacity: z.bloqueado ? 0.55 : 1,
+                onClick: onClickElemento('zonas', z),
+              }
+              if (z.tipo === 'ovalo') {
+                return (
+                  <Ellipse
+                    key={z.id}
+                    x={z.x + z.width / 2}
+                    y={z.y + z.height / 2}
+                    radiusX={z.width / 2}
+                    radiusY={z.height / 2}
+                    {...comun}
+                  />
+                )
+              }
+              return <Rect key={z.id} x={z.x} y={z.y} width={z.width} height={z.height} {...comun} />
+            })}
+            {dibujandoZona &&
+              (() => {
+                const x = Math.min(dibujandoZona.x1, dibujandoZona.x2)
+                const y = Math.min(dibujandoZona.y1, dibujandoZona.y2)
+                const width = Math.abs(dibujandoZona.x2 - dibujandoZona.x1)
+                const height = Math.abs(dibujandoZona.y2 - dibujandoZona.y1)
+                const comun = {
+                  stroke: colorDibujo,
+                  strokeWidth: grosorDibujo,
+                  dash: punteada ? [10, 6] : undefined,
+                  fill: zonaRelleno ? `${colorDibujo}33` : undefined,
+                  opacity: 0.7,
+                }
+                if (zonaTipo === 'ovalo') {
+                  return <Ellipse x={x + width / 2} y={y + height / 2} radiusX={width / 2} radiusY={height / 2} {...comun} />
+                }
+                return <Rect x={x} y={y} width={width} height={height} {...comun} />
+              })()}
 
             {escena.figuras.map((f) => (
               <Group

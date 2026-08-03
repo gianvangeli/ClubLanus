@@ -145,7 +145,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 26px;
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -194,13 +194,19 @@
 
 .nutri-gauge-marcador-etiqueta {
   position: absolute;
-  top: -22px;
+  top: -25px;
   left: 50%;
   transform: translateX(-50%);
   font-size: 11.5px;
   font-weight: 700;
   white-space: nowrap;
   color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  box-shadow: var(--shadow-sm);
+  z-index: 1;
 }
 
 .nutri-gauge-escala {

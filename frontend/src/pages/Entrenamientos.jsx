@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import api, { API_BASE, extraerError } from '../api/client'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
+import { formatFechaUTC } from '../utils/fecha'
 import EjerciciosTacticos from './EjerciciosTacticos'
 import './Entrenamientos.css'
 
@@ -95,12 +96,7 @@ function AgendaDiaria() {
               <div className="entren-sesion-fecha">
                 <strong>{s.titulo || 'Entrenamiento del día'}</strong>
                 <span className="texto-muted entren-sesion-subfecha">
-                  {new Date(s.fecha).toLocaleDateString('es-AR', {
-                    weekday: 'long',
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
+                  {formatFechaUTC(s.fecha, { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
                 </span>
               </div>
               <div className="entren-sesion-meta">
@@ -363,7 +359,7 @@ function EntrenamientosDesglosadosJugador() {
               <div className="entren-sesion-meta">
                 {r.fecha && (
                   <span className="texto-muted">
-                    {new Date(r.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {formatFechaUTC(r.fecha, { day: '2-digit', month: 'short', year: 'numeric' })}
                   </span>
                 )}
                 {r.cantidad_jugadores && <span className="entren-count-chip">{r.cantidad_jugadores} jugador(es)</span>}
@@ -494,7 +490,7 @@ function EntrenamientosDesglosadosStaff() {
                 <span className="texto-muted">{r.alcance === 'individual' ? 'Individual' : 'Todo el plantel'}</span>
                 {r.fecha && (
                   <span className="texto-muted">
-                    {new Date(r.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    {formatFechaUTC(r.fecha, { day: '2-digit', month: 'short', year: 'numeric' })}
                   </span>
                 )}
                 {r.cantidad_jugadores && <span className="entren-count-chip">{r.cantidad_jugadores} jugador(es)</span>}

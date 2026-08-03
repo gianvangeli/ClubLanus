@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
-import { formatFecha } from '../utils/fecha'
+import { esFechaPasada, formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import './AdminJugadorDetalle.css'
 import './JugadorLesiones.css'
@@ -120,7 +120,9 @@ function ListaLesiones({ jugadorId }) {
           <div className="field">
             <label>Fecha de alta médica</label>
             <input type="date" value={form.fecha_alta} onChange={onChange('fecha_alta')} />
-            <span className="texto-muted">Dejar vacío mientras la lesión esté activa.</span>
+            <span className="texto-muted">
+              Podés cargar la fecha real o una estimada: mientras no haya pasado, la lesión sigue figurando como activa.
+            </span>
           </div>
           <div className="form-edicion-botones">
             <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
@@ -150,10 +152,12 @@ function ListaLesiones({ jugadorId }) {
               <div className="lesion-item-info">
                 <strong>{l.lesion}</strong>
                 <span className="texto-muted">{formatFecha(l.fecha)}</span>
-                {l.fecha_alta ? (
+                {l.fecha_alta && esFechaPasada(l.fecha_alta) ? (
                   <span className="badge badge-success">Resuelta</span>
                 ) : (
-                  <span className="badge badge-danger">Activa</span>
+                  <span className="badge badge-danger">
+                    Activa{l.fecha_alta ? ` — alta estimada ${formatFecha(l.fecha_alta)}` : ''}
+                  </span>
                 )}
               </div>
               {l.diagnostico && <p className="texto-muted lesion-item-preview">{l.diagnostico}</p>}

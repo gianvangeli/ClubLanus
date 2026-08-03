@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
-import { aInputDate, formatFecha } from '../utils/fecha'
+import { aInputDate, esFechaPasada, formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import './AdminJugadorDetalle.css'
 import './JugadorLesiones.css'
@@ -159,10 +159,12 @@ function InfoLesion({ lesion, onActualizado, onEliminar }) {
             <Dato
               label="Estado"
               valor={
-                lesion.fecha_alta ? (
+                lesion.fecha_alta && esFechaPasada(lesion.fecha_alta) ? (
                   <span className="badge badge-success">Resuelta — alta el {formatFecha(lesion.fecha_alta)}</span>
                 ) : (
-                  <span className="badge badge-danger">Activa</span>
+                  <span className="badge badge-danger">
+                    Activa{lesion.fecha_alta ? ` — alta estimada ${formatFecha(lesion.fecha_alta)}` : ''}
+                  </span>
                 )
               }
             />
@@ -197,7 +199,9 @@ function InfoLesion({ lesion, onActualizado, onEliminar }) {
           <div className="field">
             <label>Fecha de alta médica</label>
             <input type="date" value={form.fecha_alta} onChange={onChange('fecha_alta')} />
-            <span className="texto-muted">Dejar vacío mientras la lesión esté activa.</span>
+            <span className="texto-muted">
+              Podés cargar la fecha real o una estimada: mientras no haya pasado, la lesión sigue figurando como activa.
+            </span>
           </div>
           <div className="form-edicion-botones">
             <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>

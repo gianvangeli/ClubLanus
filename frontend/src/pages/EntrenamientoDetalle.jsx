@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api, { extraerError } from '../api/client'
+import { formatFechaUTC } from '../utils/fecha'
 import { VideoEntrenamiento } from './Entrenamientos'
 import './Entrenamientos.css'
 import './EntrenamientoDetalle.css'
@@ -73,12 +74,7 @@ export default function EntrenamientoDetalle() {
         <div>
           <h1>{sesion.titulo || 'Entrenamiento del día'}</h1>
           <p style={{ textTransform: 'capitalize' }}>
-            {new Date(sesion.fecha).toLocaleDateString('es-AR', {
-              weekday: 'long',
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric',
-            })}
+            {formatFechaUTC(sesion.fecha, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
           </p>
         </div>
         {esCuerpoTecnico && !editando && (
