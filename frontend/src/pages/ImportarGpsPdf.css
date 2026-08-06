@@ -1,0 +1,40 @@
+.gps-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+}
+
+@media (max-width: 700px) {
+  .gps-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gps-filas {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gps-fila {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--granate-50);
+}
+
+.gps-fila-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.gps-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}

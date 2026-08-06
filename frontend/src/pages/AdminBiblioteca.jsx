@@ -9,6 +9,7 @@ export default function AdminBiblioteca() {
   const [error, setError] = useState('')
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
+  const [tipo, setTipo] = useState('analisis')
   const [creando, setCreando] = useState(false)
 
   const cargar = () => {
@@ -40,9 +41,10 @@ export default function AdminBiblioteca() {
     setCreando(true)
     setError('')
     try {
-      await api.post('/biblioteca', { titulo, descripcion })
+      await api.post('/biblioteca', { titulo, descripcion, tipo })
       setTitulo('')
       setDescripcion('')
+      setTipo('analisis')
       cargar()
     } catch (err) {
       setError(extraerError(err, 'No se pudo crear la publicación'))
@@ -67,6 +69,25 @@ export default function AdminBiblioteca() {
         <div className="field" style={{ flex: 1 }}>
           <label>Descripción</label>
           <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
+        </div>
+        <div className="field">
+          <label>Tipo</label>
+          <div className="modo-toggle">
+            <button
+              type="button"
+              className={`btn btn-sm ${tipo === 'analisis' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setTipo('analisis')}
+            >
+              Análisis
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${tipo === 'partido' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setTipo('partido')}
+            >
+              Partido
+            </button>
+          </div>
         </div>
         <button className="btn btn-primary" type="submit" disabled={creando}>
           {creando ? <span className="spinner" /> : 'Nueva publicación'}
@@ -96,6 +117,10 @@ export default function AdminBiblioteca() {
                 {p.descripcion && <p>{p.descripcion}</p>}
               </div>
               <div className="publicacion-row-meta">
+                <span className="badge">
+                  {p.tipo === 'analisis' ? 'Análisis' : 'Partido'}
+                  {p.analisis_tipo ? ` · ${p.analisis_tipo === 'rival' ? 'rival' : 'propio'}` : ''}
+                </span>
                 <span className={`badge ${p.estado === 'publicado' ? 'badge-success' : 'badge-warning'}`}>
                   {p.estado}
                 </span>

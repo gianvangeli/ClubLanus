@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import { formatFechaHora } from '../utils/fecha'
+import PlanPartidoEditor from '../components/PlanPartidoEditor'
 import './AdminBibliotecaDetalle.css'
 
 const VIDEO_VACIO = {
@@ -60,10 +61,22 @@ export default function AdminBibliotecaDetalle() {
           <h1>{publicacion.titulo}</h1>
           {publicacion.descripcion && <p>{publicacion.descripcion}</p>}
         </div>
-        <span className={`badge ${publicacion.estado === 'publicado' ? 'badge-success' : 'badge-warning'}`}>
-          {publicacion.estado}
-        </span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className="badge">{publicacion.tipo === 'analisis' ? 'Análisis' : 'Partido'}</span>
+          <span className={`badge ${publicacion.estado === 'publicado' ? 'badge-success' : 'badge-warning'}`}>
+            {publicacion.estado}
+          </span>
+        </div>
       </div>
+
+      {publicacion.tipo === 'analisis' && (
+        <SeccionAnalisis
+          bibliotecaId={id}
+          analisisTipo={publicacion.analisis_tipo}
+          planPartido={publicacion.plan_partido_json}
+          onCambio={cargarPublicacion}
+        />
+      )}
 
       <div className="detalle-grid">
         <SeccionVideos
@@ -75,6 +88,94 @@ export default function AdminBibliotecaDetalle() {
       </div>
 
       <SeccionReporte bibliotecaId={id} />
+    </div>
+  )
+}
+
+function SeccionAnalisis({ bibliotecaId, analisisTipo, planPartido, onCambio }) {
+  const [plan, setPlan] = useState(planPartido || [])
+  const [guardandoTipo, setGuardandoTipo] = useState(false)
+  const [guardandoPlan, setGuardandoPlan] = useState(false)
+  const [mensaje, setMensaje] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => setPlan(planPartido || []), [planPartido])
+
+  const elegirTipo = async (nuevoTipo) => {
+    if (nuevoTipo === analisisTipo) return
+    setGuardandoTipo(true)
+    setError('')
+    try {
+      await api.put(`/biblioteca/${bibliotecaId}`, { analisis_tipo: nuevoTipo })
+      onCambio()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo guardar el tipo de análisis'))
+    } finally {
+      setGuardandoTipo(false)
+    }
+  }
+
+  const guardarPlan = async () => {
+    setGuardandoPlan(true)
+    setError('')
+    setMensaje('')
+    try {
+      await api.put(`/biblioteca/${bibliotecaId}`, { plan_partido_json: plan })
+      setMensaje('Plan de partido guardado')
+      setTimeout(() => setMensaje(''), 2500)
+      onCambio()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo guardar el plan de partido'))
+    } finally {
+      setGuardandoPlan(false)
+    }
+  }
+
+  return (
+    <div className="card seccion" style={{ marginTop: 16 }}>
+      <h3>Análisis</h3>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="field">
+        <label>Este análisis es de:</label>
+        <div className="modo-toggle">
+          <button
+            type="button"
+            className={`btn btn-sm ${analisisTipo === 'propio' ? 'btn-primary' : 'btn-ghost'}`}
+            disabled={guardandoTipo}
+            onClick={() => elegirTipo('propio')}
+          >
+            Propio
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${analisisTipo === 'rival' ? 'btn-primary' : 'btn-ghost'}`}
+            disabled={guardandoTipo}
+            onClick={() => elegirTipo('rival')}
+          >
+            Rival
+          </button>
+        </div>
+      </div>
+
+      {analisisTipo === 'rival' && (
+        <>
+          <hr className="divisor" />
+          <h4 className="subtitulo">Plan de partido</h4>
+          <p className="texto-muted">
+            Dibujá y describí posicionamientos, esquemas, salidas, presiones, ABP, etc. Un cuadro por fase o idea.
+          </p>
+
+          <PlanPartidoEditor value={plan} onChange={setPlan} editable />
+
+          {mensaje && <div className="alert alert-success" style={{ marginTop: 12 }}>{mensaje}</div>}
+
+          <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={guardarPlan} disabled={guardandoPlan}>
+            {guardandoPlan ? <span className="spinner" /> : 'Guardar plan de partido'}
+          </button>
+        </>
+      )}
     </div>
   )
 }

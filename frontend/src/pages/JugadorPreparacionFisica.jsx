@@ -4,6 +4,7 @@ import api, { API_BASE, extraerError } from '../api/client'
 import { aNumero } from '../utils/numero'
 import { formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
+import GraficoTendencia from '../components/GraficoTendencia'
 import './AdminJugadorDetalle.css'
 import './PreparacionFisica.css'
 
@@ -93,6 +94,8 @@ function PicosRendimiento({ jugadorId }) {
   const [error, setError] = useState('')
   const [modoComparar, setModoComparar] = useState(false)
   const [seleccionados, setSeleccionados] = useState([])
+  const [modoGrafico, setModoGrafico] = useState(false)
+  const [indicadorGrafico, setIndicadorGrafico] = useState('')
 
   const cargar = () => {
     setCargando(true)
@@ -199,6 +202,28 @@ function PicosRendimiento({ jugadorId }) {
     new Set(picosSeleccionados.flatMap((p) => p.indicadores.map((i) => `${i.categoria}|${i.indicador}`)))
   )
 
+  // Indicadores disponibles para graficar: unión de todos los que tenga
+  // cargados este jugador en cualquier evaluación, agrupados por categoría.
+  const indicadoresPorCategoria = {}
+  picos.forEach((p) =>
+    p.indicadores.forEach((ind) => {
+      const set = indicadoresPorCategoria[ind.categoria] || new Set()
+      set.add(ind.indicador)
+      indicadoresPorCategoria[ind.categoria] = set
+    })
+  )
+  const clavesDisponibles = Object.entries(indicadoresPorCategoria).flatMap(([categoria, nombres]) =>
+    Array.from(nombres).map((nombre) => `${categoria}|${nombre}`)
+  )
+  const claveActiva = indicadorGrafico && clavesDisponibles.includes(indicadorGrafico) ? indicadorGrafico : clavesDisponibles[0] || ''
+  const [categoriaActiva, indicadorActivo] = claveActiva ? claveActiva.split('|') : [null, null]
+  const puntosGrafico = picos
+    .map((p) => ({
+      fecha: p.fecha,
+      valor: p.indicadores.find((i) => i.categoria === categoriaActiva && i.indicador === indicadorActivo)?.valor,
+    }))
+    .filter((p) => typeof p.valor === 'number')
+
   return (
     <div className="card seccion">
       <div className="seccion-header">
@@ -213,6 +238,13 @@ function PicosRendimiento({ jugadorId }) {
             }}
           >
             Comparar
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${modoGrafico ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setModoGrafico(!modoGrafico)}
+          >
+            Gráficos
           </button>
           {!mostrarForm && (
             <button className="btn btn-primary btn-sm" onClick={abrirForm}>
@@ -338,6 +370,30 @@ function PicosRendimiento({ jugadorId }) {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!cargando && modoGrafico && clavesDisponibles.length === 0 && (
+        <p className="texto-muted">Todavía no hay indicadores cargados para graficar.</p>
+      )}
+
+      {!cargando && modoGrafico && clavesDisponibles.length > 0 && (
+        <div className="pf-grafico">
+          <div className="field" style={{ maxWidth: 360 }}>
+            <label>Indicador</label>
+            <select value={claveActiva} onChange={(e) => setIndicadorGrafico(e.target.value)}>
+              {Object.entries(indicadoresPorCategoria).map(([categoria, nombres]) => (
+                <optgroup key={categoria} label={categoria}>
+                  {Array.from(nombres).map((nombre) => (
+                    <option key={`${categoria}|${nombre}`} value={`${categoria}|${nombre}`}>
+                      {nombre}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <GraficoTendencia puntos={puntosGrafico} etiqueta={indicadorActivo || ''} />
         </div>
       )}
 

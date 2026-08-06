@@ -75,6 +75,11 @@ const {
   listarDiagnosticos,
 } = require("../controllers/diagnosticoIaController");
 
+const {
+  previsualizarImportacionGps,
+  confirmarImportacionGps,
+} = require("../controllers/gpsImportController");
+
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
 const uploadDocumento = require("../middlewares/uploadDocumentoMiddleware");
@@ -241,6 +246,25 @@ router.delete(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   eliminarPico
+);
+
+// Preparación física — importación de GPS grupal por PDF con IA: analiza
+// el PDF y arma un preview por jugador (no guarda nada), y confirma
+// (guarda) las filas ya revisadas por el cuerpo técnico. Rutas bajo
+// "/gps" (no "/picos-rendimiento") para no compartir prefijo con
+// "/:id/picos-rendimiento" de arriba.
+router.post(
+  "/gps/importar-pdf",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadDatos.single("archivo"),
+  previsualizarImportacionGps
+);
+router.post(
+  "/gps/confirmar",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  confirmarImportacionGps
 );
 
 // Preparación física — b) Cargas físicas (registro de entrenamiento/partido)

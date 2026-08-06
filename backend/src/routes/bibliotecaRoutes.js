@@ -3,6 +3,7 @@ const router = express.Router();
 
 const {
   crearPublicacion,
+  actualizarPublicacion,
   listarBibliotecaJugador,
   agregarVideoABiblioteca,
   asignarUsuariosABiblioteca,
@@ -106,6 +107,14 @@ router.get(
   "/:id",
   verificarToken,
   verDetallePublicacion
+);
+
+//Editar datos de una publicación (título, descripción, estado, tipo de análisis, plan de partido)
+router.put(
+  "/:id",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  actualizarPublicacion
 );
 
 //Eliminar una publicación (y todo lo que dependa de ella)

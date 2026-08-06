@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import YouTubePlayer from '../components/YouTubePlayer'
+import PlanPartidoEditor from '../components/PlanPartidoEditor'
 import { extraerIdYouTube } from '../utils/youtube'
 import './BibliotecaJugadorDetalle.css'
 
@@ -54,6 +55,15 @@ export default function BibliotecaJugadorDetalle() {
           {publicacion.descripcion && <p>{publicacion.descripcion}</p>}
         </div>
       </div>
+
+      {publicacion.tipo === 'analisis' &&
+        publicacion.analisis_tipo === 'rival' &&
+        publicacion.plan_partido_json?.length > 0 && (
+          <div className="card" style={{ marginTop: 16, marginBottom: 16 }}>
+            <h3>Plan de partido</h3>
+            <PlanPartidoEditor value={publicacion.plan_partido_json} onChange={() => {}} editable={false} />
+          </div>
+        )}
 
       {publicacion.videos.length === 0 && (
         <div className="empty-state card">

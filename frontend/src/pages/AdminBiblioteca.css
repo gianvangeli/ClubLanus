@@ -11,6 +11,11 @@
   min-width: 200px;
 }
 
+.modo-toggle {
+  display: flex;
+  gap: 8px;
+}
+
 .publicaciones-list {
   display: flex;
   flex-direction: column;

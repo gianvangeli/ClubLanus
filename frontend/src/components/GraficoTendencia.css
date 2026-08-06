@@ -1,0 +1,73 @@
+.gt-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+}
+
+.gt-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.gt-grilla {
+  stroke: var(--border);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.gt-eje-label {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.gt-linea {
+  stroke: var(--granate-700);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gt-punto {
+  fill: var(--granate-700);
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.gt-crosshair {
+  stroke: var(--granate-700);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  opacity: 0.5;
+}
+
+.gt-tooltip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.gt-tooltip strong {
+  color: var(--text);
+}
+
+.gt-tooltip span {
+  color: var(--text-muted);
+}
+
+.gt-vacio {
+  padding: 24px 0;
+  text-align: center;
+}

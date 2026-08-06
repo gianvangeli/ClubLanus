@@ -8,6 +8,7 @@ import BibliotecaJugadorDetalle from './pages/BibliotecaJugadorDetalle'
 import AdminJugadores from './pages/AdminJugadores'
 import AdminGeneral from './pages/AdminGeneral'
 import AdminJugadorDetalle from './pages/AdminJugadorDetalle'
+import ImportarGpsPdf from './pages/ImportarGpsPdf'
 import JugadorNutricion from './pages/JugadorNutricion'
 import JugadorNutricionEvaluaciones from './pages/JugadorNutricionEvaluaciones'
 import JugadorNutricionDieta from './pages/JugadorNutricionDieta'
@@ -91,6 +92,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <AdminJugadorDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/picos-rendimiento/importar"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <ImportarGpsPdf />
                 </ProtectedRoute>
               }
             />

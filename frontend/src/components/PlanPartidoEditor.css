@@ -1,0 +1,70 @@
+.plan-partido {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pp-tab {
+  min-width: 32px;
+}
+
+.pp-acciones-cuadro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pp-campo-descripcion {
+  max-width: 420px;
+}
+
+.pp-campo-descripcion textarea {
+  resize: vertical;
+}
+
+.plan-partido-lectura {
+  gap: 24px;
+}
+
+.pp-cuadro-lectura {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  background: var(--granate-50);
+}
+
+.pp-cuadro-lectura-header {
+  margin-bottom: 10px;
+}
+
+.pp-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--granate-700);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.pp-cuadro-lectura-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pp-descripcion {
+  max-width: 420px;
+  white-space: pre-wrap;
+  color: var(--text);
+}

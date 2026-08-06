@@ -3,24 +3,37 @@ const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
+const TIPOS_PUBLICACION = ["analisis", "partido"];
+const TIPOS_ANALISIS = ["propio", "rival"];
+
 const crearPublicacion = async (req, res) => {
   try {
-    const { titulo, descripcion, estado, visible_desde } = req.body;
+    const { titulo, descripcion, estado, visible_desde, tipo, analisis_tipo } = req.body;
     const creadoPor = req.usuario.id;
 
     if (!titulo) {
       return res.status(400).json({ message: "El título es obligatorio" });
     }
 
+    if (!tipo || !TIPOS_PUBLICACION.includes(tipo)) {
+      return res.status(400).json({ message: "El tipo de publicación debe ser 'analisis' o 'partido'" });
+    }
+
+    if (analisis_tipo && (tipo !== "analisis" || !TIPOS_ANALISIS.includes(analisis_tipo))) {
+      return res.status(400).json({ message: "analisis_tipo debe ser 'propio' o 'rival', y solo aplica a publicaciones de tipo 'analisis'" });
+    }
+
     const [result] = await db.query(
       `
-      INSERT INTO biblioteca 
-      (titulo, descripcion, estado, visible_desde, creado_por)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO biblioteca
+      (titulo, descripcion, tipo, analisis_tipo, estado, visible_desde, creado_por)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       [
         titulo,
         descripcion || null,
+        tipo,
+        tipo === "analisis" ? analisis_tipo || null : null,
         estado || "publicado",
         visible_desde || null,
         creadoPor,
@@ -39,16 +52,64 @@ const crearPublicacion = async (req, res) => {
   }
 };
 
+// Edita datos de una publicación ya creada: título, descripción, estado,
+// el tipo de análisis (propio/rival) y su plan de partido. El "tipo"
+// (análisis/partido) no se puede cambiar una vez creada la publicación.
+const actualizarPublicacion = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { titulo, descripcion, estado, analisis_tipo, plan_partido_json } = req.body;
+
+    const [publicaciones] = await db.query("SELECT id, tipo FROM biblioteca WHERE id = ?", [id]);
+    if (publicaciones.length === 0) {
+      return res.status(404).json({ message: "Publicación no encontrada" });
+    }
+
+    if (analisis_tipo !== undefined && analisis_tipo !== null) {
+      if (publicaciones[0].tipo !== "analisis" || !TIPOS_ANALISIS.includes(analisis_tipo)) {
+        return res.status(400).json({ message: "analisis_tipo debe ser 'propio' o 'rival', y solo aplica a publicaciones de tipo 'analisis'" });
+      }
+    }
+
+    await db.query(
+      `UPDATE biblioteca SET
+         titulo = COALESCE(?, titulo),
+         descripcion = COALESCE(?, descripcion),
+         estado = COALESCE(?, estado),
+         analisis_tipo = COALESCE(?, analisis_tipo),
+         plan_partido_json = COALESCE(?, plan_partido_json)
+       WHERE id = ?`,
+      [
+        titulo || null,
+        descripcion || null,
+        estado || null,
+        analisis_tipo || null,
+        plan_partido_json !== undefined ? JSON.stringify(plan_partido_json) : null,
+        id,
+      ]
+    );
+
+    res.json({ message: "Publicación actualizada correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al actualizar publicación",
+      error: error.message,
+    });
+  }
+};
+
 const listarBibliotecaJugador = async (req, res) => {
   try {
     const usuarioId = req.usuario.id;
 
     const [items] = await db.query(
       `
-      SELECT 
+      SELECT
         b.id,
         b.titulo,
         b.descripcion,
+        b.tipo,
+        b.analisis_tipo,
         b.fecha_publicacion,
         b.estado
       FROM biblioteca b
@@ -370,7 +431,7 @@ const listarBibliotecaStaff = async (req, res) => {
   try {
     const [publicaciones] = await db.query(
       `SELECT
-         b.id, b.titulo, b.descripcion, b.estado, b.fecha_publicacion, b.visible_desde,
+         b.id, b.titulo, b.descripcion, b.tipo, b.analisis_tipo, b.estado, b.fecha_publicacion, b.visible_desde,
          (SELECT COUNT(*) FROM biblioteca_videos bv WHERE bv.biblioteca_id = b.id) AS cantidad_videos,
          (SELECT COUNT(*) FROM biblioteca_usuarios bu WHERE bu.biblioteca_id = b.id) AS cantidad_jugadores
        FROM biblioteca b
@@ -394,7 +455,7 @@ const verDetallePublicacion = async (req, res) => {
     const esStaff = CUERPO_TECNICO.includes(usuario.rol);
 
     const [publicaciones] = await db.query(
-      "SELECT id, titulo, descripcion, estado, fecha_publicacion, visible_desde, creado_por FROM biblioteca WHERE id = ?",
+      "SELECT id, titulo, descripcion, tipo, analisis_tipo, plan_partido_json, estado, fecha_publicacion, visible_desde, creado_por FROM biblioteca WHERE id = ?",
       [bibliotecaId]
     );
 
@@ -403,6 +464,7 @@ const verDetallePublicacion = async (req, res) => {
     }
 
     const publicacion = publicaciones[0];
+    publicacion.plan_partido_json = publicacion.plan_partido_json ? JSON.parse(publicacion.plan_partido_json) : null;
 
     if (!esStaff) {
       if (publicacion.estado !== "publicado") {
@@ -543,6 +605,7 @@ const listarUsuariosJugadores = async (req, res) => {
 
 module.exports = {
     crearPublicacion,
+    actualizarPublicacion,
     listarBibliotecaJugador,
     agregarVideoABiblioteca,
     asignarUsuariosABiblioteca,

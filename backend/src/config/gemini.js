@@ -38,4 +38,50 @@ const generarTexto = async (prompt) => {
   return texto;
 };
 
-module.exports = { generarTexto };
+// Igual que generarTexto, pero además manda un archivo (PDF, imagen) como
+// parte multimodal del pedido, y le pide a Gemini que responda en JSON
+// puro (sin fences de markdown) — usado para que la IA lea un PDF y
+// devuelva datos estructurados, en vez de un diagnóstico en texto libre.
+const generarJSON = async (prompt, archivo) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Falta configurar GEMINI_API_KEY en el servidor");
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${apiKey}`;
+
+  const respuesta = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: archivo.mimeType, data: archivo.buffer.toString("base64") } },
+          ],
+        },
+      ],
+      generationConfig: { responseMimeType: "application/json" },
+    }),
+  });
+
+  const datos = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(datos?.error?.message || "Error al procesar el archivo con IA");
+  }
+
+  const texto = datos?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+  if (!texto) {
+    throw new Error("La IA no devolvió ningún resultado");
+  }
+
+  try {
+    return JSON.parse(texto);
+  } catch {
+    throw new Error("La IA no devolvió un JSON válido");
+  }
+};
+
+module.exports = { generarTexto, generarJSON };
