@@ -132,6 +132,41 @@ const crearCuentaJugador = async (req, res) => {
   }
 };
 
+// Restablece la contraseña de la cuenta ya vinculada de un jugador: genera
+// una nueva contraseña provisoria al azar (mismo mecanismo que al crear la
+// cuenta) y la devuelve una sola vez para que el cuerpo técnico se la
+// comparta. Las contraseñas se guardan siempre hasheadas (bcrypt, de un
+// solo sentido): no hay forma de "ver" la contraseña anterior, por eso el
+// camino para recuperar el acceso es siempre generar una nueva.
+const restablecerPasswordJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [jugadores] = await db.query("SELECT usuario_id FROM jugadores WHERE id = ?", [id]);
+    if (jugadores.length === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+    if (!jugadores[0].usuario_id) {
+      return res.status(409).json({ message: "Este jugador todavía no tiene una cuenta vinculada" });
+    }
+
+    const passwordProvisoria = crypto.randomBytes(6).toString("base64url");
+    const hashedPassword = await bcrypt.hash(passwordProvisoria, 10);
+
+    await db.query("UPDATE usuarios SET password = ? WHERE id = ?", [hashedPassword, jugadores[0].usuario_id]);
+
+    res.json({
+      message: "Contraseña restablecida correctamente",
+      password: passwordProvisoria,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al restablecer la contraseña",
+      error: error.message,
+    });
+  }
+};
+
 // Vincula una ficha de jugador con una cuenta de usuario ya existente
 const vincularUsuario = async (req, res) => {
   try {
@@ -558,6 +593,7 @@ module.exports = {
   crearJugador,
   listarJugadores,
   crearCuentaJugador,
+  restablecerPasswordJugador,
   vincularUsuario,
   crearCuentaPsicologo,
   vincularPsicologo,

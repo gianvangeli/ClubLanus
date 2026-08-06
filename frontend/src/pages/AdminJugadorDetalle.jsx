@@ -340,6 +340,8 @@ function CuentaAcceso({ jugador, onActualizado }) {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [creada, setCreada] = useState(null)
+  const [restableciendo, setRestableciendo] = useState(false)
+  const [passwordNueva, setPasswordNueva] = useState(null)
 
   const crear = async (e) => {
     e.preventDefault()
@@ -357,11 +359,29 @@ function CuentaAcceso({ jugador, onActualizado }) {
     }
   }
 
+  const restablecer = async () => {
+    if (!window.confirm('¿Restablecer la contraseña de este jugador? La contraseña actual dejará de funcionar.')) {
+      return
+    }
+    setError('')
+    setRestableciendo(true)
+    try {
+      const { data } = await api.put(`/jugadores/${jugador.id}/cuenta/restablecer-password`)
+      setPasswordNueva(data.password)
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo restablecer la contraseña'))
+    } finally {
+      setRestableciendo(false)
+    }
+  }
+
   return (
     <div>
       <div className="seccion-header">
         <h3>Cuenta de acceso</h3>
       </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
 
       {creada ? (
         <div className="alert alert-success">
@@ -373,10 +393,30 @@ function CuentaAcceso({ jugador, onActualizado }) {
           </p>
         </div>
       ) : jugador.usuario_id ? (
-        <dl className="info-lista">
-          <Dato label="Mail" valor={jugador.usuario_email} />
-          <Dato label="Estado" valor="Vinculada" />
-        </dl>
+        <>
+          <dl className="info-lista">
+            <Dato label="Mail" valor={jugador.usuario_email} />
+            <Dato label="Estado" valor="Vinculada" />
+          </dl>
+
+          {passwordNueva ? (
+            <div className="alert alert-success" style={{ marginTop: 12 }}>
+              <p>Contraseña restablecida. Compartísela al jugador (no se va a volver a mostrar):</p>
+              <p>
+                <strong>Contraseña nueva:</strong> {passwordNueva}
+              </p>
+            </div>
+          ) : (
+            <button
+              className="btn btn-ghost btn-sm"
+              style={{ marginTop: 12 }}
+              onClick={restablecer}
+              disabled={restableciendo}
+            >
+              {restableciendo ? <span className="spinner" /> : 'Restablecer contraseña'}
+            </button>
+          )}
+        </>
       ) : (
         <form className="form-edicion" onSubmit={crear}>
           {error && <div className="alert alert-error">{error}</div>}

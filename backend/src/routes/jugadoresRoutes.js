@@ -5,6 +5,7 @@ const {
   crearJugador,
   listarJugadores,
   crearCuentaJugador,
+  restablecerPasswordJugador,
   vincularUsuario,
   crearCuentaPsicologo,
   vincularPsicologo,
@@ -108,6 +109,15 @@ router.post(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   crearCuentaJugador
+);
+
+// Restablecer la contraseña de la cuenta ya vinculada (genera una nueva
+// provisoria; nunca se guarda/expone la anterior)
+router.put(
+  "/:id/cuenta/restablecer-password",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  restablecerPasswordJugador
 );
 
 // Vincular una ficha de jugador con una cuenta de usuario ya existente
