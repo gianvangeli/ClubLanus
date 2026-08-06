@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import api, { extraerError } from '../api/client'
+import api, { API_BASE, extraerError } from '../api/client'
 import EscudoClub from '../components/EscudoClub'
 import CanchaEditor, { ESCENA_VACIA } from '../components/CanchaEditor'
+import YouTubePlayer from '../components/YouTubePlayer'
+import { extraerIdYouTube } from '../utils/youtube'
 import './EjercicioDetalle.css'
 
 const CAMPOS_VACIOS = {
@@ -158,6 +160,8 @@ export default function EjercicioDetalle() {
               <label>Descripción del ejercicio:</label>
               <textarea rows={10} value={form.descripcion} onChange={onChange('descripcion')} />
             </div>
+
+            <VideoRealEjercicio ejercicioId={ejercicioId} videos={ejercicio.videos || []} onCambio={cargar} />
           </div>
         </div>
       </div>
@@ -170,6 +174,153 @@ export default function EjercicioDetalle() {
           Eliminar ejercicio
         </button>
       </div>
+    </div>
+  )
+}
+
+// Video real de la ejecución del ejercicio, para comparar al lado de la
+// animación de la pizarra: cómo se dibujó vs. cómo se hizo en la cancha.
+function VideoRealEjercicio({ ejercicioId, videos, onCambio }) {
+  const [mostrarForm, setMostrarForm] = useState(false)
+  const [modo, setModo] = useState('archivo')
+  const [titulo, setTitulo] = useState('')
+  const [archivos, setArchivos] = useState([])
+  const [urlVideo, setUrlVideo] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
+  const token = localStorage.getItem('token')
+
+  const subir = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (modo === 'archivo' && archivos.length === 0) {
+      setError('Elegí uno o más archivos de video')
+      return
+    }
+    if (modo === 'link' && !urlVideo.trim()) {
+      setError('Pegá al menos un link de video')
+      return
+    }
+
+    setEnviando(true)
+    try {
+      const datos = new FormData()
+      if (titulo) datos.append('titulo_video', titulo)
+      if (modo === 'archivo') {
+        archivos.forEach((archivo) => datos.append('videos', archivo))
+      } else {
+        datos.append('url_video', urlVideo)
+      }
+      await api.post(`/ejercicios/${ejercicioId}/videos`, datos)
+      setTitulo('')
+      setArchivos([])
+      setUrlVideo('')
+      setMostrarForm(false)
+      onCambio()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo agregar el video'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const eliminarVideo = async (videoId) => {
+    if (!window.confirm('¿Eliminar este video?')) return
+    try {
+      await api.delete(`/ejercicios/videos/${videoId}`)
+      onCambio()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo eliminar el video'))
+    }
+  }
+
+  return (
+    <div className="ej-campo ej-campo-grande">
+      <div className="ej-video-header">
+        <label style={{ marginBottom: 0 }}>Video real del ejercicio:</label>
+        {!mostrarForm && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMostrarForm(true)}>
+            + Agregar video
+          </button>
+        )}
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {videos.length === 0 && !mostrarForm && (
+        <p className="texto-muted">Todavía no se cargó un video real de este ejercicio.</p>
+      )}
+
+      {videos.length > 0 && (
+        <div className="ej-video-lista">
+          {videos.map((v) => (
+            <div key={v.id} className="ej-video-item">
+              <div className="ej-video-item-header">
+                <strong>{v.titulo}</strong>
+                <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminarVideo(v.id)}>
+                  Eliminar
+                </button>
+              </div>
+              {v.tipo === 'archivo' ? (
+                <video
+                  className="video-player"
+                  controls
+                  preload="metadata"
+                  src={`${API_BASE}/api/ejercicios/videos/${v.id}/archivo?token=${token}`}
+                />
+              ) : extraerIdYouTube(v.url_video) ? (
+                <YouTubePlayer videoId={extraerIdYouTube(v.url_video)} />
+              ) : (
+                <a className="btn btn-ghost btn-sm" href={v.url_video} target="_blank" rel="noreferrer">
+                  Ver video externo ↗
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {mostrarForm && (
+        <form className="form-video" onSubmit={subir} style={{ marginTop: 12 }}>
+          <div className="field">
+            <label>Video</label>
+            <div className="modo-toggle">
+              <button type="button" className={`btn btn-sm ${modo === 'archivo' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setModo('archivo')}>
+                Subir archivo
+              </button>
+              <button type="button" className={`btn btn-sm ${modo === 'link' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setModo('link')}>
+                Link externo
+              </button>
+            </div>
+          </div>
+
+          {modo === 'archivo' ? (
+            <div className="field">
+              <input type="file" accept="video/*" multiple onChange={(e) => setArchivos(Array.from(e.target.files))} />
+              {archivos.length > 0 && <span className="texto-muted">{archivos.length} archivo(s) seleccionado(s)</span>}
+            </div>
+          ) : (
+            <div className="field">
+              <textarea rows={2} value={urlVideo} onChange={(e) => setUrlVideo(e.target.value)} placeholder={'https://...\nhttps://...'} />
+            </div>
+          )}
+
+          <div className="field">
+            <label>Título (opcional)</label>
+            <input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          </div>
+
+          <div className="form-edicion-botones">
+            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
+              {enviando ? <span className="spinner" /> : 'Agregar video'}
+            </button>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMostrarForm(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   )
 }

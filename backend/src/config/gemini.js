@@ -1,0 +1,41 @@
+// Cliente mínimo para la API gratuita de Google Gemini (Google AI Studio),
+// usada para generar el diagnóstico de evolución del jugador. No se agrega
+// un SDK aparte: la API es un simple POST HTTP y Node ya trae fetch.
+// Alias "latest" en vez de una versión fija: Google va discontinuando
+// versiones viejas para cuentas nuevas: con el alias, el modelo activo se
+// actualiza solo, sin que el código quede apuntando a algo dado de baja.
+const MODELO = "gemini-flash-latest";
+
+// Genera texto a partir de un prompt. Lanza un error si falta la API key o
+// si la API responde con error (se traduce a un mensaje entendible).
+const generarTexto = async (prompt) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Falta configurar GEMINI_API_KEY en el servidor");
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${apiKey}`;
+
+  const respuesta = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+    }),
+  });
+
+  const datos = await respuesta.json();
+
+  if (!respuesta.ok) {
+    throw new Error(datos?.error?.message || "Error al generar el diagnóstico con IA");
+  }
+
+  const texto = datos?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+  if (!texto) {
+    throw new Error("La IA no devolvió ningún diagnóstico");
+  }
+
+  return texto;
+};
+
+module.exports = { generarTexto };

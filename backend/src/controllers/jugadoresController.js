@@ -262,7 +262,7 @@ const obtenerJugador = async (req, res) => {
     const { id } = req.params;
 
     const [jugadores] = await db.query(
-      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.fecha_nacimiento, j.peso, j.altura, j.nacionalidad_1, j.nacionalidad_2, j.posicion, j.categoria, j.division_nombre,
+      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.fecha_nacimiento, j.peso, j.altura, j.nacionalidad_1, j.nacionalidad_2, j.nacionalidad_2_tramite, j.posicion, j.categoria, j.division_nombre,
               j.contrato, j.agente_nombre, j.agente_apellido, j.agente_mail, j.agente_telefono,
               j.contacto_emergencia_nombre, j.contacto_emergencia_apellido, j.contacto_emergencia_relacion, j.contacto_emergencia_telefono,
               j.pie, j.posiciones_cancha, j.partidos_jugados, j.psicologo_id,
@@ -305,6 +305,7 @@ const actualizarJugador = async (req, res) => {
       altura,
       nacionalidad_1,
       nacionalidad_2,
+      nacionalidad_2_tramite,
       categoria,
       contrato,
     } = req.body;
@@ -317,10 +318,14 @@ const actualizarJugador = async (req, res) => {
       return res.status(400).json({ message: "Contrato tiene que ser 'si' o 'no'" });
     }
 
+    if (nacionalidad_2_tramite && !["en_curso", "finalizado"].includes(nacionalidad_2_tramite)) {
+      return res.status(400).json({ message: "El trámite de la segunda nacionalidad tiene que ser 'en_curso' o 'finalizado'" });
+    }
+
     const [result] = await db.query(
       `UPDATE jugadores
        SET nombre = ?, apellido = ?, fecha_nacimiento = ?, altura = ?, nacionalidad_1 = ?, nacionalidad_2 = ?,
-           categoria = ?, contrato = ?
+           nacionalidad_2_tramite = ?, categoria = ?, contrato = ?
        WHERE id = ?`,
       [
         nombre,
@@ -329,6 +334,7 @@ const actualizarJugador = async (req, res) => {
         altura || null,
         nacionalidad_1 || null,
         nacionalidad_2 || null,
+        nacionalidad_2_tramite || null,
         categoria || null,
         contrato || null,
         id,

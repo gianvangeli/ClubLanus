@@ -88,3 +88,95 @@
   border: 1px solid var(--border);
   line-height: 0;
 }
+
+.ce-animacion-barra {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fafafa;
+}
+
+.ce-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.ce-modal {
+  background: var(--surface, #fff);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.ce-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.ce-modal-header h3 {
+  margin: 0;
+}
+
+.ce-modal-equipos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 480px) {
+  .ce-modal-equipos {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ce-modal-equipo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ce-modal-equipo-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ce-modal-equipo-color {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  outline: 1px solid var(--border);
+  display: inline-block;
+}
+
+.ce-modal-color-input {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.ce-toggle-estilo {
+  display: flex;
+  gap: 6px;
+}

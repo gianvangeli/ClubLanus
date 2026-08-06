@@ -27,6 +27,10 @@ Está en el plan gratuito de Render, así que si nadie la usó en un rato "se du
 - **Reflexión del entrenamiento**: una página por sesión donde el cuerpo técnico completa una autoevaluación guiada (¿se logró el objetivo?, ¿cómo respondieron los jugadores?, cómo fue la intervención del CT, qué modificar para la próxima).
 - **Entrenamientos extra / rutinas**: rutinas generales o individuales para trabajar fuera del club, con seguimiento de cumplimiento por jugador.
 
+### Diagnóstico con IA
+- A partir de la última evaluación nutricional y el historial de lesiones de un jugador, se puede generar un diagnóstico de su estado actual con pasos concretos para evolucionar, usando la API gratuita de Google Gemini.
+- Cada generación queda guardada como un registro nuevo (se acumulan cronológicamente), para poder ver la evolución de los diagnósticos en el tiempo.
+
 ### Roles y accesos
 - `admin`, `entrenador`, `preparador_fisico`: acceso completo a jugadores, biblioteca (carga) y entrenamientos.
 - `jugador`: acceso de solo lectura a su propia ficha (parcial), su biblioteca y los entrenamientos/rutinas que le corresponden.
@@ -94,6 +98,7 @@ Ver `backend/.env.example` para la lista completa. Las más importantes:
 - `DB_SSL` / `DB_CA_CERT`: necesarias solo contra una base gestionada (Aiven, etc.) que exige SSL.
 - `JWT_SECRET`: clave para firmar los tokens de sesión.
 - `B2_KEY_ID`, `B2_APP_KEY`, `B2_BUCKET`, `B2_ENDPOINT`, `B2_REGION`: credenciales de Backblaze B2. Si se dejan vacías, los archivos se guardan en disco local (solo para desarrollo).
+- `GEMINI_API_KEY`: key gratuita de Google Gemini (se saca en https://aistudio.google.com/apikey), usada para el diagnóstico con IA del jugador. Sin esta variable, ese módulo devuelve error al generar.
 
 ## Variables de entorno (frontend)
 

@@ -45,6 +45,9 @@ export default function Layout() {
               <NavLink to="/entrenamientos" className="navbar-link">
                 Entrenamientos
               </NavLink>
+              <NavLink to="/admin/calendario" className="navbar-link">
+                Calendario
+              </NavLink>
             </>
           ) : usuario?.rol === 'psicologo' ? (
             <NavLink to="/psicologia" className="navbar-link">

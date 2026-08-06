@@ -51,3 +51,30 @@
   background: var(--granate-50);
   border-color: var(--granate-100);
 }
+
+.buscador-ejercicios {
+  margin-bottom: 16px;
+  background: var(--granate-50);
+}
+
+.buscador-ejercicios-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.buscador-ejercicios-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.buscador-ejercicios-objetivo {
+  margin-top: 2px;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
+import { formatFechaLocal } from '../utils/fecha'
 import './BibliotecaJugador.css'
 
 export default function BibliotecaJugador() {
@@ -47,11 +48,7 @@ export default function BibliotecaJugador() {
               <h3>{p.titulo}</h3>
               {p.descripcion && <p>{p.descripcion}</p>}
               <span className="biblio-card-fecha">
-                {new Date(p.fecha_publicacion).toLocaleDateString('es-AR', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}
+                {formatFechaLocal(p.fecha_publicacion)}
               </span>
             </div>
           </Link>

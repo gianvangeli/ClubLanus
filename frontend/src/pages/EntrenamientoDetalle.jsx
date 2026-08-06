@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api, { extraerError } from '../api/client'
-import { formatFechaUTC } from '../utils/fecha'
+import { formatFecha } from '../utils/fecha'
 import { VideoEntrenamiento } from './Entrenamientos'
 import './Entrenamientos.css'
 import './EntrenamientoDetalle.css'
@@ -73,9 +73,7 @@ export default function EntrenamientoDetalle() {
       <div className="page-header" style={{ marginTop: 16 }}>
         <div>
           <h1>{sesion.titulo || 'Entrenamiento del día'}</h1>
-          <p style={{ textTransform: 'capitalize' }}>
-            {formatFechaUTC(sesion.fecha, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-          </p>
+          <p>{formatFecha(sesion.fecha)}</p>
         </div>
         {esCuerpoTecnico && !editando && (
           <div style={{ display: 'flex', gap: 8 }}>
@@ -275,6 +273,7 @@ function Ejercicios({ entrenamientoId }) {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [creando, setCreando] = useState(false)
+  const [mostrarBuscador, setMostrarBuscador] = useState(false)
 
   const cargar = () => {
     setCargando(true)
@@ -304,12 +303,31 @@ function Ejercicios({ entrenamientoId }) {
     <div className="card seccion" style={{ marginTop: 16 }}>
       <div className="seccion-header">
         <h3>Ejercicios</h3>
-        <button className="btn btn-primary btn-sm" onClick={agregarEjercicio} disabled={creando}>
-          {creando ? <span className="spinner" /> : '+ Agregar ejercicio'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setMostrarBuscador((v) => !v)}
+          >
+            ↻ Reutilizar ejercicio
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={agregarEjercicio} disabled={creando}>
+            {creando ? <span className="spinner" /> : '+ Agregar ejercicio'}
+          </button>
+        </div>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      {mostrarBuscador && (
+        <BuscadorEjercicios
+          entrenamientoId={entrenamientoId}
+          onReutilizado={(ejercicioId) => {
+            setMostrarBuscador(false)
+            navigate(`/entrenamientos/${entrenamientoId}/ejercicios/${ejercicioId}`)
+          }}
+          onCancelar={() => setMostrarBuscador(false)}
+        />
+      )}
 
       {cargando && (
         <div className="empty-state">
@@ -335,6 +353,92 @@ function Ejercicios({ entrenamientoId }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// Busca entre todos los ejercicios ya cargados (de cualquier sesión) y
+// copia el elegido a la sesión actual, para no tener que volver a armar
+// desde cero una planificación o un dibujo táctico ya usado antes.
+function BuscadorEjercicios({ entrenamientoId, onReutilizado, onCancelar }) {
+  const [termino, setTermino] = useState('')
+  const [resultados, setResultados] = useState([])
+  const [buscando, setBuscando] = useState(true)
+  const [reutilizandoId, setReutilizandoId] = useState(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setBuscando(true)
+    const timeout = setTimeout(() => {
+      api
+        .get('/ejercicios/buscar', { params: { q: termino } })
+        .then(({ data }) => setResultados(data))
+        .catch((err) => setError(extraerError(err, 'No se pudo buscar')))
+        .finally(() => setBuscando(false))
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [termino])
+
+  const reutilizar = async (ejercicio) => {
+    setError('')
+    setReutilizandoId(ejercicio.id)
+    try {
+      const { data } = await api.post(`/ejercicios/entrenamiento/${entrenamientoId}/reutilizar/${ejercicio.id}`)
+      onReutilizado(data.ejercicio_id)
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo reutilizar el ejercicio'))
+      setReutilizandoId(null)
+    }
+  }
+
+  return (
+    <div className="card seccion buscador-ejercicios">
+      <div className="field">
+        <label>Buscar por tipo de trabajo, objetivo o espacio</label>
+        <input
+          autoFocus
+          value={termino}
+          onChange={(e) => setTermino(e.target.value)}
+          placeholder="Ej: rondo, posesión, finalización..."
+        />
+      </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      {buscando && (
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      )}
+
+      {!buscando && resultados.length === 0 && (
+        <p className="texto-muted">No se encontraron ejercicios cargados con ese criterio.</p>
+      )}
+
+      {!buscando && resultados.length > 0 && (
+        <div className="buscador-ejercicios-lista">
+          {resultados.map((ej) => (
+            <div key={ej.id} className="buscador-ejercicios-item">
+              <div>
+                <strong>{ej.tipo_trabajo || 'Sin tipo de trabajo definido'}</strong>
+                <span className="texto-muted"> — {formatFecha(ej.fecha)}</span>
+                {ej.objetivo && <p className="texto-muted buscador-ejercicios-objetivo">{ej.objetivo}</p>}
+              </div>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => reutilizar(ej)}
+                disabled={reutilizandoId !== null}
+              >
+                {reutilizandoId === ej.id ? <span className="spinner" /> : 'Usar'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button className="btn btn-ghost btn-sm" type="button" onClick={onCancelar} style={{ marginTop: 12 }}>
+        Cancelar
+      </button>
     </div>
   )
 }

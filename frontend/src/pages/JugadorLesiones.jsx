@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import { esFechaPasada, formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
+import DiagnosticoIA from '../components/DiagnosticoIA'
 import './AdminJugadorDetalle.css'
 import './JugadorLesiones.css'
 
@@ -30,6 +31,13 @@ export default function JugadorLesiones() {
       </div>
 
       <ListaLesiones jugadorId={id} />
+
+      <DiagnosticoIA
+        jugadorId={id}
+        area="lesiones"
+        titulo="Diagnóstico de lesiones con IA"
+        descripcion="Generado a partir del historial de lesiones del jugador."
+      />
     </div>
   )
 }

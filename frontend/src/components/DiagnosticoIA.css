@@ -1,0 +1,24 @@
+.dia-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dia-item {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.dia-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.dia-item-texto {
+  margin: 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
+import { formatFechaHora } from '../utils/fecha'
 import './AdminBibliotecaDetalle.css'
 
 const VIDEO_VACIO = {
@@ -324,14 +325,7 @@ function SeccionReporte({ bibliotecaId }) {
                 <td>{fila.estado}</td>
                 <td>{fila.veces_visto}</td>
                 <td>
-                  {fila.ultima_vez
-                    ? new Date(fila.ultima_vez).toLocaleString('es-AR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : '—'}
+                  {fila.ultima_vez ? formatFechaHora(fila.ultima_vez) : '—'}
                 </td>
               </tr>
             ))}

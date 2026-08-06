@@ -70,6 +70,11 @@ const {
   eliminarDatoBigdata,
 } = require("../controllers/datosBigdataController");
 
+const {
+  generarDiagnostico,
+  listarDiagnosticos,
+} = require("../controllers/diagnosticoIaController");
+
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
 const uploadDocumento = require("../middlewares/uploadDocumentoMiddleware");
@@ -334,6 +339,23 @@ router.put(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   actualizarSemaforoAnalisis
+);
+
+// Diagnóstico con IA: dentro de cada área (nutrición, lesiones, ...),
+// genera un diagnóstico con pasos para evolucionar usando solo los datos
+// de esa área. Se acumulan cronológicamente por área, igual que análisis
+// futbolístico.
+router.post(
+  "/:id/diagnostico-ia/:area",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  generarDiagnostico
+);
+router.get(
+  "/:id/diagnostico-ia/:area",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  listarDiagnosticos
 );
 
 // Datos (Big Data): importación de datos estadísticos por partido. Se

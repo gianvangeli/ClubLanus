@@ -7,9 +7,15 @@ const {
   obtenerEjercicio,
   actualizarEjercicio,
   eliminarEjercicio,
+  buscarEjercicios,
+  reutilizarEjercicio,
+  agregarVideoEjercicio,
+  eliminarVideoEjercicio,
+  obtenerArchivoVideoEjercicio,
 } = require("../controllers/ejerciciosController");
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
+const uploadVideo = require("../middlewares/uploadMiddleware");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -17,10 +23,19 @@ const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 // tiene acceso a ninguna de estas rutas.
 router.use(verificarToken, autorizarRoles(...CUERPO_TECNICO));
 
+// "/buscar" va antes de "/:id" para que no lo capture como un id.
+router.get("/buscar", buscarEjercicios);
 router.post("/entrenamiento/:entrenamientoId", crearEjercicio);
 router.get("/entrenamiento/:entrenamientoId", listarEjercicios);
+router.post("/entrenamiento/:entrenamientoId/reutilizar/:origenId", reutilizarEjercicio);
 router.get("/:id", obtenerEjercicio);
 router.put("/:id", actualizarEjercicio);
 router.delete("/:id", eliminarEjercicio);
+
+// Video real de la ejecución del ejercicio (para comparar con la animación
+// de la pizarra)
+router.post("/:id/videos", uploadVideo.array("videos", 5), agregarVideoEjercicio);
+router.delete("/videos/:videoId", eliminarVideoEjercicio);
+router.get("/videos/:videoId/archivo", obtenerArchivoVideoEjercicio);
 
 module.exports = router;

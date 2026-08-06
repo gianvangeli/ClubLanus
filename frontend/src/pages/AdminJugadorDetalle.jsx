@@ -6,6 +6,8 @@ import { aInputDate, calcularEdad, formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import './AdminJugadorDetalle.css'
 
+const etiquetaTramite = (valor) => (valor === 'en_curso' ? 'Trámite en curso' : valor === 'finalizado' ? 'Trámite finalizado' : null)
+
 const CAMPOS_VACIOS = {
   nombre: '',
   apellido: '',
@@ -13,6 +15,7 @@ const CAMPOS_VACIOS = {
   altura: '',
   nacionalidad_1: '',
   nacionalidad_2: '',
+  nacionalidad_2_tramite: '',
   categoria: '',
   contrato: '',
 }
@@ -164,6 +167,7 @@ function InfoJugador({ jugador, onActualizado }) {
       altura: jugador.altura ?? '',
       nacionalidad_1: jugador.nacionalidad_1 || '',
       nacionalidad_2: jugador.nacionalidad_2 || '',
+      nacionalidad_2_tramite: jugador.nacionalidad_2_tramite || '',
       categoria: jugador.categoria || '',
       contrato: jugador.contrato || '',
     })
@@ -192,6 +196,7 @@ function InfoJugador({ jugador, onActualizado }) {
         altura,
         nacionalidad_1: form.nacionalidad_1,
         nacionalidad_2: form.nacionalidad_2,
+        nacionalidad_2_tramite: form.nacionalidad_2_tramite,
         categoria: form.categoria,
         contrato: form.contrato,
       })
@@ -230,6 +235,16 @@ function InfoJugador({ jugador, onActualizado }) {
             label="Nacionalidad"
             valor={[jugador.nacionalidad_1, jugador.nacionalidad_2].filter(Boolean).join('/') || null}
           />
+          {jugador.nacionalidad_2 && (
+            <Dato
+              label="Trámite segunda nacionalidad"
+              valor={
+                jugador.nacionalidad_2_tramite
+                  ? `${jugador.nacionalidad_2} — ${etiquetaTramite(jugador.nacionalidad_2_tramite)}`
+                  : null
+              }
+            />
+          )}
           <Dato label="Categoría" valor={jugador.categoria} />
           <Dato label="Contrato" valor={jugador.contrato === 'si' ? 'Sí' : jugador.contrato === 'no' ? 'No' : null} />
         </dl>
@@ -262,6 +277,16 @@ function InfoJugador({ jugador, onActualizado }) {
             <label>Segunda nacionalidad (opcional)</label>
             <input value={form.nacionalidad_2} onChange={onChange('nacionalidad_2')} placeholder="Ej: Paraguay" />
           </div>
+          {form.nacionalidad_2 && (
+            <div className="field">
+              <label>Trámite de {form.nacionalidad_2}</label>
+              <select value={form.nacionalidad_2_tramite} onChange={onChange('nacionalidad_2_tramite')}>
+                <option value="">Sin especificar</option>
+                <option value="en_curso">En curso</option>
+                <option value="finalizado">Finalizado</option>
+              </select>
+            </div>
+          )}
           <div className="field">
             <label>Categoría</label>
             <input value={form.categoria} onChange={onChange('categoria')} placeholder="Ej: Primera" />

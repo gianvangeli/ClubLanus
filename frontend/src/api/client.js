@@ -17,6 +17,23 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// Si el token venció o es inválido, el backend responde 401 en cualquier
+// pedido. Sin esto, cada página lo trataba como "sin datos" (mostraba
+// listas vacías en vez de avisar que hay que volver a loguearse). Acá se
+// limpia la sesión guardada y se manda a /login con un aviso, para
+// cualquier pedido de cualquier página.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && window.location.pathname !== '/login') {
+      localStorage.removeItem('token')
+      localStorage.removeItem('usuario')
+      window.location.href = '/login?sesion=expirada'
+    }
+    return Promise.reject(error)
+  }
+)
+
 export function extraerError(error, mensajePorDefecto) {
   return error?.response?.data?.message || mensajePorDefecto
 }

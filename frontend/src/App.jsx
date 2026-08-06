@@ -26,6 +26,8 @@ import Entrenamientos from './pages/Entrenamientos'
 import EntrenamientoDetalle from './pages/EntrenamientoDetalle'
 import EjercicioDetalle from './pages/EjercicioDetalle'
 import ReflexionEntrenamiento from './pages/ReflexionEntrenamiento'
+import Calendario from './pages/Calendario'
+import MicrocicloDetalle from './pages/MicrocicloDetalle'
 import NotFound from './pages/NotFound'
 
 const CUERPO_TECNICO = ['admin', 'entrenador', 'preparador_fisico']
@@ -201,6 +203,22 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <AdminBibliotecaDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/calendario"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <Calendario />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/calendario/:id"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <MicrocicloDetalle />
                 </ProtectedRoute>
               }
             />

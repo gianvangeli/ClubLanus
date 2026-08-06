@@ -4,6 +4,7 @@ import api, { extraerError } from '../api/client'
 import { formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import NutricionTabs from '../components/NutricionTabs'
+import DiagnosticoIA from '../components/DiagnosticoIA'
 import './AdminJugadorDetalle.css'
 import './JugadorNutricion.css'
 
@@ -64,6 +65,13 @@ export default function JugadorNutricion() {
       <NutricionTabs jugadorId={id} activa="informe" />
 
       <InformeNutricional jugadorId={id} />
+
+      <DiagnosticoIA
+        jugadorId={id}
+        area="nutricion"
+        titulo="Diagnóstico nutricional con IA"
+        descripcion="Generado a partir de la última evaluación nutricional y los objetivos de la categoría del jugador."
+      />
     </div>
   )
 }

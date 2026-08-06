@@ -17,6 +17,13 @@
   z-index: 10;
 }
 
+/* Nunca sale en lo que se imprime/exporta a PDF desde ninguna página. */
+@media print {
+  .navbar {
+    display: none;
+  }
+}
+
 .navbar-brand {
   display: flex;
   align-items: center;

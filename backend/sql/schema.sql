@@ -266,6 +266,7 @@ CREATE TABLE `jugadores` (
   `altura` decimal(4,2) DEFAULT NULL,
   `nacionalidad_1` varchar(60) DEFAULT NULL,
   `nacionalidad_2` varchar(60) DEFAULT NULL,
+  `nacionalidad_2_tramite` enum('en_curso','finalizado') DEFAULT NULL,
   `posicion` varchar(50) DEFAULT NULL,
   `categoria` varchar(100) DEFAULT NULL,
   `division_nombre` varchar(100) DEFAULT NULL,
@@ -702,7 +703,7 @@ CREATE TABLE `videos` (
   `descripcion` text,
   `tipo` enum('archivo','link') NOT NULL,
   `url_video` text NOT NULL,
-  `categoria_video` enum('partido','entrenamiento','individual','rutina','biblioteca') NOT NULL,
+  `categoria_video` enum('partido','entrenamiento','individual','rutina','biblioteca','ejercicio') NOT NULL,
   `rival` varchar(100) DEFAULT NULL,
   `resultado` varchar(50) DEFAULT NULL,
   `duracion_segundos` int DEFAULT NULL,
@@ -713,6 +714,80 @@ CREATE TABLE `videos` (
   KEY `subido_por` (`subido_por`),
   CONSTRAINT `videos_ibfk_1` FOREIGN KEY (`subido_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `diagnosticos_ia`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `diagnosticos_ia` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `area` varchar(30) NOT NULL,
+  `contenido` text NOT NULL,
+  `generado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id_area` (`jugador_id`,`area`),
+  KEY `generado_por` (`generado_por`),
+  CONSTRAINT `diagnosticos_ia_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `diagnosticos_ia_ibfk_2` FOREIGN KEY (`generado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `ejercicio_videos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ejercicio_videos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `ejercicio_id` int NOT NULL,
+  `video_id` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ejercicio_id` (`ejercicio_id`),
+  KEY `video_id` (`video_id`),
+  CONSTRAINT `ejercicio_videos_ibfk_1` FOREIGN KEY (`ejercicio_id`) REFERENCES `ejercicios` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `ejercicio_videos_ibfk_2` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `microciclos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `microciclos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `fecha_inicio` date NOT NULL,
+  `fecha_fin` date NOT NULL,
+  `nombre` varchar(150) DEFAULT NULL,
+  `creado_por` int DEFAULT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `fecha_inicio` (`fecha_inicio`),
+  KEY `microciclos_creado_por_fk` (`creado_por`),
+  CONSTRAINT `microciclos_creado_por_fk` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `microciclo_bloques`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `microciclo_bloques` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `microciclo_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `hora_inicio` time NOT NULL,
+  `hora_fin` time DEFAULT NULL,
+  `categoria` enum('preparador_fisico','cuerpo_tecnico') NOT NULL,
+  `titulo` varchar(200) DEFAULT NULL,
+  `descripcion` text,
+  `espacio` varchar(150) DEFAULT NULL,
+  `orientacion` varchar(100) DEFAULT NULL,
+  `pse` varchar(50) DEFAULT NULL,
+  `objetivo` varchar(200) DEFAULT NULL,
+  `espacio_trabajo` enum('completa','media','reducido') DEFAULT NULL,
+  `jugadores_por_tarea` varchar(100) DEFAULT NULL,
+  `creado_por` int DEFAULT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `microciclo_bloques_microciclo_fk` (`microciclo_id`),
+  KEY `microciclo_bloques_creado_por_fk` (`creado_por`),
+  CONSTRAINT `microciclo_bloques_microciclo_fk` FOREIGN KEY (`microciclo_id`) REFERENCES `microciclos` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `microciclo_bloques_creado_por_fk` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 

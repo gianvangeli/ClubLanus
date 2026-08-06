@@ -1,0 +1,232 @@
+.mc-grilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+  align-items: start;
+}
+
+/* Encabezado con escudo, solo visible al imprimir/exportar (en pantalla ya
+   se ve el nombre y las fechas en el título de la página). */
+.mc-print-header {
+  display: none;
+}
+
+.mc-dia {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 160px;
+}
+
+.mc-dia-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mc-dia-header strong {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.mc-dia-bloques {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.mc-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.mc-bloque-preparador_fisico {
+  background: #fef3e2;
+  border-color: #f0b562;
+}
+
+.mc-bloque-cuerpo_tecnico {
+  background: #eaf1fb;
+  border-color: #6b9fdb;
+}
+
+.mc-bloque-horario {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.mc-bloque-tag {
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  opacity: 0.75;
+}
+
+.mc-bloque-titulo {
+  font-size: 12.5px;
+}
+
+.mc-bloque-detalle {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.mc-bloque-cancha {
+  margin-top: 2px;
+}
+
+.mc-agregar {
+  align-self: stretch;
+}
+
+.mc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.mc-modal {
+  background: #fff;
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.mc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.mc-modal-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.mc-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.mc-toggle-categoria {
+  display: flex;
+  gap: 8px;
+}
+
+.mc-espacios-trabajo {
+  display: flex;
+  gap: 10px;
+}
+
+.mc-espacio-opcion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  cursor: pointer;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: center;
+  width: 90px;
+}
+
+.mc-espacio-opcion-activa {
+  border-color: var(--granate-700);
+  color: var(--text);
+}
+
+@media (max-width: 560px) {
+  .mc-form-row {
+    grid-template-columns: 1fr;
+  }
+  .mc-espacios-trabajo {
+    flex-wrap: wrap;
+  }
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .mc-print-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--granate-700);
+  }
+
+  .mc-print-header strong {
+    display: block;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+  }
+
+  .mc-print-header span {
+    display: block;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .mc-grilla {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 6px;
+  }
+
+  .mc-dia {
+    break-inside: avoid;
+    padding: 6px;
+  }
+
+  .mc-bloque {
+    padding: 5px 6px;
+    break-inside: avoid;
+  }
+
+  .mc-bloque-cancha svg {
+    width: 26px;
+    height: 26px;
+  }
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { extraerError } from '../api/client'
 import EscudoClub from '../components/EscudoClub'
@@ -8,10 +8,12 @@ import './Auth.css'
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
+  const sesionExpirada = searchParams.get('sesion') === 'expirada'
 
   const onSubmit = async (e) => {
     e.preventDefault()
@@ -42,6 +44,11 @@ export default function Login() {
         <h1>Iniciar sesión</h1>
         <p className="auth-subtitle">Ingresá con tu email y contraseña</p>
 
+        {!error && sesionExpirada && (
+          <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+            Tu sesión expiró. Volvé a iniciar sesión.
+          </div>
+        )}
         {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
 
         <form className="auth-form" onSubmit={onSubmit}>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Rect, Line, Circle, Ellipse, Arrow, Text, Group, Arc } from 'react-konva'
+import { Stage, Layer, Rect, Line, Circle, Ellipse, Arrow, Text, Group, Arc, Path } from 'react-konva'
 import './CanchaEditor.css'
 
 const ANCHO = 420
@@ -9,14 +9,170 @@ const CAMPOS = {
   media: { alto: 340, mitad: true },
 }
 
+// Solo verde y blanco: son las únicas dos opciones de color de campo que
+// se pueden combinar libremente con líneas (con/sin) y tamaño (entero/mitad).
 const COLORES_CAMPO = {
   verde: { fondo: '#2f8f4e', linea: 'rgba(255,255,255,0.85)' },
   blanco: { fondo: '#f4f4f2', linea: 'rgba(30,30,30,0.55)' },
-  negro: { fondo: '#1b1b1b', linea: 'rgba(255,255,255,0.55)' },
 }
 
 const PALETA = ['#64252F', '#B4984A', '#1d4ed8', '#111827', '#ffffff', '#e11d48']
-const GROSORES = [2, 3, 5, 8]
+const TAMANOS = [
+  { valor: 2, etiqueta: 'Chico' },
+  { valor: 4, etiqueta: 'Mediano' },
+  { valor: 7, etiqueta: 'Grande' },
+]
+
+// Patrones de guiones para las variantes de trazo de una línea/flecha:
+// punteada = puntos chicos y seguidos, discontinua = guiones más largos y
+// separados. "Sólida" no tiene dash. Se calcula a partir de "estilo" (nuevo)
+// o, si el dibujo es viejo, del booleano "punteada" que se usaba antes.
+const PATRONES_TRAZO = { punteada: [1, 6], discontinua: [12, 7] }
+const dashDeFlecha = (el) => {
+  const estilo = el.estilo || (el.punteada ? 'punteada' : 'solido')
+  return estilo === 'solido' ? undefined : PATRONES_TRAZO[estilo]
+}
+
+// Puntos en zigzag entre (x1,y1) y (x2,y2), para la variante de línea
+// "Ondulada" (representa conducción/gambeta, a diferencia de la línea
+// recta que representa un pase). Se calcula una sola vez al soltar el
+// mouse, no en cada movimiento.
+const puntosOndulados = (x1, y1, x2, y2) => {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const largo = Math.hypot(dx, dy)
+  if (largo < 1) return [x1, y1, x2, y2]
+  const ux = dx / largo
+  const uy = dy / largo
+  const px = -uy
+  const py = ux
+  const segmentos = Math.max(4, Math.round(largo / 18))
+  const amplitud = 8
+  const puntos = [x1, y1]
+  for (let i = 1; i < segmentos; i++) {
+    const t = i / segmentos
+    const signo = i % 2 === 0 ? 1 : -1
+    puntos.push(x1 + dx * t + px * amplitud * signo, y1 + dy * t + py * amplitud * signo)
+  }
+  puntos.push(x2, y2)
+  return puntos
+}
+
+// Punta de "bloqueo": una barrita perpendicular al final de la línea, como
+// una señal de tope/límite (en vez de punta de flecha).
+const puntosBarraBloqueo = (points) => {
+  const n = points.length
+  const [x1, y1, x2, y2] = [points[n - 4], points[n - 3], points[n - 2], points[n - 1]]
+  const angulo = Math.atan2(y2 - y1, x2 - x1) + Math.PI / 2
+  const largo = 9
+  return [
+    x2 - Math.cos(angulo) * largo,
+    y2 - Math.sin(angulo) * largo,
+    x2 + Math.cos(angulo) * largo,
+    y2 + Math.sin(angulo) * largo,
+  ]
+}
+
+// Punto a lo largo de una polilínea (puntos [x1,y1,x2,y2,...]) a una
+// fracción t (0 a 1) de su largo total. Sirve para animar a un jugador
+// deslizándose por su línea, sea recta, "curva" (el punto de control
+// intermedio se camina como un tramo más) u ondulada.
+const puntoEnPolilinea = (points, t) => {
+  const segmentos = []
+  let total = 0
+  for (let i = 0; i < points.length - 2; i += 2) {
+    const x1 = points[i];
+    const y1 = points[i + 1]
+    const x2 = points[i + 2];
+    const y2 = points[i + 3]
+    const largo = Math.hypot(x2 - x1, y2 - y1)
+    segmentos.push({ x1, y1, x2, y2, largo })
+    total += largo
+  }
+  if (segmentos.length === 0) return { x: points[0], y: points[1] }
+  if (total === 0) return { x: segmentos[0].x1, y: segmentos[0].y1 }
+
+  let recorrido = Math.max(0, Math.min(1, t)) * total
+  for (const s of segmentos) {
+    if (recorrido <= s.largo) {
+      const frac = s.largo === 0 ? 0 : recorrido / s.largo
+      return { x: s.x1 + (s.x2 - s.x1) * frac, y: s.y1 + (s.y2 - s.y1) * frac }
+    }
+    recorrido -= s.largo
+  }
+  const ultimo = segmentos[segmentos.length - 1]
+  return { x: ultimo.x2, y: ultimo.y2 }
+}
+
+// Genera (y cachea por color) una imagen chica con rayas diagonales, para
+// el relleno "con rayas" de las figuras — alternativa al relleno liso.
+const patronesRayasCache = {}
+const generarPatronRayas = (color, onListo) => {
+  if (patronesRayasCache[color]) return patronesRayasCache[color]
+  const size = 10
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  ctx.strokeStyle = color
+  ctx.globalAlpha = 0.55
+  ctx.lineWidth = 2.5
+  ;[-size, 0, size].forEach((offset) => {
+    ctx.beginPath()
+    ctx.moveTo(offset, size)
+    ctx.lineTo(offset + size, 0)
+    ctx.stroke()
+  })
+  const img = new window.Image()
+  img.onload = () => onListo(img)
+  img.src = canvas.toDataURL()
+  patronesRayasCache[color] = img
+  return img
+}
+
+// Equipo A: Lanús, colores fijos (no se pueden cambiar). Equipo B: colores
+// editables, para simular al rival de turno.
+const EQUIPO_A_DEFAULT = { color: '#64252F', conNumero: true, estilo: 'circulo' }
+const EQUIPO_B_DEFAULT = { color: '#1d4ed8', conNumero: true, estilo: 'circulo' }
+
+// Colores típicos de pechera (bien saturados/flúo, para que se distingan
+// de cualquier color de camiseta). Se asignan jugador por jugador.
+const COLORES_PECHERA = ['#fbbf24', '#f97316', '#38bdf8', '#ec4899', '#84cc16', '#ffffff']
+
+// Silueta simple de camiseta (hombros -> mangas -> cuerpo -> cuello en V),
+// centrada en (0,0), a la misma escala que el círculo de jugador (radio 12).
+const JERSEY_PATH =
+  'M -5,-9 L -9,-5 L -6,-2 L -6,9 L 6,9 L 6,-2 L 9,-5 L 5,-9 L 2.5,-9 Q 0,-6 -2.5,-9 Z'
+
+// Ficha de un jugador: círculo o camiseta según el estilo del equipo, con
+// número opcional (según el equipo) y pechera opcional (según el jugador).
+function TokenJugador({ estilo, color, numero, conNumero, pechera }) {
+  return (
+    <>
+      {estilo === 'camiseta' ? (
+        <Path data={JERSEY_PATH} fill={color} stroke="#fff" strokeWidth={1} />
+      ) : (
+        <Circle radius={12} fill={color} stroke="#fff" strokeWidth={1.5} />
+      )}
+      {pechera && (
+        <Rect x={-4.5} y={-5} width={9} height={13} cornerRadius={2} fill={pechera} stroke="#fff" strokeWidth={0.75} opacity={0.92} />
+      )}
+      {conNumero && (
+        <Text
+          text={String(numero)}
+          fontSize={11}
+          fill="#fff"
+          width={24}
+          height={24}
+          align="center"
+          verticalAlign="middle"
+          offsetX={12}
+          offsetY={12}
+        />
+      )}
+    </>
+  )
+}
 const FIGURAS = [
   { valor: 'cono', etiqueta: 'Cono' },
   { valor: 'cuadrado', etiqueta: 'Cuadrado' },
@@ -28,6 +184,7 @@ const FIGURAS = [
 
 export const ESCENA_VACIA = {
   campo: { tipo: 'completa', color: 'verde', lineas: true },
+  equipos: { A: { ...EQUIPO_A_DEFAULT }, B: { ...EQUIPO_B_DEFAULT } },
   jugadores: [],
   flechas: [],
   figuras: [],
@@ -36,10 +193,15 @@ export const ESCENA_VACIA = {
   zonas: [],
 }
 
-// Completa con arrays vacíos las listas que un dibujo guardado con una
-// versión anterior de la pizarra (sin texto/lápiz/zonas) todavía no tiene.
+// Completa con valores por defecto lo que un dibujo guardado con una
+// versión anterior de la pizarra (sin texto/lápiz/zonas, o sin
+// configuración de equipos/pecheras) todavía no tiene.
 const normalizarEscena = (v) => ({
   campo: v?.campo || ESCENA_VACIA.campo,
+  equipos: {
+    A: { ...EQUIPO_A_DEFAULT, ...(v?.equipos?.A || {}) },
+    B: { ...EQUIPO_B_DEFAULT, ...(v?.equipos?.B || {}) },
+  },
   jugadores: v?.jugadores || [],
   flechas: v?.flechas || [],
   figuras: v?.figuras || [],
@@ -81,6 +243,15 @@ function ArcoArea({ x, y, orientacion, color }) {
     />
   )
 }
+
+// Puntos del rombo inscripto en el rectángulo (x,y,width,height) de una
+// zona: uno de los 3 tipos de "Figuras" para marcar áreas de trabajo.
+const puntosRombo = (x, y, width, height) => [
+  x + width / 2, y,
+  x + width, y + height / 2,
+  x + width / 2, y + height,
+  x, y + height / 2,
+]
 
 function ArcosCorner({ w, h, color }) {
   return (
@@ -166,16 +337,31 @@ export default function CanchaEditor({ value, onChange, editable }) {
   const escena = normalizarEscena(value)
   const stageRef = useRef(null)
   const internalChangeRef = useRef(false)
+  const animacionRef = useRef(null)
+
+  const [animando, setAnimando] = useState(false)
+  const [posicionesAnimadas, setPosicionesAnimadas] = useState(null)
 
   const [herramienta, setHerramienta] = useState('mover')
   const [colorDibujo, setColorDibujo] = useState(PALETA[0])
-  const [grosorDibujo, setGrosorDibujo] = useState(3)
+  const [colorPechera, setColorPechera] = useState(COLORES_PECHERA[0])
+  const [mostrarConfigEquipos, setMostrarConfigEquipos] = useState(false)
+  const [grosorDibujo, setGrosorDibujo] = useState(4)
   const [curva, setCurva] = useState(false)
   const [punteada, setPunteada] = useState(false)
+  const [estiloLinea, setEstiloLinea] = useState('solido')
   const [tipoLinea, setTipoLinea] = useState('flecha')
   const [figuraTipo, setFiguraTipo] = useState('cono')
   const [zonaTipo, setZonaTipo] = useState('rectangulo')
-  const [zonaRelleno, setZonaRelleno] = useState(false)
+  const [patronRelleno, setPatronRelleno] = useState('ninguno')
+  const [patronesListos, setPatronesListos] = useState({})
+
+  // Genera (si hace falta) la imagen de rayas diagonales para un color y,
+  // cuando termina de cargar, la deja disponible para usar como relleno.
+  const asegurarPatronRayas = (color) => {
+    if (patronesListos[color]) return
+    generarPatronRayas(color, (img) => setPatronesListos((prev) => (prev[color] ? prev : { ...prev, [color]: img })))
+  }
   const [dibujando, setDibujando] = useState(null)
   const [dibujandoZona, setDibujandoZona] = useState(null)
   const [trazoActual, setTrazoActual] = useState(null)
@@ -233,15 +419,19 @@ export default function CanchaEditor({ value, onChange, editable }) {
   }
 
   const agregarJugador = (equipo) => {
-    const color = equipo === 'A' ? '#64252F' : '#1d4ed8'
     const numero = escena.jugadores.filter((j) => j.equipo === equipo).length + 1
     actualizar({
       jugadores: [
         ...escena.jugadores,
-        { id: nuevoId(), equipo, numero, color, x: ANCHO / 2 + (equipo === 'A' ? -60 : 60), y: alto / 2 },
+        { id: nuevoId(), equipo, numero, pechera: null, x: ANCHO / 2 + (equipo === 'A' ? -60 : 60), y: alto / 2 },
       ],
     })
   }
+
+  // Config de equipo (color, con/sin número, círculo/camiseta): aplica a
+  // todos los jugadores de ese equipo a la vez, no jugador por jugador.
+  const actualizarEquipo = (equipo, cambios) =>
+    actualizar({ equipos: { ...escena.equipos, [equipo]: { ...escena.equipos[equipo], ...cambios } } })
 
   const moverElemento = (lista, id, x, y) =>
     actualizar({ [lista]: escena[lista].map((el) => (el.id === id ? { ...el, x, y } : el)) })
@@ -367,6 +557,12 @@ export default function CanchaEditor({ value, onChange, editable }) {
     } else if (herramienta === 'seleccionar') {
       e.cancelBubble = true
       toggleSeleccion(lista, elemento.id)
+    } else if (herramienta === 'pechera') {
+      if (lista !== 'jugadores') return
+      e.cancelBubble = true
+      actualizar({
+        jugadores: escena.jugadores.map((j) => (j.id === elemento.id ? { ...j, pechera: colorPechera } : j)),
+      })
     }
   }
 
@@ -395,7 +591,12 @@ export default function CanchaEditor({ value, onChange, editable }) {
     }
 
     if (herramienta === 'linea') {
-      setDibujando({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y })
+      // Si la línea arranca sobre un jugador, queda asociada a él: es lo
+      // que permite despúes "Reproducir animación" (el jugador se desliza
+      // por esta línea). Si no arranca sobre nadie, es una flecha normal
+      // (zona, referencia, etc.) y no anima a nadie.
+      const jugadorOrigen = escena.jugadores.find((j) => Math.hypot(j.x - pos.x, j.y - pos.y) < 16)
+      setDibujando({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, origenJugadorId: jugadorOrigen?.id || null })
       return
     }
 
@@ -431,7 +632,9 @@ export default function CanchaEditor({ value, onChange, editable }) {
       const distancia = Math.hypot(x2 - x1, y2 - y1)
       if (distancia > 8) {
         let points = [x1, y1, x2, y2]
-        if (curva) {
+        if (tipoLinea === 'ondulada') {
+          points = puntosOndulados(x1, y1, x2, y2)
+        } else if (curva) {
           const midX = (x1 + x2) / 2
           const midY = (y1 + y2) / 2
           const dx = x2 - x1
@@ -448,10 +651,11 @@ export default function CanchaEditor({ value, onChange, editable }) {
               id: nuevoId(),
               points,
               color: colorDibujo,
-              punteada,
-              tension: curva ? 0.5 : 0,
+              estilo: estiloLinea,
+              tension: tipoLinea === 'ondulada' ? 0.4 : curva ? 0.5 : 0,
               tipoLinea,
               grosor: grosorDibujo,
+              origenJugadorId: dibujando.origenJugadorId || null,
             },
           ],
         })
@@ -477,7 +681,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
               color: colorDibujo,
               grosor: grosorDibujo,
               punteada,
-              relleno: zonaRelleno,
+              patronRelleno,
             },
           ],
         })
@@ -514,6 +718,69 @@ export default function CanchaEditor({ value, onChange, editable }) {
     }
   }
 
+  // Props de relleno de una zona/figura según su patrón: liso (color
+  // semi-transparente) o rayas (imagen de trama, generada bajo demanda).
+  const propsRelleno = (patron, color) => {
+    if (patron === 'rayas') {
+      asegurarPatronRayas(color)
+      const img = patronesListos[color]
+      return img ? { fillPatternImage: img, fillPatternRepeat: 'repeat' } : { fill: `${color}33` }
+    }
+    if (patron === 'liso') return { fill: `${color}33` }
+    return {}
+  }
+
+  // Anima a cada jugador que tenga una línea que arranca en él,
+  // deslizándolo desde su posición actual hasta la punta de esa línea. Se
+  // reproduce una sola vez, en simultáneo para todos.
+  const reproducirAnimacion = () => {
+    const tramos = escena.flechas
+      .filter((a) => a.origenJugadorId && escena.jugadores.some((j) => j.id === a.origenJugadorId))
+      .map((a) => ({ jugadorId: a.origenJugadorId, points: a.points }))
+
+    if (tramos.length === 0) return
+
+    if (animacionRef.current) cancelAnimationFrame(animacionRef.current)
+    setAnimando(true)
+
+    const duracionMs = 2200
+    const inicio = performance.now()
+
+    const paso = (ahora) => {
+      const t = Math.min(1, (ahora - inicio) / duracionMs)
+      const nuevas = {}
+      tramos.forEach((tramo) => {
+        nuevas[tramo.jugadorId] = puntoEnPolilinea(tramo.points, t)
+      })
+      setPosicionesAnimadas(nuevas)
+
+      if (t < 1) {
+        animacionRef.current = requestAnimationFrame(paso)
+      } else {
+        setAnimando(false)
+        animacionRef.current = null
+      }
+    }
+    animacionRef.current = requestAnimationFrame(paso)
+  }
+
+  const reiniciarAnimacion = () => {
+    if (animacionRef.current) cancelAnimationFrame(animacionRef.current)
+    animacionRef.current = null
+    setAnimando(false)
+    setPosicionesAnimadas(null)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (animacionRef.current) cancelAnimationFrame(animacionRef.current)
+    }
+  }, [])
+
+  const hayAnimacion = escena.flechas.some(
+    (a) => a.origenJugadorId && escena.jugadores.some((j) => j.id === a.origenJugadorId)
+  )
+
   const exportarImagen = () => {
     if (!stageRef.current) return
     const uri = stageRef.current.toDataURL({ pixelRatio: 2 })
@@ -528,15 +795,15 @@ export default function CanchaEditor({ value, onChange, editable }) {
       {editable && (
         <div className="ce-toolbar">
           <div className="ce-grupo">
-            <label>Cancha</label>
+            <label>Tamaño</label>
             <select value={escena.campo.tipo} onChange={(e) => actualizar({ campo: { ...escena.campo, tipo: e.target.value } })}>
-              <option value="completa">Completa</option>
-              <option value="media">Media cancha</option>
+              <option value="completa">Campo entero</option>
+              <option value="media">Mitad del campo</option>
             </select>
+            <label>Color</label>
             <select value={escena.campo.color} onChange={(e) => actualizar({ campo: { ...escena.campo, color: e.target.value } })}>
-              <option value="verde">Pasto verde</option>
-              <option value="blanco">Fondo blanco</option>
-              <option value="negro">Fondo negro</option>
+              <option value="verde">Verde</option>
+              <option value="blanco">Blanco</option>
             </select>
             <label className="ce-check">
               <input
@@ -552,12 +819,15 @@ export default function CanchaEditor({ value, onChange, editable }) {
             <label>Equipos</label>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => agregarJugador('A')}>+ Jugador A</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => agregarJugador('B')}>+ Jugador B</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMostrarConfigEquipos(true)}>
+              ⚙ Configurar equipos
+            </button>
           </div>
 
           <div className="ce-grupo">
             <label>Herramienta</label>
             <div className="ce-herramientas">
-              {['mover', 'seleccionar', 'linea', 'zona', 'lapiz', 'texto', 'figura', 'candado', 'borrar'].map((h) => (
+              {['mover', 'seleccionar', 'linea', 'zona', 'lapiz', 'texto', 'figura', 'pechera', 'candado', 'borrar'].map((h) => (
                 <button
                   key={h}
                   type="button"
@@ -572,6 +842,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
                     lapiz: 'Lápiz',
                     texto: 'Texto',
                     figura: 'Figura',
+                    pechera: 'Pechera',
                     candado: 'Candado',
                     borrar: 'Borrar',
                   }[h]}
@@ -586,16 +857,22 @@ export default function CanchaEditor({ value, onChange, editable }) {
                 <option value="flecha">Flecha</option>
                 <option value="flecha-doble">Flecha doble</option>
                 <option value="linea">Línea</option>
+                <option value="ondulada">Ondulada (gambeta)</option>
+                <option value="bloqueo">Bloqueo</option>
               </select>
-              <label className="ce-check">
-                <input type="checkbox" checked={curva} onChange={(e) => setCurva(e.target.checked)} /> Curva
-              </label>
-              <label className="ce-check">
-                <input type="checkbox" checked={punteada} onChange={(e) => setPunteada(e.target.checked)} /> Punteada
-              </label>
+              {tipoLinea !== 'ondulada' && (
+                <label className="ce-check">
+                  <input type="checkbox" checked={curva} onChange={(e) => setCurva(e.target.checked)} /> Curva
+                </label>
+              )}
+              <select value={estiloLinea} onChange={(e) => setEstiloLinea(e.target.value)}>
+                <option value="solido">Sólida</option>
+                <option value="punteada">Punteada</option>
+                <option value="discontinua">Discontinua</option>
+              </select>
               <select value={grosorDibujo} onChange={(e) => setGrosorDibujo(Number(e.target.value))}>
-                {GROSORES.map((g) => (
-                  <option key={g} value={g}>{g}px</option>
+                {TAMANOS.map((t) => (
+                  <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
                 ))}
               </select>
             </div>
@@ -604,18 +881,27 @@ export default function CanchaEditor({ value, onChange, editable }) {
           {herramienta === 'zona' && (
             <div className="ce-grupo">
               <select value={zonaTipo} onChange={(e) => setZonaTipo(e.target.value)}>
-                <option value="rectangulo">Rectángulo</option>
-                <option value="ovalo">Óvalo</option>
+                <option value="rectangulo">Cuadrado</option>
+                <option value="ovalo">Círculo</option>
+                <option value="rombo">Rombo</option>
               </select>
               <label className="ce-check">
                 <input type="checkbox" checked={punteada} onChange={(e) => setPunteada(e.target.checked)} /> Punteada
               </label>
-              <label className="ce-check">
-                <input type="checkbox" checked={zonaRelleno} onChange={(e) => setZonaRelleno(e.target.checked)} /> Rellena
-              </label>
+              <select
+                value={patronRelleno}
+                onChange={(e) => {
+                  setPatronRelleno(e.target.value)
+                  if (e.target.value === 'rayas') asegurarPatronRayas(colorDibujo)
+                }}
+              >
+                <option value="ninguno">Sin relleno</option>
+                <option value="liso">Relleno liso</option>
+                <option value="rayas">Relleno con rayas</option>
+              </select>
               <select value={grosorDibujo} onChange={(e) => setGrosorDibujo(Number(e.target.value))}>
-                {GROSORES.map((g) => (
-                  <option key={g} value={g}>{g}px</option>
+                {TAMANOS.map((t) => (
+                  <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
                 ))}
               </select>
             </div>
@@ -624,8 +910,8 @@ export default function CanchaEditor({ value, onChange, editable }) {
           {herramienta === 'lapiz' && (
             <div className="ce-grupo">
               <select value={grosorDibujo} onChange={(e) => setGrosorDibujo(Number(e.target.value))}>
-                {GROSORES.map((g) => (
-                  <option key={g} value={g}>{g}px</option>
+                {TAMANOS.map((t) => (
+                  <option key={t.valor} value={t.valor}>{t.etiqueta}</option>
                 ))}
               </select>
             </div>
@@ -649,9 +935,34 @@ export default function CanchaEditor({ value, onChange, editable }) {
                   type="button"
                   className={`ce-swatch ${colorDibujo === c ? 'ce-swatch-activo' : ''}`}
                   style={{ background: c }}
-                  onClick={() => setColorDibujo(c)}
+                  onClick={() => {
+                    setColorDibujo(c)
+                    if (herramienta === 'zona' && patronRelleno === 'rayas') asegurarPatronRayas(c)
+                  }}
                 />
               ))}
+            </div>
+          )}
+
+          {herramienta === 'pechera' && (
+            <div className="ce-grupo ce-paleta">
+              <span className="ce-seleccion-info">Tocá un jugador para ponerle esta pechera:</span>
+              {COLORES_PECHERA.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`ce-swatch ${colorPechera === c ? 'ce-swatch-activo' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => setColorPechera(c)}
+                />
+              ))}
+              <button
+                type="button"
+                className={`btn btn-sm ${colorPechera === null ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setColorPechera(null)}
+              >
+                Sin pechera
+              </button>
             </div>
           )}
 
@@ -673,6 +984,109 @@ export default function CanchaEditor({ value, onChange, editable }) {
         </div>
       )}
 
+      {mostrarConfigEquipos && (
+        <div className="ce-modal-overlay" onClick={() => setMostrarConfigEquipos(false)}>
+          <div className="ce-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="ce-modal-header">
+              <h3>Configurar equipos</h3>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMostrarConfigEquipos(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="ce-modal-equipos">
+              <div className="ce-modal-equipo">
+                <div className="ce-modal-equipo-header">
+                  <span className="ce-modal-equipo-color" style={{ background: escena.equipos.A.color }} />
+                  <strong>Lanús</strong>
+                </div>
+                <p className="texto-muted">Colores fijos del club.</p>
+
+                <label className="ce-check">
+                  <input
+                    type="checkbox"
+                    checked={escena.equipos.A.conNumero}
+                    onChange={(e) => actualizarEquipo('A', { conNumero: e.target.checked })}
+                  />
+                  Con número
+                </label>
+
+                <div className="ce-toggle-estilo">
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${escena.equipos.A.estilo === 'circulo' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => actualizarEquipo('A', { estilo: 'circulo' })}
+                  >
+                    Círculo
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${escena.equipos.A.estilo === 'camiseta' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => actualizarEquipo('A', { estilo: 'camiseta' })}
+                  >
+                    Camiseta
+                  </button>
+                </div>
+              </div>
+
+              <div className="ce-modal-equipo">
+                <div className="ce-modal-equipo-header">
+                  <input
+                    type="color"
+                    className="ce-modal-color-input"
+                    value={escena.equipos.B.color}
+                    onChange={(e) => actualizarEquipo('B', { color: e.target.value })}
+                  />
+                  <strong>Equipo rival</strong>
+                </div>
+                <p className="texto-muted">Elegí el color para simular al equipo de turno.</p>
+
+                <label className="ce-check">
+                  <input
+                    type="checkbox"
+                    checked={escena.equipos.B.conNumero}
+                    onChange={(e) => actualizarEquipo('B', { conNumero: e.target.checked })}
+                  />
+                  Con número
+                </label>
+
+                <div className="ce-toggle-estilo">
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${escena.equipos.B.estilo === 'circulo' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => actualizarEquipo('B', { estilo: 'circulo' })}
+                  >
+                    Círculo
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${escena.equipos.B.estilo === 'camiseta' ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => actualizarEquipo('B', { estilo: 'camiseta' })}
+                  >
+                    Camiseta
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <p className="texto-muted" style={{ marginTop: 14 }}>
+              La pechera se asigna jugador por jugador: elegí la herramienta "Pechera" en la barra y tocá al jugador.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {hayAnimacion && (
+        <div className="ce-animacion-barra" style={{ maxWidth: ANCHO }}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={reproducirAnimacion} disabled={animando}>
+            {animando ? <span className="spinner" /> : '▶ Reproducir animación'}
+          </button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={reiniciarAnimacion} disabled={!posicionesAnimadas && !animando}>
+            ↺ Reiniciar
+          </button>
+        </div>
+      )}
+
       <div className="ce-stage-wrap" style={{ maxWidth: ANCHO }}>
         <Stage
           ref={stageRef}
@@ -690,11 +1104,12 @@ export default function CanchaEditor({ value, onChange, editable }) {
             {escena.campo.lineas && <LineasCampo tipo={escena.campo.tipo} alto={alto} color={coloresCampo.linea} />}
 
             {escena.zonas.map((z) => {
+              const patron = z.patronRelleno || (z.relleno ? 'liso' : 'ninguno')
               const comun = {
                 stroke: z.color,
                 strokeWidth: z.grosor || 3,
                 dash: z.punteada ? [10, 6] : undefined,
-                fill: z.relleno ? `${z.color}33` : undefined,
+                ...propsRelleno(patron, z.color),
                 opacity: z.bloqueado ? 0.55 : 1,
                 onClick: onClickElemento('zonas', z),
               }
@@ -710,6 +1125,9 @@ export default function CanchaEditor({ value, onChange, editable }) {
                   />
                 )
               }
+              if (z.tipo === 'rombo') {
+                return <Line key={z.id} points={puntosRombo(z.x, z.y, z.width, z.height)} closed {...comun} />
+              }
               return <Rect key={z.id} x={z.x} y={z.y} width={z.width} height={z.height} {...comun} />
             })}
             {dibujandoZona &&
@@ -722,11 +1140,14 @@ export default function CanchaEditor({ value, onChange, editable }) {
                   stroke: colorDibujo,
                   strokeWidth: grosorDibujo,
                   dash: punteada ? [10, 6] : undefined,
-                  fill: zonaRelleno ? `${colorDibujo}33` : undefined,
+                  ...propsRelleno(patronRelleno, colorDibujo),
                   opacity: 0.7,
                 }
                 if (zonaTipo === 'ovalo') {
                   return <Ellipse x={x + width / 2} y={y + height / 2} radiusX={width / 2} radiusY={height / 2} {...comun} />
+                }
+                if (zonaTipo === 'rombo') {
+                  return <Line points={puntosRombo(x, y, width, height)} closed {...comun} />
                 }
                 return <Rect x={x} y={y} width={width} height={height} {...comun} />
               })()}
@@ -778,12 +1199,20 @@ export default function CanchaEditor({ value, onChange, editable }) {
                 stroke: a.color,
                 strokeWidth: a.grosor || 3,
                 tension: a.tension || 0,
-                dash: a.punteada ? [10, 6] : undefined,
+                dash: dashDeFlecha(a),
                 opacity: a.bloqueado ? 0.55 : 1,
                 onClick: onClickElemento('flechas', a),
               }
               if (tipo === 'linea') {
                 return <Line key={a.id} {...comun} lineCap="round" />
+              }
+              if (tipo === 'bloqueo') {
+                return (
+                  <Group key={a.id} opacity={a.bloqueado ? 0.55 : 1} onClick={onClickElemento('flechas', a)}>
+                    <Line points={a.points} stroke={a.color} strokeWidth={a.grosor || 3} tension={a.tension || 0} dash={dashDeFlecha(a)} lineCap="round" />
+                    <Line points={puntosBarraBloqueo(a.points)} stroke={a.color} strokeWidth={a.grosor || 3} lineCap="round" />
+                  </Group>
+                )
               }
               return (
                 <Arrow
@@ -804,7 +1233,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
                 stroke={colorDibujo}
                 fill={colorDibujo}
                 strokeWidth={grosorDibujo}
-                dash={punteada ? [10, 6] : undefined}
+                dash={estiloLinea === 'solido' ? undefined : PATRONES_TRAZO[estiloLinea]}
                 pointerAtBeginning={tipoLinea === 'flecha-doble'}
                 pointerAtEnding={tipoLinea !== 'linea'}
                 pointerLength={tipoLinea === 'linea' ? 0 : 10}
@@ -813,21 +1242,30 @@ export default function CanchaEditor({ value, onChange, editable }) {
               />
             )}
 
-            {escena.jugadores.map((j) => (
-              <Group
-                key={j.id}
-                x={j.x}
-                y={j.y}
-                opacity={j.bloqueado ? 0.55 : 1}
-                draggable={editable && herramienta === 'mover' && !j.bloqueado}
-                onDragEnd={(e) => moverElemento('jugadores', j.id, e.target.x(), e.target.y())}
-                onClick={onClickElemento('jugadores', j)}
-              >
-                {estaSeleccionado('jugadores', j.id) && <Circle radius={16} stroke="#2563eb" strokeWidth={2} dash={[4, 3]} />}
-                <Circle radius={12} fill={j.color} stroke="#fff" strokeWidth={1.5} />
-                <Text text={String(j.numero)} fontSize={11} fill="#fff" width={24} height={24} align="center" verticalAlign="middle" offsetX={12} offsetY={12} />
-              </Group>
-            ))}
+            {escena.jugadores.map((j) => {
+              const cfgEquipo = escena.equipos[j.equipo] || EQUIPO_A_DEFAULT
+              const pos = posicionesAnimadas?.[j.id] || { x: j.x, y: j.y }
+              return (
+                <Group
+                  key={j.id}
+                  x={pos.x}
+                  y={pos.y}
+                  opacity={j.bloqueado ? 0.55 : 1}
+                  draggable={editable && herramienta === 'mover' && !j.bloqueado && !animando && !posicionesAnimadas}
+                  onDragEnd={(e) => moverElemento('jugadores', j.id, e.target.x(), e.target.y())}
+                  onClick={onClickElemento('jugadores', j)}
+                >
+                  {estaSeleccionado('jugadores', j.id) && <Circle radius={16} stroke="#2563eb" strokeWidth={2} dash={[4, 3]} />}
+                  <TokenJugador
+                    estilo={cfgEquipo.estilo}
+                    color={j.color || cfgEquipo.color}
+                    numero={j.numero}
+                    conNumero={cfgEquipo.conNumero}
+                    pechera={j.pechera}
+                  />
+                </Group>
+              )
+            })}
 
             {escena.textos.map((t) => (
               <Group key={t.id}>
