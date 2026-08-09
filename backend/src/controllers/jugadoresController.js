@@ -298,7 +298,7 @@ const obtenerJugador = async (req, res) => {
 
     const [jugadores] = await db.query(
       `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.fecha_nacimiento, j.peso, j.altura, j.nacionalidad_1, j.nacionalidad_2, j.nacionalidad_2_tramite, j.posicion, j.categoria, j.division_nombre,
-              j.contrato, j.agente_nombre, j.agente_apellido, j.agente_mail, j.agente_telefono,
+              j.contrato, j.agente_nombre, j.agente_apellido, j.agente_tipo, j.agente_empresa, j.agente_mail, j.agente_telefono,
               j.contacto_emergencia_nombre, j.contacto_emergencia_apellido, j.contacto_emergencia_relacion, j.contacto_emergencia_telefono,
               j.pie, j.posiciones_cancha, j.partidos_jugados, j.psicologo_id,
               j.semaforo_psicologico, j.semaforo_analisis,
@@ -428,13 +428,25 @@ const eliminarJugador = async (req, res) => {
 const actualizarAgente = async (req, res) => {
   try {
     const { id } = req.params;
-    const { agente_nombre, agente_apellido, agente_mail, agente_telefono } = req.body;
+    const { agente_nombre, agente_apellido, agente_tipo, agente_empresa, agente_mail, agente_telefono } = req.body;
+
+    if (agente_tipo && !["persona", "empresa"].includes(agente_tipo)) {
+      return res.status(400).json({ message: "agente_tipo debe ser 'persona' o 'empresa'" });
+    }
 
     const [result] = await db.query(
       `UPDATE jugadores
-       SET agente_nombre = ?, agente_apellido = ?, agente_mail = ?, agente_telefono = ?
+       SET agente_nombre = ?, agente_apellido = ?, agente_tipo = ?, agente_empresa = ?, agente_mail = ?, agente_telefono = ?
        WHERE id = ?`,
-      [agente_nombre || null, agente_apellido || null, agente_mail || null, agente_telefono || null, id]
+      [
+        agente_nombre || null,
+        agente_apellido || null,
+        agente_tipo || "persona",
+        agente_empresa || null,
+        agente_mail || null,
+        agente_telefono || null,
+        id,
+      ]
     );
 
     if (result.affectedRows === 0) {

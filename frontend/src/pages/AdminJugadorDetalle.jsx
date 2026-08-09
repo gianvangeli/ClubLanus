@@ -21,8 +21,10 @@ const CAMPOS_VACIOS = {
 }
 
 const AGENTE_VACIO = {
+  agente_tipo: 'persona',
   agente_nombre: '',
   agente_apellido: '',
+  agente_empresa: '',
   agente_mail: '',
   agente_telefono: '',
 }
@@ -439,12 +441,15 @@ function Agente({ jugador, onActualizado }) {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
 
-  const tieneDatos = jugador.agente_nombre || jugador.agente_apellido || jugador.agente_mail || jugador.agente_telefono
+  const tieneDatos =
+    jugador.agente_nombre || jugador.agente_apellido || jugador.agente_empresa || jugador.agente_mail || jugador.agente_telefono
 
   const empezarEdicion = () => {
     setForm({
+      agente_tipo: jugador.agente_tipo || 'persona',
       agente_nombre: jugador.agente_nombre || '',
       agente_apellido: jugador.agente_apellido || '',
+      agente_empresa: jugador.agente_empresa || '',
       agente_mail: jugador.agente_mail || '',
       agente_telefono: jugador.agente_telefono || '',
     })
@@ -483,8 +488,14 @@ function Agente({ jugador, onActualizado }) {
       {!editando ? (
         tieneDatos ? (
           <dl className="info-lista">
-            <Dato label="Nombre" valor={jugador.agente_nombre} />
-            <Dato label="Apellido" valor={jugador.agente_apellido} />
+            {jugador.agente_tipo === 'empresa' ? (
+              <Dato label="Empresa" valor={jugador.agente_empresa} />
+            ) : (
+              <>
+                <Dato label="Nombre" valor={jugador.agente_nombre} />
+                <Dato label="Apellido" valor={jugador.agente_apellido} />
+              </>
+            )}
             <Dato label="Mail" valor={jugador.agente_mail} />
             <Dato label="Teléfono" valor={jugador.agente_telefono} />
           </dl>
@@ -495,13 +506,41 @@ function Agente({ jugador, onActualizado }) {
         <form className="form-edicion" onSubmit={guardar}>
           {error && <div className="alert alert-error">{error}</div>}
           <div className="field">
-            <label>Nombre</label>
-            <input value={form.agente_nombre} onChange={onChange('agente_nombre')} />
+            <label>Tipo</label>
+            <div className="modo-toggle">
+              <button
+                type="button"
+                className={`btn btn-sm ${form.agente_tipo === 'persona' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setForm({ ...form, agente_tipo: 'persona' })}
+              >
+                Persona
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${form.agente_tipo === 'empresa' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setForm({ ...form, agente_tipo: 'empresa' })}
+              >
+                Empresa
+              </button>
+            </div>
           </div>
-          <div className="field">
-            <label>Apellido</label>
-            <input value={form.agente_apellido} onChange={onChange('agente_apellido')} />
-          </div>
+          {form.agente_tipo === 'empresa' ? (
+            <div className="field">
+              <label>Empresa</label>
+              <input value={form.agente_empresa} onChange={onChange('agente_empresa')} placeholder="Razón social" />
+            </div>
+          ) : (
+            <>
+              <div className="field">
+                <label>Nombre</label>
+                <input value={form.agente_nombre} onChange={onChange('agente_nombre')} />
+              </div>
+              <div className="field">
+                <label>Apellido</label>
+                <input value={form.agente_apellido} onChange={onChange('agente_apellido')} />
+              </div>
+            </>
+          )}
           <div className="field">
             <label>Mail</label>
             <input type="email" value={form.agente_mail} onChange={onChange('agente_mail')} />

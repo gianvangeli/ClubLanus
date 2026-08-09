@@ -277,6 +277,8 @@ CREATE TABLE `jugadores` (
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `agente_nombre` varchar(100) DEFAULT NULL,
   `agente_apellido` varchar(100) DEFAULT NULL,
+  `agente_tipo` enum('persona','empresa') NOT NULL DEFAULT 'persona',
+  `agente_empresa` varchar(150) DEFAULT NULL,
   `agente_mail` varchar(150) DEFAULT NULL,
   `agente_telefono` varchar(50) DEFAULT NULL,
   `contacto_emergencia_nombre` varchar(100) DEFAULT NULL,
