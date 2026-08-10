@@ -23,9 +23,17 @@ const {
   agregarEvaluacionNutricional,
   listarEvaluacionesNutricionales,
   obtenerResumenNutricional,
+  previsualizarEvaluacionPdf,
 } = require("../controllers/nutricionController");
 
-const { obtenerDieta, guardarDieta } = require("../controllers/dietaJugadorController");
+const {
+  obtenerDieta,
+  obtenerMiPlanAlimentacion,
+  guardarDietaArmada,
+  guardarDietaArchivo,
+  subirImagenSeccion,
+  obtenerArchivoDieta,
+} = require("../controllers/dietaJugadorController");
 
 const {
   obtenerPerfilPsicosocial,
@@ -84,6 +92,7 @@ const {
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
 const uploadDocumento = require("../middlewares/uploadDocumentoMiddleware");
+const uploadImage = require("../middlewares/uploadImageMiddleware");
 const uploadDatos = require("../middlewares/uploadDatosMiddleware");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
@@ -93,6 +102,15 @@ router.post("/", verificarToken, autorizarRoles(...CUERPO_TECNICO), crearJugador
 
 // Listar jugadores (solo cuerpo técnico)
 router.get("/", verificarToken, autorizarRoles(...CUERPO_TECNICO), listarJugadores);
+
+// El jugador ve su propio plan de alimentación (no puede pedir el de
+// otro). Registrada antes de "/:id" para que no la capture ese patrón.
+router.get(
+  "/mi-plan-alimentacion",
+  verificarToken,
+  autorizarRoles("jugador"),
+  obtenerMiPlanAlimentacion
+);
 
 // Ficha de un jugador puntual
 router.get("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), obtenerJugador);
@@ -215,6 +233,16 @@ router.get(
   listarEvaluacionesNutricionales
 );
 
+// Nutrición: leer el PDF de una evaluación individual con IA (preview, no
+// guarda nada — precarga el formulario de carga manual)
+router.post(
+  "/:id/nutricion/importar-pdf",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadDatos.single("archivo"),
+  previsualizarEvaluacionPdf
+);
+
 // Nutrición: resumen para la página principal (última evaluación + objetivos)
 router.get(
   "/:id/nutricion/resumen",
@@ -223,7 +251,9 @@ router.get(
   obtenerResumenNutricional
 );
 
-// Dieta personalizada: informe único y permanente por jugador
+// Plan de alimentación individual (ex "dieta personalizada"): informe
+// único y permanente por jugador, armado en la app (secciones) o subido
+// como archivo. El cuerpo técnico gestiona; el jugador solo ve el suyo.
 router.get(
   "/:id/dieta",
   verificarToken,
@@ -234,7 +264,28 @@ router.put(
   "/:id/dieta",
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
-  guardarDieta
+  guardarDietaArmada
+);
+router.post(
+  "/:id/dieta/archivo",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadDocumento.single("archivo"),
+  guardarDietaArchivo
+);
+router.post(
+  "/:id/dieta/imagen",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadImage.single("imagen"),
+  subirImagenSeccion
+);
+// Sirve el archivo del plan: cuerpo técnico siempre, jugador solo el suyo
+// (la comprobación de que sea su propio jugador va dentro del controller).
+router.get(
+  "/:id/dieta/archivo",
+  verificarToken,
+  obtenerArchivoDieta
 );
 
 // Preparación física — a) Picos de máximo rendimiento: alta, listado

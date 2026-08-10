@@ -1,0 +1,25 @@
+.pa-secciones {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pa-seccion {
+  padding: 16px;
+}
+
+.pa-seccion h4 {
+  margin-bottom: 10px;
+}
+
+.pa-imagen {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  display: block;
+}
+
+.pa-texto {
+  white-space: pre-wrap;
+  color: var(--text);
+}

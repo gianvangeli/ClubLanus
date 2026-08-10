@@ -61,6 +61,9 @@ export default function Layout() {
               <NavLink to="/entrenamientos" className="navbar-link">
                 Entrenamientos
               </NavLink>
+              <NavLink to="/plan-alimentacion" className="navbar-link">
+                Plan de alimentación
+              </NavLink>
             </>
           )}
         </nav>

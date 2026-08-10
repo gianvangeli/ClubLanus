@@ -9,6 +9,7 @@ import AdminJugadores from './pages/AdminJugadores'
 import AdminGeneral from './pages/AdminGeneral'
 import AdminJugadorDetalle from './pages/AdminJugadorDetalle'
 import ImportarGpsPdf from './pages/ImportarGpsPdf'
+import JugadorPlanAlimentacion from './pages/JugadorPlanAlimentacion'
 import JugadorNutricion from './pages/JugadorNutricion'
 import JugadorNutricionEvaluaciones from './pages/JugadorNutricionEvaluaciones'
 import JugadorNutricionDieta from './pages/JugadorNutricionDieta'
@@ -67,6 +68,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['jugador']}>
                   <BibliotecaJugadorDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/plan-alimentacion"
+              element={
+                <ProtectedRoute roles={['jugador']}>
+                  <JugadorPlanAlimentacion />
                 </ProtectedRoute>
               }
             />
