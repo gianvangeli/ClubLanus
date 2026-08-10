@@ -35,22 +35,22 @@ const calcularEdad = (fechaNacimiento) => {
 };
 
 // Alta de jugador (ficha del cuerpo técnico): nombre, apellido, fecha de
-// nacimiento, altura. El peso no se carga acá: se registra desde la ficha
-// del jugador como una medición de composición corporal (peso + % grasa
+// nacimiento. El peso no se carga acá: se registra desde la ficha del
+// jugador como una medición de composición corporal (peso + % grasa
 // corporal). No requiere una cuenta de usuario todavía: se crea después con
 // crearCuentaJugador, pidiéndole el mail al jugador.
 const crearJugador = async (req, res) => {
   try {
-    const { nombre, apellido, fecha_nacimiento, altura, usuario_id } = req.body;
+    const { nombre, apellido, fecha_nacimiento, usuario_id } = req.body;
 
     if (!nombre || !apellido) {
       return res.status(400).json({ message: "Nombre y apellido son obligatorios" });
     }
 
     const [result] = await db.query(
-      `INSERT INTO jugadores (usuario_id, nombre, apellido, fecha_nacimiento, altura)
-       VALUES (?, ?, ?, ?, ?)`,
-      [usuario_id || null, nombre, apellido, fecha_nacimiento || null, altura || null]
+      `INSERT INTO jugadores (usuario_id, nombre, apellido, fecha_nacimiento)
+       VALUES (?, ?, ?, ?)`,
+      [usuario_id || null, nombre, apellido, fecha_nacimiento || null]
     );
 
     res.status(201).json({
@@ -68,7 +68,7 @@ const crearJugador = async (req, res) => {
 const listarJugadores = async (req, res) => {
   try {
     const [jugadores] = await db.query(
-      `SELECT id, usuario_id, nombre, apellido, fecha_nacimiento, peso, altura, posicion, categoria, division_nombre, creado_en
+      `SELECT id, usuario_id, nombre, apellido, fecha_nacimiento, peso, posicion, categoria, division_nombre, creado_en
        FROM jugadores
        ORDER BY apellido, nombre`
     );
@@ -82,10 +82,22 @@ const listarJugadores = async (req, res) => {
   }
 };
 
+// Contraseña general para todas las cuentas de jugador (definida a
+// propósito por el club para facilitar el acceso: se la comparten entre
+// todos en vez de una provisoria distinta por jugador).
+const passwordGeneralJugador = () => {
+  const password = process.env.JUGADOR_PASSWORD_GENERAL;
+  if (!password) {
+    throw new Error("Falta configurar JUGADOR_PASSWORD_GENERAL en el servidor");
+  }
+  return password;
+};
+
 // Crea la cuenta de acceso del jugador (rol 'jugador') a partir de su mail,
-// la vincula a la ficha y devuelve una contraseña provisoria generada al
-// azar para que el cuerpo técnico se la comparta al jugador. El jugador no
-// se registra por sí mismo: la cuenta la da de alta el cuerpo técnico.
+// la vincula a la ficha y le asigna la contraseña general del club (ver
+// passwordGeneralJugador), devuelta para que el cuerpo técnico se la
+// comparta al jugador. El jugador no se registra por sí mismo: la cuenta la
+// da de alta el cuerpo técnico.
 const crearCuentaJugador = async (req, res) => {
   try {
     const { id } = req.params;
@@ -108,8 +120,8 @@ const crearCuentaJugador = async (req, res) => {
       return res.status(409).json({ message: "Ya existe una cuenta con ese mail" });
     }
 
-    const passwordProvisoria = crypto.randomBytes(6).toString("base64url");
-    const hashedPassword = await bcrypt.hash(passwordProvisoria, 10);
+    const passwordGeneral = passwordGeneralJugador();
+    const hashedPassword = await bcrypt.hash(passwordGeneral, 10);
     const nombreCompleto = `${jugadores[0].nombre} ${jugadores[0].apellido}`;
 
     const [result] = await db.query(
@@ -122,7 +134,7 @@ const crearCuentaJugador = async (req, res) => {
     res.status(201).json({
       message: "Cuenta creada y vinculada correctamente",
       email,
-      password: passwordProvisoria,
+      password: passwordGeneral,
     });
   } catch (error) {
     res.status(500).json({
@@ -132,12 +144,9 @@ const crearCuentaJugador = async (req, res) => {
   }
 };
 
-// Restablece la contraseña de la cuenta ya vinculada de un jugador: genera
-// una nueva contraseña provisoria al azar (mismo mecanismo que al crear la
-// cuenta) y la devuelve una sola vez para que el cuerpo técnico se la
-// comparta. Las contraseñas se guardan siempre hasheadas (bcrypt, de un
-// solo sentido): no hay forma de "ver" la contraseña anterior, por eso el
-// camino para recuperar el acceso es siempre generar una nueva.
+// Restablece la contraseña de la cuenta ya vinculada de un jugador a la
+// contraseña general del club (ver passwordGeneralJugador), por si la
+// cambió y perdió el acceso.
 const restablecerPasswordJugador = async (req, res) => {
   try {
     const { id } = req.params;
@@ -150,14 +159,14 @@ const restablecerPasswordJugador = async (req, res) => {
       return res.status(409).json({ message: "Este jugador todavía no tiene una cuenta vinculada" });
     }
 
-    const passwordProvisoria = crypto.randomBytes(6).toString("base64url");
-    const hashedPassword = await bcrypt.hash(passwordProvisoria, 10);
+    const passwordGeneral = passwordGeneralJugador();
+    const hashedPassword = await bcrypt.hash(passwordGeneral, 10);
 
     await db.query("UPDATE usuarios SET password = ? WHERE id = ?", [hashedPassword, jugadores[0].usuario_id]);
 
     res.json({
       message: "Contraseña restablecida correctamente",
-      password: passwordProvisoria,
+      password: passwordGeneral,
     });
   } catch (error) {
     res.status(500).json({
@@ -297,8 +306,8 @@ const obtenerJugador = async (req, res) => {
     const { id } = req.params;
 
     const [jugadores] = await db.query(
-      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.fecha_nacimiento, j.peso, j.altura, j.nacionalidad_1, j.nacionalidad_2, j.nacionalidad_2_tramite, j.posicion, j.categoria, j.division_nombre,
-              j.contrato, j.agente_nombre, j.agente_apellido, j.agente_tipo, j.agente_empresa, j.agente_mail, j.agente_telefono,
+      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.fecha_nacimiento, j.peso, j.nacionalidad_1, j.nacionalidad_2, j.nacionalidad_2_tramite, j.posicion, j.categoria, j.division_nombre,
+              j.contrato, j.contrato_hasta_mes, j.contrato_hasta_anio, j.agente_nombre, j.agente_apellido, j.agente_empresa, j.agente_mail, j.agente_telefono,
               j.contacto_emergencia_nombre, j.contacto_emergencia_apellido, j.contacto_emergencia_relacion, j.contacto_emergencia_telefono,
               j.pie, j.posiciones_cancha, j.partidos_jugados, j.psicologo_id,
               j.semaforo_psicologico, j.semaforo_analisis,
@@ -337,12 +346,13 @@ const actualizarJugador = async (req, res) => {
       nombre,
       apellido,
       fecha_nacimiento,
-      altura,
       nacionalidad_1,
       nacionalidad_2,
       nacionalidad_2_tramite,
       categoria,
       contrato,
+      contrato_hasta_mes,
+      contrato_hasta_anio,
     } = req.body;
 
     if (!nombre || !apellido) {
@@ -353,25 +363,30 @@ const actualizarJugador = async (req, res) => {
       return res.status(400).json({ message: "Contrato tiene que ser 'si' o 'no'" });
     }
 
-    if (nacionalidad_2_tramite && !["en_curso", "finalizado"].includes(nacionalidad_2_tramite)) {
-      return res.status(400).json({ message: "El trámite de la segunda nacionalidad tiene que ser 'en_curso' o 'finalizado'" });
+    if (nacionalidad_2_tramite && !["sin_iniciar", "en_curso", "finalizado"].includes(nacionalidad_2_tramite)) {
+      return res.status(400).json({ message: "El trámite de la segunda nacionalidad tiene que ser 'sin_iniciar', 'en_curso' o 'finalizado'" });
+    }
+
+    if (contrato_hasta_mes && !["julio", "diciembre"].includes(contrato_hasta_mes)) {
+      return res.status(400).json({ message: "El contrato solo puede vencer en julio o diciembre" });
     }
 
     const [result] = await db.query(
       `UPDATE jugadores
-       SET nombre = ?, apellido = ?, fecha_nacimiento = ?, altura = ?, nacionalidad_1 = ?, nacionalidad_2 = ?,
-           nacionalidad_2_tramite = ?, categoria = ?, contrato = ?
+       SET nombre = ?, apellido = ?, fecha_nacimiento = ?, nacionalidad_1 = ?, nacionalidad_2 = ?,
+           nacionalidad_2_tramite = ?, categoria = ?, contrato = ?, contrato_hasta_mes = ?, contrato_hasta_anio = ?
        WHERE id = ?`,
       [
         nombre,
         apellido,
         fecha_nacimiento || null,
-        altura || null,
         nacionalidad_1 || null,
         nacionalidad_2 || null,
         nacionalidad_2_tramite || null,
         categoria || null,
         contrato || null,
+        contrato_hasta_mes || null,
+        contrato_hasta_anio || null,
         id,
       ]
     );
@@ -428,20 +443,15 @@ const eliminarJugador = async (req, res) => {
 const actualizarAgente = async (req, res) => {
   try {
     const { id } = req.params;
-    const { agente_nombre, agente_apellido, agente_tipo, agente_empresa, agente_mail, agente_telefono } = req.body;
-
-    if (agente_tipo && !["persona", "empresa"].includes(agente_tipo)) {
-      return res.status(400).json({ message: "agente_tipo debe ser 'persona' o 'empresa'" });
-    }
+    const { agente_nombre, agente_apellido, agente_empresa, agente_mail, agente_telefono } = req.body;
 
     const [result] = await db.query(
       `UPDATE jugadores
-       SET agente_nombre = ?, agente_apellido = ?, agente_tipo = ?, agente_empresa = ?, agente_mail = ?, agente_telefono = ?
+       SET agente_nombre = ?, agente_apellido = ?, agente_empresa = ?, agente_mail = ?, agente_telefono = ?
        WHERE id = ?`,
       [
         agente_nombre || null,
         agente_apellido || null,
-        agente_tipo || "persona",
         agente_empresa || null,
         agente_mail || null,
         agente_telefono || null,

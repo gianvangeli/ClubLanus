@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
-import { aNumero } from '../utils/numero'
 import { calcularEdad } from '../utils/fecha'
 import './AdminJugadores.css'
 
-const VACIO = { nombre: '', apellido: '', fecha_nacimiento: '', altura: '' }
+const VACIO = { nombre: '', apellido: '', fecha_nacimiento: '' }
 
 const COLORES_AVATAR = ['avatar-granate', 'avatar-oro', 'avatar-gris', 'avatar-granate-claro']
 
@@ -51,20 +50,12 @@ export default function AdminJugadores() {
     setError('')
     setMensaje('')
 
-    const altura = aNumero(form.altura)
-
-    if (altura === undefined) {
-      setError('Altura tiene que ser un número (podés usar coma o punto)')
-      return
-    }
-
     setEnviando(true)
     try {
       await api.post('/jugadores', {
         nombre: form.nombre,
         apellido: form.apellido,
         fecha_nacimiento: form.fecha_nacimiento || null,
-        altura,
       })
       setMensaje('Jugador registrado correctamente')
       setForm(VACIO)
@@ -138,17 +129,6 @@ export default function AdminJugadores() {
                 <span className="jg-edad-preview">{calcularEdad(form.fecha_nacimiento)} años</span>
               )}
             </div>
-            <div className="field">
-              <label>Altura (m)</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                placeholder="Ej: 1,78"
-                value={form.altura}
-                onChange={onChange('altura')}
-              />
-            </div>
-
             <button className="btn btn-primary" type="submit" disabled={enviando}>
               {enviando ? <span className="spinner" /> : 'Registrar jugador'}
             </button>

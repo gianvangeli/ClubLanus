@@ -1,27 +1,34 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
-import { aNumero } from '../utils/numero'
 import { aInputDate, calcularEdad, formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import './AdminJugadorDetalle.css'
 
-const etiquetaTramite = (valor) => (valor === 'en_curso' ? 'Trámite en curso' : valor === 'finalizado' ? 'Trámite finalizado' : null)
+const ETIQUETAS_TRAMITE = {
+  sin_iniciar: 'Trámite sin iniciar',
+  en_curso: 'Trámite en curso',
+  finalizado: 'Trámite finalizado',
+}
+const etiquetaTramite = (valor) => ETIQUETAS_TRAMITE[valor] || null
+
+const MESES_CONTRATO = { julio: 'Julio', diciembre: 'Diciembre' }
+const AÑOS_CONTRATO = Array.from({ length: 12 }, (_, i) => new Date().getFullYear() + i)
 
 const CAMPOS_VACIOS = {
   nombre: '',
   apellido: '',
   fecha_nacimiento: '',
-  altura: '',
   nacionalidad_1: '',
   nacionalidad_2: '',
   nacionalidad_2_tramite: '',
   categoria: '',
   contrato: '',
+  contrato_hasta_mes: '',
+  contrato_hasta_anio: '',
 }
 
 const AGENTE_VACIO = {
-  agente_tipo: 'persona',
   agente_nombre: '',
   agente_apellido: '',
   agente_empresa: '',
@@ -166,12 +173,13 @@ function InfoJugador({ jugador, onActualizado }) {
       nombre: jugador.nombre || '',
       apellido: jugador.apellido || '',
       fecha_nacimiento: aInputDate(jugador.fecha_nacimiento),
-      altura: jugador.altura ?? '',
       nacionalidad_1: jugador.nacionalidad_1 || '',
       nacionalidad_2: jugador.nacionalidad_2 || '',
       nacionalidad_2_tramite: jugador.nacionalidad_2_tramite || '',
       categoria: jugador.categoria || '',
       contrato: jugador.contrato || '',
+      contrato_hasta_mes: jugador.contrato_hasta_mes || '',
+      contrato_hasta_anio: jugador.contrato_hasta_anio || '',
     })
     setError('')
     setEditando(true)
@@ -183,24 +191,19 @@ function InfoJugador({ jugador, onActualizado }) {
     e.preventDefault()
     setError('')
 
-    const altura = aNumero(form.altura)
-    if (altura === undefined) {
-      setError('Altura tiene que ser un número (podés usar coma o punto)')
-      return
-    }
-
     setEnviando(true)
     try {
       await api.put(`/jugadores/${jugador.id}`, {
         nombre: form.nombre,
         apellido: form.apellido,
         fecha_nacimiento: form.fecha_nacimiento || null,
-        altura,
         nacionalidad_1: form.nacionalidad_1,
         nacionalidad_2: form.nacionalidad_2,
         nacionalidad_2_tramite: form.nacionalidad_2_tramite,
         categoria: form.categoria,
         contrato: form.contrato,
+        contrato_hasta_mes: form.contrato_hasta_mes,
+        contrato_hasta_anio: form.contrato_hasta_anio || null,
       })
       setEditando(false)
       onActualizado()
@@ -232,7 +235,6 @@ function InfoJugador({ jugador, onActualizado }) {
             label="Fecha de nacimiento"
             valor={jugador.fecha_nacimiento ? `${formatFecha(jugador.fecha_nacimiento)} (${jugador.edad} años)` : null}
           />
-          <Dato label="Altura" valor={jugador.altura ? `${jugador.altura} m` : null} />
           <Dato
             label="Nacionalidad"
             valor={[jugador.nacionalidad_1, jugador.nacionalidad_2].filter(Boolean).join('/') || null}
@@ -248,7 +250,16 @@ function InfoJugador({ jugador, onActualizado }) {
             />
           )}
           <Dato label="Categoría" valor={jugador.categoria} />
-          <Dato label="Contrato" valor={jugador.contrato === 'si' ? 'Sí' : jugador.contrato === 'no' ? 'No' : null} />
+          <Dato
+            label="Contrato"
+            valor={
+              jugador.contrato === 'si'
+                ? `Sí${jugador.contrato_hasta_mes ? ` — hasta ${MESES_CONTRATO[jugador.contrato_hasta_mes]} ${jugador.contrato_hasta_anio}` : ''}`
+                : jugador.contrato === 'no'
+                  ? 'No'
+                  : null
+            }
+          />
         </dl>
       ) : (
         <form className="form-edicion" onSubmit={guardar}>
@@ -268,10 +279,6 @@ function InfoJugador({ jugador, onActualizado }) {
             )}
           </div>
           <div className="field">
-            <label>Altura (m)</label>
-            <input type="text" inputMode="decimal" value={form.altura} onChange={onChange('altura')} />
-          </div>
-          <div className="field">
             <label>Nacionalidad</label>
             <input value={form.nacionalidad_1} onChange={onChange('nacionalidad_1')} placeholder="Ej: Argentina" />
           </div>
@@ -284,6 +291,7 @@ function InfoJugador({ jugador, onActualizado }) {
               <label>Trámite de {form.nacionalidad_2}</label>
               <select value={form.nacionalidad_2_tramite} onChange={onChange('nacionalidad_2_tramite')}>
                 <option value="">Sin especificar</option>
+                <option value="sin_iniciar">Sin iniciar</option>
                 <option value="en_curso">En curso</option>
                 <option value="finalizado">Finalizado</option>
               </select>
@@ -300,6 +308,24 @@ function InfoJugador({ jugador, onActualizado }) {
               <option value="si">Sí</option>
               <option value="no">No</option>
             </select>
+          </div>
+          <div className="field">
+            <label>Contrato hasta</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <select value={form.contrato_hasta_mes} onChange={onChange('contrato_hasta_mes')}>
+                <option value="">Sin definir</option>
+                <option value="julio">Julio</option>
+                <option value="diciembre">Diciembre</option>
+              </select>
+              <select value={form.contrato_hasta_anio} onChange={onChange('contrato_hasta_anio')}>
+                <option value="">Año</option>
+                {AÑOS_CONTRATO.map((anio) => (
+                  <option key={anio} value={anio}>
+                    {anio}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="form-edicion-botones">
@@ -446,7 +472,6 @@ function Agente({ jugador, onActualizado }) {
 
   const empezarEdicion = () => {
     setForm({
-      agente_tipo: jugador.agente_tipo || 'persona',
       agente_nombre: jugador.agente_nombre || '',
       agente_apellido: jugador.agente_apellido || '',
       agente_empresa: jugador.agente_empresa || '',
@@ -488,14 +513,9 @@ function Agente({ jugador, onActualizado }) {
       {!editando ? (
         tieneDatos ? (
           <dl className="info-lista">
-            {jugador.agente_tipo === 'empresa' ? (
-              <Dato label="Empresa" valor={jugador.agente_empresa} />
-            ) : (
-              <>
-                <Dato label="Nombre" valor={jugador.agente_nombre} />
-                <Dato label="Apellido" valor={jugador.agente_apellido} />
-              </>
-            )}
+            <Dato label="Nombre" valor={jugador.agente_nombre} />
+            <Dato label="Apellido" valor={jugador.agente_apellido} />
+            <Dato label="Empresa" valor={jugador.agente_empresa} />
             <Dato label="Mail" valor={jugador.agente_mail} />
             <Dato label="Teléfono" valor={jugador.agente_telefono} />
           </dl>
@@ -506,41 +526,17 @@ function Agente({ jugador, onActualizado }) {
         <form className="form-edicion" onSubmit={guardar}>
           {error && <div className="alert alert-error">{error}</div>}
           <div className="field">
-            <label>Tipo</label>
-            <div className="modo-toggle">
-              <button
-                type="button"
-                className={`btn btn-sm ${form.agente_tipo === 'persona' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setForm({ ...form, agente_tipo: 'persona' })}
-              >
-                Persona
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${form.agente_tipo === 'empresa' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setForm({ ...form, agente_tipo: 'empresa' })}
-              >
-                Empresa
-              </button>
-            </div>
+            <label>Nombre</label>
+            <input value={form.agente_nombre} onChange={onChange('agente_nombre')} />
           </div>
-          {form.agente_tipo === 'empresa' ? (
-            <div className="field">
-              <label>Empresa</label>
-              <input value={form.agente_empresa} onChange={onChange('agente_empresa')} placeholder="Razón social" />
-            </div>
-          ) : (
-            <>
-              <div className="field">
-                <label>Nombre</label>
-                <input value={form.agente_nombre} onChange={onChange('agente_nombre')} />
-              </div>
-              <div className="field">
-                <label>Apellido</label>
-                <input value={form.agente_apellido} onChange={onChange('agente_apellido')} />
-              </div>
-            </>
-          )}
+          <div className="field">
+            <label>Apellido</label>
+            <input value={form.agente_apellido} onChange={onChange('agente_apellido')} />
+          </div>
+          <div className="field">
+            <label>Empresa (si pertenece a una agencia/empresa matriz)</label>
+            <input value={form.agente_empresa} onChange={onChange('agente_empresa')} placeholder="Ej: Sports Management SA" />
+          </div>
           <div className="field">
             <label>Mail</label>
             <input type="email" value={form.agente_mail} onChange={onChange('agente_mail')} />
