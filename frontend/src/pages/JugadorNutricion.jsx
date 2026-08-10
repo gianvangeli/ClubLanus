@@ -5,6 +5,7 @@ import { formatFecha } from '../utils/fecha'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import NutricionTabs from '../components/NutricionTabs'
 import DiagnosticoIA from '../components/DiagnosticoIA'
+import { COLOR_GOOD, COLOR_WARNING, COLOR_CRITICAL, ZONAS_INDICE_MO, ZONAS_SUMA_6PL } from '../utils/nutricionZonas'
 import './AdminJugadorDetalle.css'
 import './JugadorNutricion.css'
 
@@ -17,28 +18,6 @@ const MASAS = [
   { key: 'masa_osea_pct', etiqueta: 'Masa ósea', color: '#4a3aa7' },
   { key: 'masa_residual_pct', etiqueta: 'Masa residual', color: '#eda100' },
   { key: 'masa_piel_pct', etiqueta: 'Masa de la piel', color: '#008300' },
-]
-
-// Zonas de estado (good/warning/serious/critical) — paleta fija, nunca
-// usada para identidad de serie.
-const COLOR_GOOD = '#0ca30c'
-const COLOR_WARNING = '#fab219'
-const COLOR_SERIOUS = '#ec835a'
-const COLOR_CRITICAL = '#d03b3b'
-
-// Escalas de referencia (fijas para todo el club).
-const ZONAS_INDICE_MO = [
-  { desde: 2.8, hasta: 3.6, color: COLOR_CRITICAL, etiqueta: 'Pobre' },
-  { desde: 3.6, hasta: 4.2, color: COLOR_SERIOUS, etiqueta: 'Deficiente' },
-  { desde: 4.2, hasta: 5.2, color: COLOR_WARNING, etiqueta: 'Bueno' },
-  { desde: 5.2, hasta: 6.0, color: COLOR_GOOD, etiqueta: 'Excelente' },
-]
-
-const ZONAS_SUMA_6PL = [
-  { desde: 33.8, hasta: 43.58, color: COLOR_GOOD, etiqueta: 'Excelente' },
-  { desde: 43.58, hasta: 53.35, color: COLOR_WARNING, etiqueta: 'Muy buena' },
-  { desde: 53.35, hasta: 63.13, color: COLOR_SERIOUS, etiqueta: 'Regular' },
-  { desde: 63.13, hasta: 72.9, color: COLOR_CRITICAL, etiqueta: 'Pobre' },
 ]
 
 export default function JugadorNutricion() {
@@ -150,11 +129,11 @@ function InformeNutricional({ jugadorId }) {
         />
       </div>
 
-      <CuadranteImcSuma6pl
-        imc={ultima.imc}
+      <CuadranteImoSuma6pl
+        indiceMO={ultima.indice_musculo_oseo}
         suma6pl={ultima.sumatoria_pliegues}
         objetivoSuma6pl={objetivos?.suma_6_pliegues_objetivo}
-        objetivoImc={objetivos?.imc_objetivo}
+        objetivoIndiceMO={objetivos?.indice_musculo_oseo_objetivo}
       />
 
       <HistorialTabla evaluaciones={historial} />
@@ -238,12 +217,6 @@ function ObjetivosBanner({ categoria, objetivos }) {
         </Link>
       </div>
       <div className="nutri-objetivos-grid">
-        <div className="nutri-objetivo">
-          <span className="nutri-objetivo-label">Rango de peso óptimo</span>
-          <strong>
-            {objetivos.peso_min ?? '—'} a {objetivos.peso_max ?? '—'} kg
-          </strong>
-        </div>
         <div className="nutri-objetivo">
           <span className="nutri-objetivo-label">Suma de 6 pliegues</span>
           <strong>Inferior a {objetivos.suma_6_pliegues_objetivo ?? '—'} mm</strong>
@@ -354,56 +327,58 @@ function BarraGauge({ titulo, valor, min, max, zonas, unidad }) {
   )
 }
 
-function CuadranteImcSuma6pl({ imc, suma6pl, objetivoSuma6pl, objetivoImc }) {
-  if (objetivoSuma6pl == null || objetivoImc == null) {
+function CuadranteImoSuma6pl({ indiceMO, suma6pl, objetivoSuma6pl, objetivoIndiceMO }) {
+  if (objetivoSuma6pl == null || objetivoIndiceMO == null) {
     return (
       <div className="card nutri-grafico nutri-grafico-ancho">
-        <h4>Diagnóstico: IMC y Suma de 6 pliegues</h4>
+        <h4>Diagnóstico: Índice M.O. y Suma de 6 pliegues</h4>
         <p className="texto-muted">
-          Para ver este gráfico hace falta configurar el objetivo de suma de 6 pliegues y el IMC de referencia de la
-          categoría.
+          Para ver este gráfico hace falta configurar el objetivo de suma de 6 pliegues y el de índice músculo-óseo
+          de la categoría.
         </p>
       </div>
     )
   }
 
-  if (imc == null || suma6pl == null) {
+  if (indiceMO == null || suma6pl == null) {
     return (
       <div className="card nutri-grafico nutri-grafico-ancho">
-        <h4>Diagnóstico: IMC y Suma de 6 pliegues</h4>
-        <p className="texto-muted">La última evaluación no tiene IMC o suma de 6 pliegues cargados.</p>
+        <h4>Diagnóstico: Índice M.O. y Suma de 6 pliegues</h4>
+        <p className="texto-muted">La última evaluación no tiene índice músculo-óseo o suma de 6 pliegues cargados.</p>
       </div>
     )
   }
 
   const margenX = 15
-  const margenY = 6
+  const margenY = 0.6
   const xMin = Math.min(objetivoSuma6pl - margenX, suma6pl - margenX / 2)
   const xMax = Math.max(objetivoSuma6pl + margenX, suma6pl + margenX / 2)
-  const yMin = Math.min(objetivoImc - margenY, imc - margenY / 2)
-  const yMax = Math.max(objetivoImc + margenY, imc + margenY / 2)
+  const yMin = Math.min(objetivoIndiceMO - margenY, indiceMO - margenY / 2)
+  const yMax = Math.max(objetivoIndiceMO + margenY, indiceMO + margenY / 2)
 
   const w = 360
   const h = 240
   const pad = 40
   // Eje X invertido: la suma de 6 pliegues crece hacia la izquierda, así
   // que a la derecha (menos pliegues = menos grasa) queda la zona óptima.
+  // Eje Y normal: el índice M.O. crece hacia arriba (más alto = mejor, a
+  // diferencia del IMC que este gráfico reemplazó).
   const escalaX = (v) => pad + ((xMax - v) / (xMax - xMin)) * (w - pad * 2)
   const escalaY = (v) => h - pad - ((v - yMin) / (yMax - yMin)) * (h - pad * 2)
 
   const divisorX = escalaX(objetivoSuma6pl)
-  const divisorY = escalaY(objetivoImc)
+  const divisorY = escalaY(objetivoIndiceMO)
   const puntoX = escalaX(suma6pl)
-  const puntoY = escalaY(imc)
+  const puntoY = escalaY(indiceMO)
 
   return (
     <div className="card nutri-grafico nutri-grafico-ancho">
-      <h4>Diagnóstico: IMC y Suma de 6 pliegues</h4>
-      <svg viewBox={`0 0 ${w} ${h}`} className="nutri-cuadrante-svg" role="img" aria-label="Diagnóstico de IMC contra suma de 6 pliegues">
-        <rect x={pad} y={pad} width={divisorX - pad} height={divisorY - pad} fill={COLOR_CRITICAL} opacity="0.2" />
-        <rect x={divisorX} y={pad} width={w - pad - divisorX} height={divisorY - pad} fill={COLOR_WARNING} opacity="0.22" />
-        <rect x={pad} y={divisorY} width={divisorX - pad} height={h - pad - divisorY} fill={COLOR_WARNING} opacity="0.22" />
-        <rect x={divisorX} y={divisorY} width={w - pad - divisorX} height={h - pad - divisorY} fill={COLOR_GOOD} opacity="0.16" />
+      <h4>Diagnóstico: Índice M.O. y Suma de 6 pliegues</h4>
+      <svg viewBox={`0 0 ${w} ${h}`} className="nutri-cuadrante-svg" role="img" aria-label="Diagnóstico de índice músculo-óseo contra suma de 6 pliegues">
+        <rect x={pad} y={pad} width={divisorX - pad} height={divisorY - pad} fill={COLOR_WARNING} opacity="0.22" />
+        <rect x={divisorX} y={pad} width={w - pad - divisorX} height={divisorY - pad} fill={COLOR_GOOD} opacity="0.16" />
+        <rect x={pad} y={divisorY} width={divisorX - pad} height={h - pad - divisorY} fill={COLOR_CRITICAL} opacity="0.2" />
+        <rect x={divisorX} y={divisorY} width={w - pad - divisorX} height={h - pad - divisorY} fill={COLOR_WARNING} opacity="0.22" />
 
         <line x1={divisorX} y1={pad} x2={divisorX} y2={h - pad} stroke="var(--border)" strokeDasharray="4 3" />
         <line x1={pad} y1={divisorY} x2={w - pad} y2={divisorY} stroke="var(--border)" strokeDasharray="4 3" />
@@ -411,16 +386,16 @@ function CuadranteImcSuma6pl({ imc, suma6pl, objetivoSuma6pl, objetivoImc }) {
         <line x1={pad} y1={pad} x2={pad} y2={h - pad} stroke="var(--text-muted)" />
         <line x1={pad} y1={h - pad} x2={w - pad} y2={h - pad} stroke="var(--text-muted)" />
 
-        <text x={pad + 6} y={pad + 16} className="nutri-cuadrante-etiqueta">Bajar MA / Subir MM</text>
-        <text x={w - pad - 6} y={pad + 16} textAnchor="end" className="nutri-cuadrante-etiqueta">Bajar masa adiposa</text>
-        <text x={pad + 6} y={h - pad - 8} className="nutri-cuadrante-etiqueta">Subir masa muscular</text>
-        <text x={w - pad - 6} y={h - pad - 8} textAnchor="end" className="nutri-cuadrante-etiqueta">Óptimo</text>
+        <text x={pad + 6} y={pad + 16} className="nutri-cuadrante-etiqueta">Bajar masa adiposa</text>
+        <text x={w - pad - 6} y={pad + 16} textAnchor="end" className="nutri-cuadrante-etiqueta">Óptimo</text>
+        <text x={pad + 6} y={h - pad - 8} className="nutri-cuadrante-etiqueta">Bajar MA / Subir MM</text>
+        <text x={w - pad - 6} y={h - pad - 8} textAnchor="end" className="nutri-cuadrante-etiqueta">Subir masa muscular</text>
 
         <circle cx={puntoX} cy={puntoY} r="6" fill="var(--granate-700)" stroke="#fff" strokeWidth="2" />
       </svg>
       <div className="nutri-cuadrante-ejes">
         <span>Eje horizontal: Suma de 6 pliegues (mm) — menor valor hacia la derecha</span>
-        <span>Eje vertical: IMC</span>
+        <span>Eje vertical: Índice músculo-óseo — mayor valor hacia arriba</span>
       </div>
     </div>
   )

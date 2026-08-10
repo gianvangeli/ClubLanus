@@ -295,3 +295,41 @@
 .tabla-nutricion th:last-child {
   white-space: normal;
 }
+
+.pa-secciones {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pa-seccion-editor {
+  padding: 16px;
+  background: var(--granate-50);
+}
+
+.pa-seccion-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.pa-seccion-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--granate-700);
+  color: #fff;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.pa-imagen-preview {
+  max-width: 200px;
+  border-radius: var(--radius-sm);
+  display: block;
+  margin-bottom: 8px;
+}

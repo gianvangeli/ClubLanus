@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { generarJSON } = require("../config/gemini");
 
 const redondear2 = (n) => Math.round(n * 100) / 100;
 
@@ -236,8 +237,98 @@ const obtenerResumenNutricional = async (req, res) => {
   }
 };
 
+// Etiquetas de cada campo para el prompt (mismas que muestra el formulario
+// manual en frontend/src/pages/JugadorNutricionEvaluaciones.jsx), para que
+// la IA pueda mapear los nombres de la planilla a estos campos.
+const ETIQUETAS_CAMPOS = {
+  fecha: "Fecha de la evaluación",
+  peso: "Peso bruto (kg)",
+  talla: "Talla corporal (cm)",
+  talla_sentado_cm: "Talla sentado (cm)",
+  envergadura_cm: "Envergadura (cm)",
+  altura_pie_cm: "Altura en pie (cm)",
+  diametro_biacromial: "Diámetro biacromial (cm)",
+  diametro_torax_transverso: "Diámetro tórax transverso (cm)",
+  diametro_torax_anteroposterior: "Diámetro tórax anteroposterior (cm)",
+  diametro_biiliocrestideo: "Diámetro bi-iliocrestídeo (cm)",
+  diametro_humeral: "Diámetro humeral, biepicondilar (cm)",
+  diametro_femoral: "Diámetro femoral, biepicondilar (cm)",
+  perimetro_cabeza: "Perímetro cabeza (cm)",
+  perimetro_brazo_relajado: "Perímetro brazo relajado (cm)",
+  perimetro_brazo_flexionado: "Perímetro brazo flexionado en tensión (cm)",
+  perimetro_antebrazo: "Perímetro antebrazo máximo (cm)",
+  perimetro_torax_mesoesternal: "Perímetro tórax mesoesternal (cm)",
+  perimetro_cintura: "Perímetro cintura mínima (cm)",
+  perimetro_caderas: "Perímetro caderas máximo (cm)",
+  perimetro_muslo_superior: "Perímetro muslo máximo (cm)",
+  perimetro_muslo_medial: "Perímetro muslo medial (cm)",
+  perimetro_pantorrilla: "Perímetro pantorrilla máxima (cm)",
+  pliegue_triceps: "Pliegue tríceps (mm)",
+  pliegue_subescapular: "Pliegue subescapular (mm)",
+  pliegue_supraespinal: "Pliegue supraespinal (mm)",
+  pliegue_abdominal: "Pliegue abdominal (mm)",
+  pliegue_muslo: "Pliegue muslo medio (mm)",
+  pliegue_pantorrilla: "Pliegue pantorrilla (mm)",
+  masa_muscular_kg: "Masa muscular (kg)",
+  masa_adiposa_kg: "Masa adiposa (kg)",
+  masa_osea_kg: "Masa ósea (kg)",
+  masa_residual_kg: "Masa residual (kg)",
+  masa_piel_kg: "Masa de la piel (kg)",
+  indice_musculo_oseo: "Índice músculo-óseo (I/M/O)",
+};
+
+const armarPromptEvaluacionPdf = () => {
+  const listaCampos = Object.entries(ETIQUETAS_CAMPOS)
+    .map(([campo, etiqueta]) => `- "${campo}": ${etiqueta}`)
+    .join("\n");
+
+  return [
+    "Sos un asistente del departamento de nutrición del Club Atlético Lanús que lee planillas de evaluaciones antropométricas de un jugador (a veces exportadas de Excel a PDF).",
+    "Te paso el PDF de la evaluación de UN jugador. Extraé los valores que encuentres para estos campos exactos:",
+    listaCampos,
+    "",
+    "Reglas estrictas:",
+    "1. Respondé SOLO JSON válido, sin texto adicional ni fences de markdown, con este schema exacto: un objeto con esas mismas claves, valor numérico si lo encontraste o null si no aparece en el PDF.",
+    '2. "fecha" en formato "YYYY-MM-DD" si la encontrás (puede venir como DD/MM/AAAA en la planilla).',
+    "3. No inventes ningún valor que no esté en el PDF: si un campo no aparece (por ejemplo las masas corporales o el índice músculo-óseo, que a veces no vienen en esta planilla), dejalo en null.",
+    "4. Los valores numéricos van con punto decimal.",
+  ].join("\n");
+};
+
+// Lee el PDF de una evaluación individual con IA y arma un preview de los
+// campos encontrados. NO guarda nada: el cuerpo técnico precarga con esto
+// el mismo formulario de carga manual, completa lo que falte y confirma
+// con el botón de siempre.
+const previsualizarEvaluacionPdf = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Subí el PDF de la evaluación" });
+    }
+    if (req.file.mimetype !== "application/pdf") {
+      return res.status(400).json({ message: "El archivo tiene que ser un PDF" });
+    }
+
+    const prompt = armarPromptEvaluacionPdf();
+    const resultado = await generarJSON(prompt, { mimeType: "application/pdf", buffer: req.file.buffer });
+
+    const campos = {};
+    for (const campo of Object.keys(ETIQUETAS_CAMPOS)) {
+      const valor = resultado?.[campo];
+      campos[campo] = campo === "fecha" ? (typeof valor === "string" ? valor : null) : typeof valor === "number" ? valor : null;
+    }
+
+    res.json({ campos });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al analizar el PDF con IA",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   agregarEvaluacionNutricional,
   listarEvaluacionesNutricionales,
   obtenerResumenNutricional,
+  previsualizarEvaluacionPdf,
 };

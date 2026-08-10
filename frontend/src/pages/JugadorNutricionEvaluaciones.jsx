@@ -111,6 +111,9 @@ function Evaluaciones({ jugadorId }) {
   const [form, setForm] = useState(FORM_VACIO)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
+  const [modoCarga, setModoCarga] = useState('manual')
+  const [archivoPdf, setArchivoPdf] = useState(null)
+  const [analizando, setAnalizando] = useState(false)
 
   const cargar = () => {
     setCargando(true)
@@ -124,11 +127,44 @@ function Evaluaciones({ jugadorId }) {
 
   const abrirForm = () => {
     setForm({ ...FORM_VACIO, fecha: new Date().toISOString().slice(0, 10) })
+    setModoCarga('manual')
+    setArchivoPdf(null)
     setError('')
     setMostrarForm(true)
   }
 
   const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+
+  const analizarPdf = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    if (!archivoPdf) {
+      setError('Subí el PDF de la evaluación')
+      return
+    }
+
+    setAnalizando(true)
+    try {
+      const datos = new FormData()
+      datos.append('archivo', archivoPdf)
+      const { data } = await api.post(`/jugadores/${jugadorId}/nutricion/importar-pdf`, datos)
+      setForm((prev) => {
+        const nuevo = { ...prev }
+        Object.entries(data.campos).forEach(([campo, valor]) => {
+          if (valor !== null && valor !== undefined && campo in nuevo) {
+            nuevo[campo] = String(valor)
+          }
+        })
+        return nuevo
+      })
+      setModoCarga('manual')
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo analizar el PDF'))
+    } finally {
+      setAnalizando(false)
+    }
+  }
 
   const guardar = async (e) => {
     e.preventDefault()
@@ -185,7 +221,41 @@ function Evaluaciones({ jugadorId }) {
       {error && <div className="alert alert-error">{error}</div>}
 
       {mostrarForm && (
-        <form className="form-edicion form-nutricion" onSubmit={guardar}>
+        <>
+          <div className="modo-toggle" style={{ marginBottom: 12 }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${modoCarga === 'manual' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setModoCarga('manual')}
+            >
+              Carga manual
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${modoCarga === 'pdf' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setModoCarga('pdf')}
+            >
+              Subir PDF
+            </button>
+          </div>
+
+          {modoCarga === 'pdf' && (
+            <form className="form-edicion" onSubmit={analizarPdf} style={{ marginBottom: 16 }}>
+              <p className="texto-muted">
+                Subí el PDF de la evaluación individual del jugador: la IA va a precargar los campos de abajo para
+                que los revises y completes antes de guardar.
+              </p>
+              <div className="field">
+                <label>PDF de la evaluación</label>
+                <input type="file" accept="application/pdf" onChange={(e) => setArchivoPdf(e.target.files[0] || null)} />
+              </div>
+              <button className="btn btn-primary btn-sm" type="submit" disabled={analizando}>
+                {analizando ? <span className="spinner" /> : 'Analizar con IA'}
+              </button>
+            </form>
+          )}
+
+          <form className="form-edicion form-nutricion" onSubmit={guardar}>
           <h4 className="nutri-form-seccion">Básicos</h4>
           <div className="form-nutricion-grid">
             <div className="field">
@@ -265,7 +335,8 @@ function Evaluaciones({ jugadorId }) {
               Cancelar
             </button>
           </div>
-        </form>
+          </form>
+        </>
       )}
 
       {cargando && (
