@@ -59,6 +59,12 @@ const {
 } = require("../controllers/informeFisicoController");
 
 const {
+  listarMensajes: listarMensajesChatIa,
+  enviarMensaje: enviarMensajeChatIa,
+  eliminarConversacion: eliminarConversacionChatIa,
+} = require("../controllers/chatIaController");
+
+const {
   crearPlanEntrenamientoExtra,
   listarPlanesEntrenamientoExtra,
   obtenerMisEntrenamientosExtra,
@@ -391,6 +397,27 @@ router.put(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   guardarInformeFisico
+);
+
+// Preparación física — Chat con IA: conversación por jugador, con contexto
+// de cargas físicas de todo el plantel de su categoría (para comparar).
+router.get(
+  "/:id/chat-ia",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  listarMensajesChatIa
+);
+router.post(
+  "/:id/chat-ia",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  enviarMensajeChatIa
+);
+router.delete(
+  "/:id/chat-ia",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  eliminarConversacionChatIa
 );
 
 // Preparación física — d) Entrenamientos extra: planes individuales

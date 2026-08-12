@@ -608,6 +608,24 @@ CREATE TABLE `entrenamiento_extra_registros` (
   CONSTRAINT `entrenamiento_extra_registros_ibfk_1` FOREIGN KEY (`plan_id`) REFERENCES `planes_entrenamiento_extra` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `chat_ia_mensajes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `chat_ia_mensajes` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `jugador_id` int NOT NULL,
+  `rol` enum('usuario','asistente') NOT NULL,
+  `contenido` text NOT NULL,
+  `archivo_json` json DEFAULT NULL,
+  `creado_por` int DEFAULT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `jugador_id` (`jugador_id`),
+  KEY `creado_por` (`creado_por`),
+  CONSTRAINT `chat_ia_mensajes_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `chat_ia_mensajes_ibfk_2` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `pizarras_tacticas`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
