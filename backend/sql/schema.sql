@@ -591,6 +591,23 @@ CREATE TABLE `planes_entrenamiento_extra` (
   CONSTRAINT `planes_entrenamiento_extra_ibfk_2` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `entrenamiento_extra_registros`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `entrenamiento_extra_registros` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `plan_id` int NOT NULL,
+  `fecha` date NOT NULL,
+  `peso_kg` decimal(5,2) DEFAULT NULL,
+  `duracion_min` int DEFAULT NULL,
+  `horario` varchar(50) DEFAULT NULL,
+  `observaciones` text,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `plan_id` (`plan_id`),
+  CONSTRAINT `entrenamiento_extra_registros_ibfk_1` FOREIGN KEY (`plan_id`) REFERENCES `planes_entrenamiento_extra` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `pizarras_tacticas`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;

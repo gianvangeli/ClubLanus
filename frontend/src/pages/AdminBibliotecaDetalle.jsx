@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import { formatFechaHora } from '../utils/fecha'
 import PlanPartidoEditor from '../components/PlanPartidoEditor'
+import ImportarGpsPanel from '../components/ImportarGpsPanel'
 import './AdminBibliotecaDetalle.css'
 
 const VIDEO_VACIO = {
@@ -76,6 +77,16 @@ export default function AdminBibliotecaDetalle() {
           planPartido={publicacion.plan_partido_json}
           onCambio={cargarPublicacion}
         />
+      )}
+
+      {publicacion.tipo === 'partido' && (
+        <div className="card seccion" style={{ marginTop: 16 }}>
+          <h3>GPS del partido</h3>
+          <ImportarGpsPanel
+            fechaInicial={publicacion.fecha_publicacion ? publicacion.fecha_publicacion.slice(0, 10) : ''}
+            partidoInicial={publicacion.titulo}
+          />
+        </div>
       )}
 
       <div className="detalle-grid">

@@ -83,9 +83,6 @@ export default function AdminJugadores() {
           <div>
             <h1>Jugadores</h1>
           </div>
-          <Link to="/admin/picos-rendimiento/importar" className="btn btn-ghost btn-sm">
-            + Importar GPS (PDF)
-          </Link>
         </div>
 
         <div className="jg-stats">

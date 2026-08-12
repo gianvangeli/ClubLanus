@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import api, { extraerError } from '../api/client'
 import { formatFecha } from '../utils/fecha'
 import { VideoEntrenamiento } from './Entrenamientos'
+import ImportarGpsPanel from '../components/ImportarGpsPanel'
 import './Entrenamientos.css'
 import './EntrenamientoDetalle.css'
 
@@ -118,6 +119,16 @@ export default function EntrenamientoDetalle() {
       </div>
 
       {esCuerpoTecnico && <Ejercicios entrenamientoId={id} />}
+
+      {esCuerpoTecnico && (
+        <div className="card seccion" style={{ marginTop: 16 }}>
+          <h3>GPS del entrenamiento</h3>
+          <ImportarGpsPanel
+            fechaInicial={sesion.fecha ? sesion.fecha.slice(0, 10) : ''}
+            partidoInicial={sesion.titulo || ''}
+          />
+        </div>
+      )}
 
       {esCuerpoTecnico && (
         <button className="btn btn-ghost btn-sm btn-danger" style={{ marginTop: 16 }} onClick={eliminarSesion}>

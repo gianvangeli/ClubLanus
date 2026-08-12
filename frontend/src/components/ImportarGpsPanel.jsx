@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
-import './PreparacionFisica.css'
-import './ImportarGpsPdf.css'
+import '../pages/PreparacionFisica.css'
+import './ImportarGpsPanel.css'
 
-export default function ImportarGpsPdf() {
-  const navigate = useNavigate()
+// Importación de GPS grupal por PDF con IA, embebible donde corresponda
+// (Biblioteca, al subir un partido; Entrenamientos, en una práctica con
+// GPS) — no es una sección propia de Jugadores: los datos que carga
+// terminan igual en "Picos de máximo rendimiento" de cada jugador
+// (Preparación física), esto solo define desde dónde se dispara la carga.
+export default function ImportarGpsPanel({ fechaInicial, partidoInicial, onImportado }) {
   const [jugadores, setJugadores] = useState([])
-  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
-  const [partido, setPartido] = useState('')
+  const [fecha, setFecha] = useState(fechaInicial || new Date().toISOString().slice(0, 10))
+  const [partido, setPartido] = useState(partidoInicial || '')
   const [archivo, setArchivo] = useState(null)
   const [analizando, setAnalizando] = useState(false)
   const [filas, setFilas] = useState(null)
@@ -26,7 +29,7 @@ export default function ImportarGpsPdf() {
     setMensaje('')
 
     if (!fecha || !partido.trim()) {
-      setError('Fecha y partido son obligatorios')
+      setError('Fecha y partido/entrenamiento son obligatorios')
       return
     }
     if (!archivo) {
@@ -76,9 +79,10 @@ export default function ImportarGpsPdf() {
         partido,
         filas: filasAIncluir.map((f) => ({ jugador_id: f.jugador_id, indicadores: f.indicadores })),
       })
-      setMensaje(`Se importaron ${data.importados} jugador(es) correctamente.`)
+      setMensaje(`Se importaron ${data.importados} jugador(es) correctamente a Preparación física.`)
       setFilas(null)
-      setTimeout(() => navigate('/admin/jugadores'), 1800)
+      setArchivo(null)
+      onImportado?.()
     } catch (err) {
       setError(extraerError(err, 'No se pudo confirmar la importación'))
     } finally {
@@ -87,27 +91,18 @@ export default function ImportarGpsPdf() {
   }
 
   return (
-    <div className="page">
-      <Link to="/admin/jugadores" className="btn btn-ghost btn-sm">
-        ← Volver a jugadores
-      </Link>
-
-      <div className="page-header" style={{ marginTop: 16 }}>
-        <div>
-          <h1>Importar GPS (PDF)</h1>
-          <p>
-            Subí el reporte de GPS de todo el plantel (entrenamiento o partido) y una IA va a leer los datos de
-            cada jugador. <strong>Revisá y corregí antes de confirmar</strong>: no se guarda nada hasta que lo
-            confirmes.
-          </p>
-        </div>
-      </div>
+    <div>
+      <p className="texto-muted" style={{ marginBottom: 12 }}>
+        Subí el reporte de GPS de todo el plantel y una IA va a leer los datos de cada jugador y cargarlos en su
+        Preparación física ("Picos de máximo rendimiento"). <strong>Revisá y corregí antes de confirmar</strong>: no
+        se guarda nada hasta que lo confirmes.
+      </p>
 
       {error && <div className="alert alert-error">{error}</div>}
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
 
       {!filas && (
-        <form className="card seccion form-edicion" onSubmit={analizar}>
+        <form className="form-edicion" onSubmit={analizar}>
           <div className="gps-form-row">
             <div className="field">
               <label>Fecha</label>
@@ -135,9 +130,9 @@ export default function ImportarGpsPdf() {
       )}
 
       {filas && (
-        <div className="card seccion">
+        <div>
           <div className="seccion-header">
-            <h3>Revisión antes de importar</h3>
+            <h4 className="subtitulo">Revisión antes de importar</h4>
             <button className="btn btn-ghost btn-sm" onClick={() => setFilas(null)}>
               Volver a analizar
             </button>

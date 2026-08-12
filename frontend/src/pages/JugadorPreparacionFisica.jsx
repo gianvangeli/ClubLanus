@@ -9,9 +9,8 @@ import './AdminJugadorDetalle.css'
 import './PreparacionFisica.css'
 
 const TABS = [
-  { key: 'picos', etiqueta: 'Picos de máximo rendimiento' },
-  { key: 'cargas', etiqueta: 'Cargas físicas' },
   { key: 'informe', etiqueta: 'Informe físico' },
+  { key: 'picos', etiqueta: 'Cargas físicas' },
   { key: 'extra', etiqueta: 'Entrenamientos extra' },
 ]
 
@@ -42,7 +41,7 @@ const PLANTILLA_INDICADORES = [
 export default function JugadorPreparacionFisica() {
   const { id } = useParams()
   const [jugador, setJugador] = useState(null)
-  const [tab, setTab] = useState('picos')
+  const [tab, setTab] = useState('informe')
 
   useEffect(() => {
     api.get(`/jugadores/${id}`).then(({ data }) => setJugador(data))
@@ -74,9 +73,8 @@ export default function JugadorPreparacionFisica() {
         ))}
       </div>
 
-      {tab === 'picos' && <PicosRendimiento jugadorId={id} />}
-      {tab === 'cargas' && <CargasPreparacionFisica jugadorId={id} />}
       {tab === 'informe' && <InformeFisico jugadorId={id} />}
+      {tab === 'picos' && <PicosRendimiento jugadorId={id} />}
       {tab === 'extra' && <EntrenamientosExtra jugadorId={id} />}
     </div>
   )
@@ -96,6 +94,12 @@ function PicosRendimiento({ jugadorId }) {
   const [seleccionados, setSeleccionados] = useState([])
   const [modoGrafico, setModoGrafico] = useState(false)
   const [indicadorGrafico, setIndicadorGrafico] = useState('')
+  const [modoComparativa, setModoComparativa] = useState(false)
+  const [roster, setRoster] = useState([])
+  const [jugadoresComparar, setJugadoresComparar] = useState([])
+  const [periodoComparar, setPeriodoComparar] = useState('semana')
+  const [comparativa, setComparativa] = useState(null)
+  const [cargandoComparativa, setCargandoComparativa] = useState(false)
 
   const cargar = () => {
     setCargando(true)
@@ -106,6 +110,10 @@ function PicosRendimiento({ jugadorId }) {
   }
 
   useEffect(cargar, [jugadorId])
+
+  useEffect(() => {
+    api.get('/jugadores').then(({ data }) => setRoster(data.filter((j) => String(j.id) !== String(jugadorId))))
+  }, [jugadorId])
 
   const abrirForm = () => {
     setFecha(new Date().toISOString().slice(0, 10))
@@ -224,11 +232,35 @@ function PicosRendimiento({ jugadorId }) {
     }))
     .filter((p) => typeof p.valor === 'number')
 
+  const toggleJugadorComparar = (id) => {
+    setJugadoresComparar((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  const buscarComparativa = async () => {
+    if (!categoriaActiva || !indicadorActivo || jugadoresComparar.length === 0) return
+    setCargandoComparativa(true)
+    try {
+      const { data } = await api.get('/jugadores/picos-rendimiento/comparar', {
+        params: {
+          jugadores: [jugadorId, ...jugadoresComparar].join(','),
+          categoria: categoriaActiva,
+          indicador: indicadorActivo,
+          periodo: periodoComparar,
+        },
+      })
+      setComparativa(data)
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo comparar'))
+    } finally {
+      setCargandoComparativa(false)
+    }
+  }
+
   return (
     <div className="card seccion">
       <div className="seccion-header">
-        <h3>Picos de máximo rendimiento</h3>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <h3>Cargas físicas</h3>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
             className={`btn btn-sm ${modoComparar ? 'btn-primary' : 'btn-ghost'}`}
@@ -237,7 +269,7 @@ function PicosRendimiento({ jugadorId }) {
               setSeleccionados([])
             }}
           >
-            Comparar
+            Comparar fechas
           </button>
           <button
             type="button"
@@ -245,6 +277,13 @@ function PicosRendimiento({ jugadorId }) {
             onClick={() => setModoGrafico(!modoGrafico)}
           >
             Gráficos
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${modoComparativa ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setModoComparativa(!modoComparativa)}
+          >
+            Comparar con otros jugadores
           </button>
           {!mostrarForm && (
             <button className="btn btn-primary btn-sm" onClick={abrirForm}>
@@ -397,6 +436,95 @@ function PicosRendimiento({ jugadorId }) {
         </div>
       )}
 
+      {!cargando && modoComparativa && clavesDisponibles.length === 0 && (
+        <p className="texto-muted">Todavía no hay indicadores cargados para comparar.</p>
+      )}
+
+      {!cargando && modoComparativa && clavesDisponibles.length > 0 && (
+        <div className="pf-grafico">
+          <div className="pf-form-row">
+            <div className="field" style={{ maxWidth: 300 }}>
+              <label>Indicador</label>
+              <select value={claveActiva} onChange={(e) => setIndicadorGrafico(e.target.value)}>
+                {Object.entries(indicadoresPorCategoria).map(([categoria, nombres]) => (
+                  <optgroup key={categoria} label={categoria}>
+                    {Array.from(nombres).map((nombre) => (
+                      <option key={`${categoria}|${nombre}`} value={`${categoria}|${nombre}`}>
+                        {nombre}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+            <div className="field" style={{ maxWidth: 200 }}>
+              <label>Agrupar por</label>
+              <select value={periodoComparar} onChange={(e) => setPeriodoComparar(e.target.value)}>
+                <option value="semana">Semana</option>
+                <option value="quincena">Quincena</option>
+                <option value="mes">Mes</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="field">
+            <label>Comparar con</label>
+            <div className="pf-roster-checks">
+              {roster.map((j) => (
+                <label key={j.id} className="pf-check">
+                  <input
+                    type="checkbox"
+                    checked={jugadoresComparar.includes(j.id)}
+                    onChange={() => toggleJugadorComparar(j.id)}
+                  />
+                  {j.nombre} {j.apellido}
+                </label>
+              ))}
+              {roster.length === 0 && <span className="texto-muted">No hay otros jugadores cargados.</span>}
+            </div>
+          </div>
+
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={buscarComparativa}
+            disabled={jugadoresComparar.length === 0 || cargandoComparativa}
+          >
+            {cargandoComparativa ? <span className="spinner" /> : 'Ver comparación'}
+          </button>
+
+          {comparativa && comparativa.periodos.length === 0 && (
+            <p className="texto-muted" style={{ marginTop: 12 }}>
+              No hay datos de este indicador para los jugadores elegidos.
+            </p>
+          )}
+
+          {comparativa && comparativa.periodos.length > 0 && (
+            <div className="pf-tabla-scroll" style={{ marginTop: 12 }}>
+              <table className="tabla pf-tabla-comparacion">
+                <thead>
+                  <tr>
+                    <th>Jugador</th>
+                    {comparativa.periodos.map((p) => (
+                      <th key={p.clave}>{p.etiqueta}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparativa.jugadores.map((j) => (
+                    <tr key={j.id}>
+                      <td>{j.apellido}, {j.nombre}</td>
+                      {comparativa.periodos.map((p) => (
+                        <td key={p.clave}>{j.valores[p.clave] ?? '—'}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {!cargando && picos.length > 0 && (
         <div className="pf-picos-lista">
           {picos.map((p) => (
@@ -421,139 +549,6 @@ function PicosRendimiento({ jugadorId }) {
                     {ind.indicador}: <strong>{ind.valor}</strong>
                   </span>
                 ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function CargasPreparacionFisica({ jugadorId }) {
-  const [cargas, setCargas] = useState([])
-  const [cargando, setCargando] = useState(true)
-  const [mostrarForm, setMostrarForm] = useState(false)
-  const [form, setForm] = useState({ fecha: '', entrenamiento_partido: '', observaciones: '' })
-  const [enviando, setEnviando] = useState(false)
-  const [error, setError] = useState('')
-
-  const cargar = () => {
-    setCargando(true)
-    api
-      .get(`/jugadores/${jugadorId}/cargas-preparacion-fisica`)
-      .then(({ data }) => setCargas(data))
-      .finally(() => setCargando(false))
-  }
-
-  useEffect(cargar, [jugadorId])
-
-  const abrirForm = () => {
-    setForm({ fecha: new Date().toISOString().slice(0, 10), entrenamiento_partido: '', observaciones: '' })
-    setError('')
-    setMostrarForm(true)
-  }
-
-  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
-
-  const guardar = async (e) => {
-    e.preventDefault()
-    setError('')
-
-    if (!form.fecha || !form.entrenamiento_partido.trim()) {
-      setError('Fecha y entrenamiento/partido son obligatorios')
-      return
-    }
-
-    setEnviando(true)
-    try {
-      await api.post(`/jugadores/${jugadorId}/cargas-preparacion-fisica`, form)
-      setMostrarForm(false)
-      cargar()
-    } catch (err) {
-      setError(extraerError(err, 'No se pudo registrar la carga física'))
-    } finally {
-      setEnviando(false)
-    }
-  }
-
-  const eliminar = async (carga) => {
-    if (!window.confirm(`¿Eliminar la carga física del ${formatFecha(carga.fecha)}?`)) {
-      return
-    }
-
-    try {
-      await api.delete(`/jugadores/${jugadorId}/cargas-preparacion-fisica/${carga.id}`)
-      cargar()
-    } catch (err) {
-      setError(extraerError(err, 'No se pudo eliminar la carga física'))
-    }
-  }
-
-  return (
-    <div className="card seccion">
-      <div className="seccion-header">
-        <h3>Cargas físicas</h3>
-        {!mostrarForm && (
-          <button className="btn btn-primary btn-sm" onClick={abrirForm}>
-            + Nueva carga
-          </button>
-        )}
-      </div>
-
-      {error && <div className="alert alert-error">{error}</div>}
-
-      {mostrarForm && (
-        <form className="form-edicion" onSubmit={guardar}>
-          <div className="field">
-            <label>Fecha</label>
-            <input type="date" value={form.fecha} onChange={onChange('fecha')} required />
-          </div>
-          <div className="field">
-            <label>Entrenamiento o partido</label>
-            <input
-              value={form.entrenamiento_partido}
-              onChange={onChange('entrenamiento_partido')}
-              placeholder="Ej: Entrenamiento de fuerza, Partido vs Boca"
-              required
-            />
-          </div>
-          <div className="field">
-            <label>Observaciones</label>
-            <textarea rows={3} value={form.observaciones} onChange={onChange('observaciones')} />
-          </div>
-          <div className="form-edicion-botones">
-            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>
-              {enviando ? <span className="spinner" /> : 'Guardar'}
-            </button>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={() => setMostrarForm(false)}>
-              Cancelar
-            </button>
-          </div>
-        </form>
-      )}
-
-      {cargando && (
-        <div className="empty-state">
-          <span className="spinner spinner-dark" />
-        </div>
-      )}
-
-      {!cargando && cargas.length === 0 && <p className="texto-muted">Todavía no hay cargas físicas cargadas.</p>}
-
-      {!cargando && cargas.length > 0 && (
-        <div className="cf-lista">
-          {cargas.map((c) => (
-            <div className="cf-item" key={c.id}>
-              <div className="cf-item-info">
-                <strong>{c.entrenamiento_partido}</strong>
-                <span className="texto-muted">{formatFecha(c.fecha)}</span>
-                {c.observaciones && <span className="texto-muted">{c.observaciones}</span>}
-              </div>
-              <div className="cf-item-acciones">
-                <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(c)}>
-                  Eliminar
-                </button>
               </div>
             </div>
           ))}
@@ -698,6 +693,7 @@ function EntrenamientosExtra({ jugadorId }) {
   const [archivo, setArchivo] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
+  const [planAbierto, setPlanAbierto] = useState(null)
 
   const token = localStorage.getItem('token')
 
@@ -817,30 +813,99 @@ function EntrenamientosExtra({ jugadorId }) {
       {!cargando && planes.length > 0 && (
         <div className="cf-lista">
           {planes.map((p) => (
-            <div className="cf-item" key={p.id}>
-              <div className="cf-item-info">
-                <strong>Plan del {formatFecha(p.fecha)}</strong>
-                {p.informe && <span className="texto-muted">{p.informe}</span>}
-              </div>
-              <div className="cf-item-acciones">
-                {p.nombre_archivo && (
-                  <a
+            <div className="cf-item-wrap" key={p.id}>
+              <div className="cf-item">
+                <div className="cf-item-info">
+                  <strong>Plan del {formatFecha(p.fecha)}</strong>
+                  {p.informe && <span className="texto-muted">{p.informe}</span>}
+                </div>
+                <div className="cf-item-acciones">
+                  {p.nombre_archivo && (
+                    <a
+                      className="btn btn-ghost btn-sm"
+                      href={`${API_BASE}/api/jugadores/${jugadorId}/planes-entrenamiento-extra/${p.id}/archivo?token=${token}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Ver archivo ↗
+                    </a>
+                  )}
+                  <button
                     className="btn btn-ghost btn-sm"
-                    href={`${API_BASE}/api/jugadores/${jugadorId}/planes-entrenamiento-extra/${p.id}/archivo?token=${token}`}
-                    target="_blank"
-                    rel="noreferrer"
+                    onClick={() => setPlanAbierto(planAbierto === p.id ? null : p.id)}
                   >
-                    Ver archivo ↗
-                  </a>
-                )}
-                <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(p)}>
-                  Eliminar
-                </button>
+                    {planAbierto === p.id ? 'Ocultar seguimiento' : 'Ver seguimiento'}
+                  </button>
+                  <button className="btn btn-ghost btn-sm btn-danger" onClick={() => eliminar(p)}>
+                    Eliminar
+                  </button>
+                </div>
               </div>
+              {planAbierto === p.id && <SeguimientoPlanStaff planId={p.id} />}
             </div>
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// Seguimiento que cargó el jugador para un plan puntual (peso, duración,
+// horario, observaciones) — de solo lectura para el cuerpo técnico.
+function SeguimientoPlanStaff({ planId }) {
+  const [registros, setRegistros] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setCargando(true)
+    api
+      .get(`/jugadores/planes-entrenamiento-extra/${planId}/registros`)
+      .then(({ data }) => setRegistros(data))
+      .catch((err) => setError(extraerError(err, 'No se pudo cargar el seguimiento')))
+      .finally(() => setCargando(false))
+  }, [planId])
+
+  if (cargando) {
+    return (
+      <div className="empty-state">
+        <span className="spinner spinner-dark" />
+      </div>
+    )
+  }
+
+  if (error) return <div className="alert alert-error">{error}</div>
+
+  if (registros.length === 0) {
+    return <p className="texto-muted cf-seguimiento">El jugador todavía no registró seguimiento de este plan.</p>
+  }
+
+  return (
+    <div className="cf-seguimiento">
+      <div className="tabla-scroll">
+        <table className="tabla tabla-compacta">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Peso (kg)</th>
+              <th>Duración (min)</th>
+              <th>Horario</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {registros.map((r) => (
+              <tr key={r.id}>
+                <td>{formatFecha(r.fecha)}</td>
+                <td>{r.peso_kg ?? '—'}</td>
+                <td>{r.duracion_min ?? '—'}</td>
+                <td>{r.horario || '—'}</td>
+                <td className="texto-muted">{r.observaciones || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

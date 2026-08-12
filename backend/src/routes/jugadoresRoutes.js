@@ -44,6 +44,7 @@ const {
   crearPico,
   listarPicos,
   eliminarPico,
+  compararJugadores,
 } = require("../controllers/picosRendimientoController");
 
 const {
@@ -60,8 +61,13 @@ const {
 const {
   crearPlanEntrenamientoExtra,
   listarPlanesEntrenamientoExtra,
+  obtenerMisEntrenamientosExtra,
   obtenerArchivoPlanEntrenamientoExtra,
   eliminarPlanEntrenamientoExtra,
+  agregarRegistroProgreso,
+  listarRegistrosProgreso,
+  listarMiProgreso,
+  eliminarRegistroProgreso,
 } = require("../controllers/planesEntrenamientoExtraController");
 
 const {
@@ -110,6 +116,21 @@ router.get(
   verificarToken,
   autorizarRoles("jugador"),
   obtenerMiPlanAlimentacion
+);
+
+// El jugador ve sus propios planes de entrenamiento extra y su progreso
+// registrado en todos ellos junto. También antes de "/:id" por lo mismo.
+router.get(
+  "/mis-entrenamientos-extra",
+  verificarToken,
+  autorizarRoles("jugador"),
+  obtenerMisEntrenamientosExtra
+);
+router.get(
+  "/mi-progreso-entrenamiento-extra",
+  verificarToken,
+  autorizarRoles("jugador"),
+  listarMiProgreso
 );
 
 // Ficha de un jugador puntual
@@ -309,6 +330,16 @@ router.delete(
   eliminarPico
 );
 
+// Comparar un indicador entre varios jugadores (Cargas físicas). Path bajo
+// "/picos-rendimiento/comparar" (no "/:id/...") para no compartir prefijo
+// con las rutas de arriba y no haya ambigüedad de matching con Express.
+router.get(
+  "/picos-rendimiento/comparar",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  compararJugadores
+);
+
 // Preparación física — importación de GPS grupal por PDF con IA: analiza
 // el PDF y arma un preview por jugador (no guarda nada), y confirma
 // (guarda) las filas ya revisadas por el cuerpo técnico. Rutas bajo
@@ -376,10 +407,11 @@ router.get(
   autorizarRoles(...CUERPO_TECNICO),
   listarPlanesEntrenamientoExtra
 );
+// El archivo lo puede ver el cuerpo técnico siempre, y el jugador solo si
+// el plan es suyo (la comprobación va dentro del controller).
 router.get(
   "/:id/planes-entrenamiento-extra/:planId/archivo",
   verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
   obtenerArchivoPlanEntrenamientoExtra
 );
 router.delete(
@@ -387,6 +419,26 @@ router.delete(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   eliminarPlanEntrenamientoExtra
+);
+
+// Seguimiento del jugador sobre un plan (peso, duración, horario,
+// observaciones). El jugador carga y borra el suyo; el cuerpo técnico solo
+// puede ver (para "trabajar con la información que completa") y moderar.
+router.post(
+  "/planes-entrenamiento-extra/:planId/registros",
+  verificarToken,
+  autorizarRoles("jugador"),
+  agregarRegistroProgreso
+);
+router.get(
+  "/planes-entrenamiento-extra/:planId/registros",
+  verificarToken,
+  listarRegistrosProgreso
+);
+router.delete(
+  "/planes-entrenamiento-extra/registros/:registroId",
+  verificarToken,
+  eliminarRegistroProgreso
 );
 
 // Análisis futbolístico: informes técnicos/tácticos (mensuales,

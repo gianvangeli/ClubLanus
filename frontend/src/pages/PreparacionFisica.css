@@ -59,6 +59,21 @@
   border-bottom: 1px solid var(--border);
 }
 
+.pf-roster-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.pf-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .pf-pico-item {
   padding: 12px 14px;
   border: 1px solid var(--border);
