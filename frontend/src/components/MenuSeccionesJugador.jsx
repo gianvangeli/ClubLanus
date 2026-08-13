@@ -12,6 +12,7 @@ const SECCIONES = [
   { key: 'lesiones', etiqueta: 'Historial de lesiones', icono: 'L', to: (id) => `/admin/jugadores/${id}/lesiones` },
   { key: 'psicologia', etiqueta: 'Psicología del jugador', icono: 'Ps', to: (id) => `/admin/jugadores/${id}/psicologia` },
   { key: 'preparacion-fisica', etiqueta: 'Preparación física', icono: 'PF', to: (id) => `/admin/jugadores/${id}/preparacion-fisica` },
+  { key: 'videos', etiqueta: 'Videos', icono: 'V', to: (id) => `/admin/jugadores/${id}/videos` },
   { key: 'analisis-futbolistico', etiqueta: 'Análisis futbolístico', icono: 'AF', to: (id) => `/admin/jugadores/${id}/analisis-futbolistico` },
   { key: 'datos', etiqueta: 'Datos (Big Data)', icono: 'D', to: (id) => `/admin/jugadores/${id}/datos` },
 ]

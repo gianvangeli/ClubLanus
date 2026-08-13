@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { notificarJugador } = require("../config/notificaciones");
 
 // Arma la respuesta que consumen tanto la vista del cuerpo técnico como la
 // del jugador: secciones parseadas, mismo shape para los dos.
@@ -92,6 +93,8 @@ const guardarDietaArmada = async (req, res) => {
       [id, JSON.stringify(secciones), actualizadoPor]
     );
 
+    await notificarJugador(id, "plan_alimentacion", "Se subió un nuevo plan de alimentación", "/plan-alimentacion");
+
     res.json({ message: "Plan de alimentación guardado correctamente" });
   } catch (error) {
     res.status(500).json({
@@ -134,6 +137,8 @@ const guardarDietaArchivo = async (req, res) => {
          actualizado_por = VALUES(actualizado_por)`,
       [id, url, req.file.originalname, actualizadoPor]
     );
+
+    await notificarJugador(id, "plan_alimentacion", "Se subió un nuevo plan de alimentación", "/plan-alimentacion");
 
     res.json({ message: "Plan de alimentación guardado correctamente" });
   } catch (error) {

@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { notificarJugadores, notificarTodosLosJugadores } = require("../config/notificaciones");
 
 const sinExtension = (nombreArchivo) => nombreArchivo.replace(/\.[^/.]+$/, "");
 
@@ -72,6 +73,13 @@ const crearRutina = async (req, res) => {
     }
 
     await conn.commit();
+
+    const tituloNotificacion = `Se publicó un nuevo entrenamiento: "${titulo}"`;
+    if (alcanceFinal === "individual") {
+      await notificarJugadores(jugadorIds, "entrenamiento", tituloNotificacion, "/entrenamientos");
+    } else {
+      await notificarTodosLosJugadores("entrenamiento", tituloNotificacion, "/entrenamientos");
+    }
 
     res.status(201).json({ message: "Entrenamiento desglosado creado correctamente", rutina_id: rutinaId });
   } catch (error) {

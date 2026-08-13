@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import EscudoClub from './EscudoClub'
+import NotificacionesCampana from './NotificacionesCampana'
 import './Layout.css'
 
 export default function Layout() {
@@ -58,6 +59,9 @@ export default function Layout() {
               <NavLink to="/biblioteca" className="navbar-link">
                 Biblioteca
               </NavLink>
+              <NavLink to="/mis-videos" className="navbar-link">
+                Videos
+              </NavLink>
               <NavLink to="/entrenamientos" className="navbar-link">
                 Entrenamientos
               </NavLink>
@@ -67,11 +71,15 @@ export default function Layout() {
               <NavLink to="/entrenamientos-extra" className="navbar-link">
                 Entrenamientos extra
               </NavLink>
+              <NavLink to="/calendario" className="navbar-link">
+                Calendario
+              </NavLink>
             </>
           )}
         </nav>
 
         <div className="navbar-user">
+          <NotificacionesCampana />
           <div className="navbar-avatar">{iniciales}</div>
           <div className="navbar-user-text">
             <strong>{usuario?.nombre}</strong>

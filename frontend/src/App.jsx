@@ -20,6 +20,10 @@ import JugadorPsicologia from './pages/JugadorPsicologia'
 import JugadorPreparacionFisica from './pages/JugadorPreparacionFisica'
 import JugadorAnalisisFutbolistico from './pages/JugadorAnalisisFutbolistico'
 import JugadorDatosBigdata from './pages/JugadorDatosBigdata'
+import JugadorVideos from './pages/JugadorVideos'
+import MisVideos from './pages/MisVideos'
+import MiCalendario from './pages/MiCalendario'
+import MiCalendarioDetalle from './pages/MiCalendarioDetalle'
 import PsicologoInicio from './pages/PsicologoInicio'
 import PsicologoJugador from './pages/PsicologoJugador'
 import AdminBiblioteca from './pages/AdminBiblioteca'
@@ -205,6 +209,38 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <JugadorDatosBigdata />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/videos"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorVideos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/mis-videos"
+              element={
+                <ProtectedRoute roles={['jugador']}>
+                  <MisVideos />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendario"
+              element={
+                <ProtectedRoute roles={['jugador']}>
+                  <MiCalendario />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/calendario/:id"
+              element={
+                <ProtectedRoute roles={['jugador']}>
+                  <MiCalendarioDetalle />
                 </ProtectedRoute>
               }
             />

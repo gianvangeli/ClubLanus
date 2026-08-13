@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { notificarTodosLosJugadores } = require("../config/notificaciones");
 
 const CAMPOS_BLOQUE = [
   "fecha",
@@ -48,6 +49,12 @@ const crearMicrociclo = async (req, res) => {
       [fecha_inicio, fecha_fin, nombre || null, creadoPor]
     );
 
+    await notificarTodosLosJugadores(
+      "calendario",
+      "Se subió una nueva planificación semanal",
+      `/calendario/${result.insertId}`
+    );
+
     res.status(201).json({ message: "Semana creada correctamente", microciclo_id: result.insertId });
   } catch (error) {
     res.status(500).json({ message: "Error al crear la semana", error: error.message });
@@ -78,6 +85,47 @@ const obtenerMicrociclo = async (req, res) => {
 
     const [bloques] = await db.query(
       `SELECT * FROM microciclo_bloques WHERE microciclo_id = ? ORDER BY fecha ASC, hora_inicio ASC`,
+      [id]
+    );
+
+    res.json({ ...microciclos[0], bloques });
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener la semana", error: error.message });
+  }
+};
+
+// Igual que listarMicrociclos, para el jugador (mismos campos: la lista de
+// semanas no tiene nada del trabajo interno, eso vive en los bloques).
+const listarMicrociclosJugador = async (req, res) => {
+  try {
+    const [microciclos] = await db.query(
+      `SELECT id, fecha_inicio, fecha_fin, nombre, creado_en FROM microciclos ORDER BY fecha_inicio DESC, id DESC`
+    );
+    res.json(microciclos);
+  } catch (error) {
+    res.status(500).json({ message: "Error al listar las semanas", error: error.message });
+  }
+};
+
+// Igual que obtenerMicrociclo, pero los bloques solo traen los campos que
+// ya se ven en la tarjeta compacta / PDF: nunca descripción, espacio,
+// orientación, PSE ni jugadores por tarea (trabajo interno del cuerpo
+// técnico).
+const obtenerMicrocicloJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [microciclos] = await db.query(
+      "SELECT id, fecha_inicio, fecha_fin, nombre FROM microciclos WHERE id = ?",
+      [id]
+    );
+    if (microciclos.length === 0) {
+      return res.status(404).json({ message: "Semana no encontrada" });
+    }
+
+    const [bloques] = await db.query(
+      `SELECT id, fecha, hora_inicio, hora_fin, categoria, titulo, objetivo, espacio_trabajo
+       FROM microciclo_bloques WHERE microciclo_id = ? ORDER BY fecha ASC, hora_inicio ASC`,
       [id]
     );
 
@@ -190,4 +238,6 @@ module.exports = {
   crearBloque,
   actualizarBloque,
   eliminarBloque,
+  listarMicrociclosJugador,
+  obtenerMicrocicloJugador,
 };

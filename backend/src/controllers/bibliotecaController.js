@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { crearNotificacion } = require("../config/notificaciones");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -210,6 +211,18 @@ const asignarUsuariosABiblioteca = async (req, res) => {
         `,
         [bibliotecaId, usuarioId]
       );
+    }
+
+    const [publicaciones] = await db.query("SELECT titulo, estado FROM biblioteca WHERE id = ?", [bibliotecaId]);
+    if (publicaciones[0]?.estado === "publicado") {
+      for (const usuarioId of usuarios) {
+        await crearNotificacion(
+          usuarioId,
+          "biblioteca",
+          `Se subió un nuevo video a tu biblioteca: "${publicaciones[0].titulo}"`,
+          `/biblioteca/${bibliotecaId}`
+        );
+      }
     }
 
     res.status(201).json({

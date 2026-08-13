@@ -65,6 +65,14 @@ const {
 } = require("../controllers/chatIaController");
 
 const {
+  subirVideoJugador,
+  listarVideosJugador,
+  listarMisVideos,
+  obtenerArchivoVideoJugador,
+  eliminarVideoJugador,
+} = require("../controllers/jugadorVideosController");
+
+const {
   crearPlanEntrenamientoExtra,
   listarPlanesEntrenamientoExtra,
   obtenerMisEntrenamientosExtra,
@@ -137,6 +145,14 @@ router.get(
   verificarToken,
   autorizarRoles("jugador"),
   listarMiProgreso
+);
+
+// El jugador ve sus propios videos individuales. También antes de "/:id".
+router.get(
+  "/mis-videos",
+  verificarToken,
+  autorizarRoles("jugador"),
+  listarMisVideos
 );
 
 // Ficha de un jugador puntual
@@ -418,6 +434,33 @@ router.delete(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   eliminarConversacionChatIa
+);
+
+// Videos individuales del jugador: segunda vía de "Biblioteca", pensada
+// para video personal y libre (sin paso de asignación).
+router.get(
+  "/videos/:videoId/archivo",
+  verificarToken,
+  obtenerArchivoVideoJugador
+);
+router.post(
+  "/:id/videos",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadVideo.single("video"),
+  subirVideoJugador
+);
+router.get(
+  "/:id/videos",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  listarVideosJugador
+);
+router.delete(
+  "/:id/videos/:videoId",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  eliminarVideoJugador
 );
 
 // Preparación física — d) Entrenamientos extra: planes individuales

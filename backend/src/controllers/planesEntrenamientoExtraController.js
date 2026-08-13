@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { notificarJugador } = require("../config/notificaciones");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -33,6 +34,8 @@ const crearPlanEntrenamientoExtra = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?)`,
       [id, fecha, archivo, nombreArchivo, informe || null, registradoPor]
     );
+
+    await notificarJugador(id, "entrenamiento_extra", "Se subió un nuevo plan de entrenamiento extra", "/entrenamientos-extra");
 
     res.status(201).json({
       message: "Plan de entrenamiento registrado correctamente",
