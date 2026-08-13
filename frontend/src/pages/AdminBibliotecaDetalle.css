@@ -45,6 +45,21 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 14px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.video-existente:hover {
+  background: var(--granate-50);
+}
+
+.video-existente-boton {
+  width: 100%;
+  text-align: left;
+  background: none;
+  font-family: inherit;
 }
 
 .video-existente-tipo {

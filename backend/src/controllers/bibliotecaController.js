@@ -1,6 +1,6 @@
 const db = require("../config/db");
-const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
-const { crearNotificacion } = require("../config/notificaciones");
+const { guardarArchivo, guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { crearNotificacion, notificarTodosLosJugadores } = require("../config/notificaciones");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -24,6 +24,8 @@ const crearPublicacion = async (req, res) => {
       return res.status(400).json({ message: "analisis_tipo debe ser 'propio' o 'rival', y solo aplica a publicaciones de tipo 'analisis'" });
     }
 
+    const estadoFinal = estado || "publicado";
+
     const [result] = await db.query(
       `
       INSERT INTO biblioteca
@@ -35,11 +37,17 @@ const crearPublicacion = async (req, res) => {
         descripcion || null,
         tipo,
         tipo === "analisis" ? analisis_tipo || null : null,
-        estado || "publicado",
+        estadoFinal,
         visible_desde || null,
         creadoPor,
       ]
     );
+
+    // Un "partido" es visible para todo el plantel automáticamente (sin
+    // asignación): apenas se publica, se avisa a todos los jugadores.
+    if (tipo === "partido" && estadoFinal === "publicado") {
+      await notificarTodosLosJugadores("biblioteca", `Se subió un nuevo partido: "${titulo}"`, `/biblioteca/${result.insertId}`);
+    }
 
     res.status(201).json({
       message: "Publicación creada correctamente",
@@ -61,7 +69,7 @@ const actualizarPublicacion = async (req, res) => {
     const { id } = req.params;
     const { titulo, descripcion, estado, analisis_tipo, plan_partido_json } = req.body;
 
-    const [publicaciones] = await db.query("SELECT id, tipo FROM biblioteca WHERE id = ?", [id]);
+    const [publicaciones] = await db.query("SELECT id, tipo, analisis_pdf_url FROM biblioteca WHERE id = ?", [id]);
     if (publicaciones.length === 0) {
       return res.status(404).json({ message: "Publicación no encontrada" });
     }
@@ -72,13 +80,23 @@ const actualizarPublicacion = async (req, res) => {
       }
     }
 
+    // Guardar el plan armado en la app es mutuamente excluyente con el PDF
+    // subido (ver subirAnalisisPdf): si había un PDF, se descarta.
+    const guardaPlanArmado = plan_partido_json !== undefined;
+    if (guardaPlanArmado && publicaciones[0].analisis_pdf_url) {
+      eliminarArchivo(publicaciones[0].analisis_pdf_url);
+    }
+
     await db.query(
       `UPDATE biblioteca SET
          titulo = COALESCE(?, titulo),
          descripcion = COALESCE(?, descripcion),
          estado = COALESCE(?, estado),
          analisis_tipo = COALESCE(?, analisis_tipo),
-         plan_partido_json = COALESCE(?, plan_partido_json)
+         plan_partido_json = COALESCE(?, plan_partido_json),
+         analisis_modo = CASE WHEN ? THEN 'armado' ELSE analisis_modo END,
+         analisis_pdf_url = CASE WHEN ? THEN NULL ELSE analisis_pdf_url END,
+         analisis_pdf_nombre_original = CASE WHEN ? THEN NULL ELSE analisis_pdf_nombre_original END
        WHERE id = ?`,
       [
         titulo || null,
@@ -86,6 +104,9 @@ const actualizarPublicacion = async (req, res) => {
         estado || null,
         analisis_tipo || null,
         plan_partido_json !== undefined ? JSON.stringify(plan_partido_json) : null,
+        guardaPlanArmado,
+        guardaPlanArmado,
+        guardaPlanArmado,
         id,
       ]
     );
@@ -103,6 +124,8 @@ const listarBibliotecaJugador = async (req, res) => {
   try {
     const usuarioId = req.usuario.id;
 
+    // Un "partido" es visible para todo el plantel sin asignación previa;
+    // un "análisis" solo si está asignado vía biblioteca_usuarios.
     const [items] = await db.query(
       `
       SELECT
@@ -114,10 +137,10 @@ const listarBibliotecaJugador = async (req, res) => {
         b.fecha_publicacion,
         b.estado
       FROM biblioteca b
-      INNER JOIN biblioteca_usuarios bu
-        ON b.id = bu.biblioteca_id
-      WHERE bu.usuario_id = ?
-        AND b.estado = 'publicado'
+      LEFT JOIN biblioteca_usuarios bu
+        ON b.id = bu.biblioteca_id AND bu.usuario_id = ?
+      WHERE b.estado = 'publicado'
+        AND (b.tipo = 'partido' OR bu.usuario_id IS NOT NULL)
       ORDER BY b.fecha_publicacion DESC
       `,
       [usuarioId]
@@ -202,6 +225,16 @@ const asignarUsuariosABiblioteca = async (req, res) => {
       });
     }
 
+    const [publicaciones] = await db.query("SELECT titulo, estado, tipo FROM biblioteca WHERE id = ?", [bibliotecaId]);
+    if (publicaciones.length === 0) {
+      return res.status(404).json({ message: "Publicación no encontrada" });
+    }
+    if (publicaciones[0].tipo === "partido") {
+      return res.status(400).json({
+        message: "Los partidos son visibles para todo el plantel, no hace falta asignarlos",
+      });
+    }
+
     for (const usuarioId of usuarios) {
       await db.query(
         `
@@ -213,8 +246,7 @@ const asignarUsuariosABiblioteca = async (req, res) => {
       );
     }
 
-    const [publicaciones] = await db.query("SELECT titulo, estado FROM biblioteca WHERE id = ?", [bibliotecaId]);
-    if (publicaciones[0]?.estado === "publicado") {
+    if (publicaciones[0].estado === "publicado") {
       for (const usuarioId of usuarios) {
         await crearNotificacion(
           usuarioId,
@@ -415,14 +447,14 @@ const obtenerArchivoVideo = async (req, res) => {
         `
         SELECT 1
         FROM biblioteca_videos bv
-        JOIN biblioteca_usuarios bu ON bu.biblioteca_id = bv.biblioteca_id
         JOIN biblioteca b ON b.id = bv.biblioteca_id
+        LEFT JOIN biblioteca_usuarios bu ON bu.biblioteca_id = bv.biblioteca_id AND bu.usuario_id = ?
         WHERE bv.video_id = ?
-          AND bu.usuario_id = ?
           AND b.estado = 'publicado'
+          AND (b.tipo = 'partido' OR bu.usuario_id IS NOT NULL)
         LIMIT 1
         `,
-        [videoId, usuario.id]
+        [usuario.id, videoId]
       );
 
       if (acceso.length === 0) {
@@ -434,6 +466,84 @@ const obtenerArchivoVideo = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       message: "Error al obtener el video",
+      error: error.message,
+    });
+  }
+};
+
+// Sube el PDF de análisis armado por el analista de video, como alternativa
+// a armar el plan cuadro por cuadro en la app (mutuamente excluyentes,
+// mismo criterio que dietas_jugador: subir uno borra el otro).
+const subirAnalisisPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Subí el archivo PDF del análisis" });
+    }
+
+    const [publicaciones] = await db.query("SELECT analisis_pdf_url FROM biblioteca WHERE id = ?", [id]);
+    if (publicaciones.length === 0) {
+      return res.status(404).json({ message: "Publicación no encontrada" });
+    }
+
+    if (publicaciones[0].analisis_pdf_url) {
+      eliminarArchivo(publicaciones[0].analisis_pdf_url);
+    }
+
+    const url = await guardarArchivo(req.file.buffer, "biblioteca-analisis", req.file.originalname);
+
+    await db.query(
+      `UPDATE biblioteca SET
+         analisis_modo = 'archivo',
+         analisis_pdf_url = ?,
+         analisis_pdf_nombre_original = ?,
+         plan_partido_json = NULL
+       WHERE id = ?`,
+      [url, req.file.originalname, id]
+    );
+
+    res.json({ message: "Análisis en PDF subido correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al subir el análisis en PDF",
+      error: error.message,
+    });
+  }
+};
+
+// Sirve el PDF de análisis. Cuerpo técnico siempre; jugador solo si está
+// asignado y la publicación está publicada (mismo criterio que verDetallePublicacion).
+const obtenerArchivoAnalisisPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const usuario = req.usuario;
+
+    const [publicaciones] = await db.query(
+      "SELECT analisis_pdf_url, estado FROM biblioteca WHERE id = ?",
+      [id]
+    );
+    if (publicaciones.length === 0 || !publicaciones[0].analisis_pdf_url) {
+      return res.status(404).json({ message: "Esta publicación no tiene un análisis en PDF" });
+    }
+
+    if (!CUERPO_TECNICO.includes(usuario.rol)) {
+      if (publicaciones[0].estado !== "publicado") {
+        return res.status(403).json({ message: "No tenés acceso a este archivo" });
+      }
+      const [asignado] = await db.query(
+        "SELECT 1 FROM biblioteca_usuarios WHERE biblioteca_id = ? AND usuario_id = ? LIMIT 1",
+        [id, usuario.id]
+      );
+      if (asignado.length === 0) {
+        return res.status(403).json({ message: "No tenés acceso a este archivo" });
+      }
+    }
+
+    await servirArchivo(req, res, publicaciones[0].analisis_pdf_url);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener el archivo",
       error: error.message,
     });
   }
@@ -468,7 +578,7 @@ const verDetallePublicacion = async (req, res) => {
     const esStaff = CUERPO_TECNICO.includes(usuario.rol);
 
     const [publicaciones] = await db.query(
-      "SELECT id, titulo, descripcion, tipo, analisis_tipo, plan_partido_json, estado, fecha_publicacion, visible_desde, creado_por FROM biblioteca WHERE id = ?",
+      "SELECT id, titulo, descripcion, tipo, analisis_tipo, plan_partido_json, analisis_modo, analisis_pdf_nombre_original, estado, fecha_publicacion, visible_desde, creado_por FROM biblioteca WHERE id = ?",
       [bibliotecaId]
     );
 
@@ -484,13 +594,16 @@ const verDetallePublicacion = async (req, res) => {
         return res.status(403).json({ message: "No tenés acceso a esta publicación" });
       }
 
-      const [asignado] = await db.query(
-        "SELECT 1 FROM biblioteca_usuarios WHERE biblioteca_id = ? AND usuario_id = ? LIMIT 1",
-        [bibliotecaId, usuario.id]
-      );
+      // Un "partido" es visible para todo el plantel: no requiere asignación.
+      if (publicacion.tipo !== "partido") {
+        const [asignado] = await db.query(
+          "SELECT 1 FROM biblioteca_usuarios WHERE biblioteca_id = ? AND usuario_id = ? LIMIT 1",
+          [bibliotecaId, usuario.id]
+        );
 
-      if (asignado.length === 0) {
-        return res.status(403).json({ message: "No tenés acceso a esta publicación" });
+        if (asignado.length === 0) {
+          return res.status(403).json({ message: "No tenés acceso a esta publicación" });
+        }
       }
     }
 
@@ -547,7 +660,7 @@ const eliminarPublicacion = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [publicaciones] = await conn.query("SELECT id FROM biblioteca WHERE id = ?", [id]);
+    const [publicaciones] = await conn.query("SELECT id, analisis_pdf_url FROM biblioteca WHERE id = ?", [id]);
     if (publicaciones.length === 0) {
       return res.status(404).json({ message: "Publicación no encontrada" });
     }
@@ -588,6 +701,9 @@ const eliminarPublicacion = async (req, res) => {
     for (const urlVideo of archivosABorrar) {
       eliminarArchivo(urlVideo);
     }
+    if (publicaciones[0].analisis_pdf_url) {
+      eliminarArchivo(publicaciones[0].analisis_pdf_url);
+    }
 
     res.json({ message: "Publicación eliminada correctamente" });
   } catch (error) {
@@ -626,6 +742,8 @@ module.exports = {
     actualizarProgreso,
     obtenerReporteVisualizaciones,
     obtenerArchivoVideo,
+    subirAnalisisPdf,
+    obtenerArchivoAnalisisPdf,
     listarBibliotecaStaff,
     verDetallePublicacion,
     eliminarPublicacion,

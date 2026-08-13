@@ -30,13 +30,15 @@
 }
 
 .plan-partido-lectura {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
   gap: 24px;
 }
 
 .pp-cuadro-lectura {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 14px;
+  padding: 16px;
   background: var(--granate-50);
 }
 
@@ -63,8 +65,29 @@
   gap: 10px;
 }
 
-.pp-descripcion {
-  max-width: 420px;
-  white-space: pre-wrap;
+.pp-leyenda {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pp-titulo {
+  font-size: 14.5px;
   color: var(--text);
+}
+
+.pp-descripcion {
+  white-space: pre-wrap;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+@media (max-width: 560px) {
+  .plan-partido-lectura {
+    grid-template-columns: 1fr;
+  }
 }

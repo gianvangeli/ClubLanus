@@ -5,7 +5,7 @@ import './PlanPartidoEditor.css'
 let idSeq = 1
 const nuevoId = () => `cuadro-${Date.now()}-${idSeq++}`
 
-const cuadroVacio = () => ({ id: nuevoId(), dibujo: ESCENA_VACIA, descripcion: '' })
+const cuadroVacio = () => ({ id: nuevoId(), dibujo: ESCENA_VACIA, titulo: '', descripcion: '' })
 
 // Plan de partido: una secuencia de cuadros (pizarra + leyenda) para
 // describir un rival por fases (posicionamiento, salida, presión, ABP...).
@@ -52,8 +52,19 @@ export default function PlanPartidoEditor({ value, onChange, editable }) {
               <span className="pp-numero">{i + 1}</span>
             </div>
             <div className="pp-cuadro-lectura-cuerpo">
-              <CanchaEditor value={c.dibujo} onChange={() => {}} editable={false} />
-              {c.descripcion && <p className="pp-descripcion">{c.descripcion}</p>}
+              <CanchaEditor
+                value={c.dibujo}
+                onChange={() => {}}
+                editable={false}
+                exportable
+                nombreArchivoExport={`analisis-cuadro-${i + 1}.png`}
+              />
+              {(c.titulo || c.descripcion) && (
+                <div className="pp-leyenda">
+                  {c.titulo && <strong className="pp-titulo">{c.titulo}</strong>}
+                  {c.descripcion && <p className="pp-descripcion">{c.descripcion}</p>}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -99,6 +110,15 @@ export default function PlanPartidoEditor({ value, onChange, editable }) {
       </div>
 
       <CanchaEditor value={cuadro.dibujo} onChange={(dibujo) => actualizarCuadro(activo, { dibujo })} editable />
+
+      <div className="field pp-campo-descripcion">
+        <label>Título del cuadro</label>
+        <input
+          value={cuadro.titulo || ''}
+          onChange={(e) => actualizarCuadro(activo, { titulo: e.target.value })}
+          placeholder="Ej: Superioridad numérica 3 contra 2"
+        />
+      </div>
 
       <div className="field pp-campo-descripcion">
         <label>Descripción / leyenda de este cuadro</label>

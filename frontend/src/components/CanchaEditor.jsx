@@ -333,7 +333,7 @@ function FiguraForma({ tipo, color }) {
   return null
 }
 
-export default function CanchaEditor({ value, onChange, editable }) {
+export default function CanchaEditor({ value, onChange, editable, exportable, nombreArchivoExport }) {
   const escena = normalizarEscena(value)
   const stageRef = useRef(null)
   const internalChangeRef = useRef(false)
@@ -785,7 +785,7 @@ export default function CanchaEditor({ value, onChange, editable }) {
     if (!stageRef.current) return
     const uri = stageRef.current.toDataURL({ pixelRatio: 2 })
     const link = document.createElement('a')
-    link.download = 'pizarra-tactica.png'
+    link.download = nombreArchivoExport || 'pizarra-tactica.png'
     link.href = uri
     link.click()
   }
@@ -1088,6 +1088,11 @@ export default function CanchaEditor({ value, onChange, editable }) {
       )}
 
       <div className="ce-stage-wrap" style={{ maxWidth: ANCHO }}>
+        {!editable && (exportable ?? editable) && (
+          <button type="button" className="btn btn-ghost btn-sm ce-descarga-lectura" onClick={exportarImagen}>
+            ⬇ Descargar
+          </button>
+        )}
         <Stage
           ref={stageRef}
           width={ANCHO}

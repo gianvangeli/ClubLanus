@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import api, { extraerError } from '../api/client'
+import api, { API_BASE, extraerError } from '../api/client'
 import { formatFechaHora } from '../utils/fecha'
 import PlanPartidoEditor from '../components/PlanPartidoEditor'
 import ImportarGpsPanel from '../components/ImportarGpsPanel'
@@ -75,6 +75,8 @@ export default function AdminBibliotecaDetalle() {
           bibliotecaId={id}
           analisisTipo={publicacion.analisis_tipo}
           planPartido={publicacion.plan_partido_json}
+          analisisModo={publicacion.analisis_modo}
+          analisisPdfNombre={publicacion.analisis_pdf_nombre_original}
           onCambio={cargarPublicacion}
         />
       )}
@@ -95,22 +97,60 @@ export default function AdminBibliotecaDetalle() {
           videos={publicacion.videos}
           onVideoAgregado={cargarPublicacion}
         />
-        <SeccionJugadores bibliotecaId={id} asignados={publicacion.jugadores_asignados} onAsignado={cargarPublicacion} />
+        {publicacion.tipo === 'partido' ? (
+          <div className="card seccion">
+            <h3>Jugadores asignados</h3>
+            <p className="texto-muted">
+              Los partidos son visibles para todo el plantel automáticamente: no hace falta asignarlos.
+            </p>
+          </div>
+        ) : (
+          <SeccionJugadores bibliotecaId={id} asignados={publicacion.jugadores_asignados} onAsignado={cargarPublicacion} />
+        )}
       </div>
 
-      <SeccionReporte bibliotecaId={id} />
+      {publicacion.tipo !== 'partido' && <SeccionReporte bibliotecaId={id} />}
     </div>
   )
 }
 
-function SeccionAnalisis({ bibliotecaId, analisisTipo, planPartido, onCambio }) {
+function SeccionAnalisis({ bibliotecaId, analisisTipo, planPartido, analisisModo, analisisPdfNombre, onCambio }) {
   const [plan, setPlan] = useState(planPartido || [])
   const [guardandoTipo, setGuardandoTipo] = useState(false)
   const [guardandoPlan, setGuardandoPlan] = useState(false)
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
+  const [archivo, setArchivo] = useState(null)
+  const [subiendoPdf, setSubiendoPdf] = useState(false)
 
   useEffect(() => setPlan(planPartido || []), [planPartido])
+
+  // Solo controla qué UI se muestra: el modo real (analisis_modo) recién
+  // cambia en el servidor cuando se guarda el plan ("Guardar plan de
+  // partido" fuerza 'armado' y borra el PDF) o se sube un PDF (fuerza
+  // 'archivo' y borra el plan) — ver bibliotecaController.js.
+  const [modoVista, setModoVista] = useState(analisisModo === 'archivo' ? 'archivo' : 'armado')
+  useEffect(() => setModoVista(analisisModo === 'archivo' ? 'archivo' : 'armado'), [analisisModo])
+
+  const subirPdf = async () => {
+    if (!archivo) {
+      setError('Elegí un archivo PDF')
+      return
+    }
+    setSubiendoPdf(true)
+    setError('')
+    try {
+      const datos = new FormData()
+      datos.append('archivo', archivo)
+      await api.post(`/biblioteca/${bibliotecaId}/analisis-pdf`, datos)
+      setArchivo(null)
+      onCambio()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo subir el PDF'))
+    } finally {
+      setSubiendoPdf(false)
+    }
+  }
 
   const elegirTipo = async (nuevoTipo) => {
     if (nuevoTipo === analisisTipo) return
@@ -174,17 +214,65 @@ function SeccionAnalisis({ bibliotecaId, analisisTipo, planPartido, onCambio }) 
         <>
           <hr className="divisor" />
           <h4 className="subtitulo">Plan de partido</h4>
-          <p className="texto-muted">
-            Dibujá y describí posicionamientos, esquemas, salidas, presiones, ABP, etc. Un cuadro por fase o idea.
-          </p>
 
-          <PlanPartidoEditor value={plan} onChange={setPlan} editable />
+          <div className="modo-toggle" style={{ marginBottom: 14 }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${modoVista === 'armado' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setModoVista('armado')}
+            >
+              Armar en la app
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${modoVista === 'archivo' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setModoVista('archivo')}
+            >
+              Subir PDF
+            </button>
+          </div>
 
-          {mensaje && <div className="alert alert-success" style={{ marginTop: 12 }}>{mensaje}</div>}
+          {modoVista === 'armado' ? (
+            <>
+              <p className="texto-muted">
+                Dibujá y describí posicionamientos, esquemas, salidas, presiones, ABP, etc. Un cuadro por fase o idea.
+              </p>
 
-          <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={guardarPlan} disabled={guardandoPlan}>
-            {guardandoPlan ? <span className="spinner" /> : 'Guardar plan de partido'}
-          </button>
+              <PlanPartidoEditor value={plan} onChange={setPlan} editable />
+
+              {mensaje && <div className="alert alert-success" style={{ marginTop: 12 }}>{mensaje}</div>}
+
+              <button className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={guardarPlan} disabled={guardandoPlan}>
+                {guardandoPlan ? <span className="spinner" /> : 'Guardar plan de partido'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="texto-muted">Subí el PDF con el análisis ya armado por el analista de video.</p>
+
+              {analisisModo === 'archivo' && analisisPdfNombre && (
+                <p style={{ marginBottom: 10 }}>
+                  Archivo actual: <strong>{analisisPdfNombre}</strong>{' '}
+                  <a
+                    href={`${API_BASE}/api/biblioteca/${bibliotecaId}/analisis-pdf/archivo?token=${localStorage.getItem('token')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ver PDF ↗
+                  </a>
+                </p>
+              )}
+
+              <div className="field">
+                <label>Archivo PDF</label>
+                <input type="file" accept="application/pdf" onChange={(e) => setArchivo(e.target.files[0])} />
+              </div>
+
+              <button className="btn btn-primary btn-sm" onClick={subirPdf} disabled={subiendoPdf}>
+                {subiendoPdf ? <span className="spinner" /> : 'Subir PDF'}
+              </button>
+            </>
+          )}
         </>
       )}
     </div>
@@ -239,13 +327,7 @@ function SeccionVideos({ bibliotecaId, videos, onVideoAgregado }) {
       <div className="video-existentes">
         {videos.length === 0 && <p className="texto-muted">Todavía no hay videos en esta publicación.</p>}
         {videos.map((v) => (
-          <div className="video-existente" key={v.id}>
-            <span className="video-existente-tipo">{v.tipo === 'archivo' ? '📁' : '🔗'}</span>
-            <div>
-              <strong>{v.titulo}</strong>
-              {v.descripcion && <div className="texto-muted">{v.descripcion}</div>}
-            </div>
-          </div>
+          <VideoExistente key={v.id} video={v} />
         ))}
       </div>
 
@@ -299,6 +381,41 @@ function SeccionVideos({ bibliotecaId, videos, onVideoAgregado }) {
         </button>
       </form>
     </div>
+  )
+}
+
+// Acceso directo al video (link o archivo) para el cuerpo técnico, sin
+// tener que pasar por el reporte de seguimiento: Biblioteca también
+// funciona como base de datos de partidos/análisis, y ese acceso debe
+// existir tanto para jugadores (ya lo tienen) como para el CT.
+function VideoExistente({ video }) {
+  const abrirArchivo = () => {
+    const token = localStorage.getItem('token')
+    window.open(`${API_BASE}/api/biblioteca/videos/${video.id}/archivo?token=${token}`, '_blank')
+  }
+
+  const contenido = (
+    <>
+      <span className="video-existente-tipo">{video.tipo === 'archivo' ? '📁' : '🔗'}</span>
+      <div>
+        <strong>{video.titulo}</strong>
+        {video.descripcion && <div className="texto-muted">{video.descripcion}</div>}
+      </div>
+    </>
+  )
+
+  if (video.tipo === 'link') {
+    return (
+      <a className="video-existente" href={video.url_video} target="_blank" rel="noreferrer">
+        {contenido}
+      </a>
+    )
+  }
+
+  return (
+    <button type="button" className="video-existente video-existente-boton" onClick={abrirArchivo}>
+      {contenido}
+    </button>
   )
 }
 

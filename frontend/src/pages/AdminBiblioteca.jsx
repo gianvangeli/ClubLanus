@@ -125,7 +125,7 @@ export default function AdminBiblioteca() {
                   {p.estado}
                 </span>
                 <span>{p.cantidad_videos} video(s)</span>
-                <span>{p.cantidad_jugadores} jugador(es)</span>
+                <span>{p.tipo === 'partido' ? 'Todo el plantel' : `${p.cantidad_jugadores} jugador(es)`}</span>
               </div>
             </Link>
             <button

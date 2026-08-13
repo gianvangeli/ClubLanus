@@ -11,6 +11,8 @@ const {
   actualizarProgreso,
   obtenerReporteVisualizaciones,
   obtenerArchivoVideo,
+  subirAnalisisPdf,
+  obtenerArchivoAnalisisPdf,
   listarBibliotecaStaff,
   verDetallePublicacion,
   eliminarPublicacion,
@@ -19,6 +21,7 @@ const {
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
+const uploadDocumento = require("../middlewares/uploadDocumentoMiddleware");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -68,6 +71,22 @@ router.post(
   autorizarRoles(...CUERPO_TECNICO),
   uploadVideo.single("video"),
   agregarVideoABiblioteca
+);
+
+//Subir el PDF de analisis rival (alternativa a armarlo en la app)
+router.post(
+  "/:id/analisis-pdf",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadDocumento.single("archivo"),
+  subirAnalisisPdf
+);
+
+//Descargar/ver el PDF de analisis rival
+router.get(
+  "/:id/analisis-pdf/archivo",
+  verificarToken,
+  obtenerArchivoAnalisisPdf
 );
 
 //Asignar una publicacion a uno o varios usuarios

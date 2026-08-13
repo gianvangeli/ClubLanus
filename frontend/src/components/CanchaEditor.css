@@ -83,10 +83,19 @@
 }
 
 .ce-stage-wrap {
+  position: relative;
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--border);
   line-height: 0;
+}
+
+.ce-descarga-lectura {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .ce-animacion-barra {
