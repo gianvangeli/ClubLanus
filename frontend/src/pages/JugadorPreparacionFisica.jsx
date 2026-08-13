@@ -74,7 +74,12 @@ export default function JugadorPreparacionFisica() {
         ))}
       </div>
 
-      {tab === 'informe' && <InformeFisico jugadorId={id} />}
+      {tab === 'informe' && (
+        <>
+          <ResumenFisicoAutomatico jugadorId={id} />
+          <InformeFisico jugadorId={id} />
+        </>
+      )}
       {tab === 'picos' && <PicosRendimiento jugadorId={id} />}
       {tab === 'chat' && <ChatIA jugadorId={id} />}
       {tab === 'extra' && <EntrenamientosExtra jugadorId={id} />}
@@ -694,6 +699,104 @@ function ChatIA({ jugadorId }) {
             </button>
           </form>
         </>
+      )}
+    </div>
+  )
+}
+
+// Portada de gráficos automáticos: se genera sola a partir de las cargas
+// físicas cargadas (picos_rendimiento), independientemente de lo que
+// escriba el preparador físico en el informe de texto de abajo.
+function ResumenFisicoAutomatico({ jugadorId }) {
+  const [picos, setPicos] = useState([])
+  const [cargando, setCargando] = useState(true)
+
+  useEffect(() => {
+    setCargando(true)
+    api
+      .get(`/jugadores/${jugadorId}/picos-rendimiento`)
+      .then(({ data }) => setPicos(data))
+      .finally(() => setCargando(false))
+  }, [jugadorId])
+
+  if (cargando) {
+    return (
+      <div className="card seccion" style={{ marginBottom: 16 }}>
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      </div>
+    )
+  }
+
+  if (picos.length === 0) {
+    return (
+      <div className="card seccion" style={{ marginBottom: 16 }}>
+        <h3>Resumen automático</h3>
+        <p className="texto-muted">
+          Todavía no hay cargas físicas cargadas. Apenas se cargue la primera evaluación en "Cargas físicas", acá
+          van a aparecer los gráficos solos.
+        </p>
+      </div>
+    )
+  }
+
+  // picos viene ordenado DESC (más reciente primero, ver listarPicos).
+  const ultima = picos[0]
+  const anterior = picos[1]
+
+  const chipsUltimaCarga = ultima.indicadores.map((ind) => {
+    const previo = anterior?.indicadores.find((i) => i.categoria === ind.categoria && i.indicador === ind.indicador)
+    const deltaPct = previo && previo.valor !== 0 ? ((ind.valor - previo.valor) / previo.valor) * 100 : null
+    return { ...ind, deltaPct }
+  })
+
+  const picosAsc = [...picos].reverse()
+  const graficos = PLANTILLA_INDICADORES.map(({ categoria, indicadores: nombres }) => {
+    const indicador = nombres[0]
+    const puntos = picosAsc
+      .map((p) => ({
+        fecha: p.fecha,
+        valor: p.indicadores.find((i) => i.categoria === categoria && i.indicador === indicador)?.valor,
+      }))
+      .filter((p) => typeof p.valor === 'number')
+    return { categoria, indicador, puntos }
+  }).filter((g) => g.puntos.length >= 2)
+
+  return (
+    <div className="card seccion" style={{ marginBottom: 16 }}>
+      <h3>Resumen automático</h3>
+      <p className="texto-muted" style={{ marginBottom: 14 }}>
+        Generado a partir de las cargas físicas cargadas — independiente del informe que se escriba abajo.
+      </p>
+
+      <p className="texto-muted" style={{ marginBottom: 8 }}>
+        Última carga: {formatFecha(ultima.fecha)} · {ultima.partido}
+        {anterior && ' (variación respecto a la carga anterior)'}
+      </p>
+      <div className="pf-resumen-chips">
+        {chipsUltimaCarga.map((c, i) => (
+          <div key={i} className="pf-resumen-chip">
+            <span className="texto-muted">{c.indicador}</span>
+            <strong>{c.valor}</strong>
+            {c.deltaPct !== null && (
+              <span className="pf-resumen-delta">
+                {c.deltaPct >= 0 ? '▲' : '▼'} {Math.abs(c.deltaPct).toFixed(1)}%
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {graficos.length > 0 && (
+        <div className="pf-resumen-graficos">
+          {graficos.map((g) => (
+            <div key={g.categoria} className="pf-resumen-grafico-item">
+              <h4>{g.indicador}</h4>
+              <GraficoTendencia puntos={g.puntos} etiqueta={g.indicador} />
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )
