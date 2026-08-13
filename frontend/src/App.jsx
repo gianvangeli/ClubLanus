@@ -23,7 +23,6 @@ import JugadorDatosBigdata from './pages/JugadorDatosBigdata'
 import JugadorVideos from './pages/JugadorVideos'
 import MisVideos from './pages/MisVideos'
 import MiCalendario from './pages/MiCalendario'
-import MiCalendarioDetalle from './pages/MiCalendarioDetalle'
 import PsicologoInicio from './pages/PsicologoInicio'
 import PsicologoJugador from './pages/PsicologoJugador'
 import AdminBiblioteca from './pages/AdminBiblioteca'
@@ -233,14 +232,6 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['jugador']}>
                   <MiCalendario />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/calendario/:id"
-              element={
-                <ProtectedRoute roles={['jugador']}>
-                  <MiCalendarioDetalle />
                 </ProtectedRoute>
               }
             />

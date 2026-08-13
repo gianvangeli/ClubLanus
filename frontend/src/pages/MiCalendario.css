@@ -1,0 +1,158 @@
+.cal-mes-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 4px 0 12px;
+}
+
+.cal-mes-header h2 {
+  font-size: 19px;
+  min-width: 220px;
+  text-align: center;
+}
+
+.cal-leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 20px;
+  justify-content: center;
+  margin-bottom: 18px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.cal-leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cal-punto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.cal-grilla {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.cal-dia-nombre {
+  background: var(--bg);
+  padding: 8px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.cal-celda {
+  background: #fff;
+  min-height: 100px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cal-celda-afuera {
+  background: #fafafa;
+}
+
+.cal-celda-afuera .cal-celda-numero {
+  color: var(--text-muted);
+}
+
+.cal-celda-numero {
+  align-self: flex-start;
+  font-size: 12px;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cal-celda-hoy .cal-celda-numero {
+  background: var(--granate-700);
+  color: #fff;
+}
+
+.cal-celda-eventos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.cal-chip {
+  display: flex;
+  flex-direction: column;
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 10.5px;
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+.cal-chip-hora {
+  font-weight: 700;
+  font-size: 9.5px;
+  opacity: 0.9;
+}
+
+.cal-chip-titulo {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-general { background: #dc4545; }
+.cal-preparador_fisico { background: #2f6fed; }
+.cal-cancha { background: #16a34a; }
+.cal-viaje { background: #d97706; }
+
+.cal-mas {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-align: left;
+  padding: 2px 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cal-mas:hover {
+  color: var(--text);
+}
+
+@media (max-width: 700px) {
+  .cal-dia-nombre {
+    font-size: 9px;
+    padding: 5px 2px;
+  }
+
+  .cal-celda {
+    min-height: 74px;
+    padding: 4px;
+  }
+
+  .cal-chip {
+    font-size: 9.5px;
+  }
+}

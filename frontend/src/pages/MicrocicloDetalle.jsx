@@ -11,6 +11,18 @@ const CATEGORIAS = [
   { valor: 'cuerpo_tecnico', etiqueta: 'Cuerpo técnico' },
 ]
 
+// Determina el color con el que el jugador ve cada bloque en su calendario
+// mensual (ver MiCalendario.jsx): general=rojo, preparador_fisico=azul,
+// cancha=verde, viaje=amarillo. La vieja "categoria" (cuerpo_tecnico /
+// preparador_fisico) se sigue derivando sola en el backend a partir de
+// esto, para no tocar el coloreado de esta pantalla semanal.
+const TIPOS_ACTIVIDAD = [
+  { valor: 'general', etiqueta: 'General', clase: 'mc-tipo-general' },
+  { valor: 'preparador_fisico', etiqueta: 'Preparador físico', clase: 'mc-tipo-preparador_fisico' },
+  { valor: 'cancha', etiqueta: 'Cancha', clase: 'mc-tipo-cancha' },
+  { valor: 'viaje', etiqueta: 'Viaje', clase: 'mc-tipo-viaje' },
+]
+
 const ESPACIOS_TRABAJO = [
   { valor: 'completa', etiqueta: 'Cancha completa' },
   { valor: 'media', etiqueta: 'Media cancha' },
@@ -37,7 +49,7 @@ const rangoDeFechas = (inicio, fin) => {
 const FORM_VACIO = {
   hora_inicio: '',
   hora_fin: '',
-  categoria: 'cuerpo_tecnico',
+  tipo_actividad: 'general',
   titulo: '',
   descripcion: '',
   espacio: '',
@@ -206,7 +218,7 @@ function FormBloque({ microcicloId, fecha, bloque, onGuardado, onCancelar, onEli
       ? {
           hora_inicio: bloque.hora_inicio?.slice(0, 5) || '',
           hora_fin: bloque.hora_fin?.slice(0, 5) || '',
-          categoria: bloque.categoria,
+          tipo_actividad: bloque.tipo_actividad || 'general',
           titulo: bloque.titulo || '',
           descripcion: bloque.descripcion || '',
           espacio: bloque.espacio || '',
@@ -227,8 +239,8 @@ function FormBloque({ microcicloId, fecha, bloque, onGuardado, onCancelar, onEli
     e.preventDefault()
     setError('')
 
-    if (!form.hora_inicio || !form.categoria) {
-      setError('Horario de inicio y tipo de trabajo son obligatorios')
+    if (!form.hora_inicio || !form.tipo_actividad) {
+      setError('Horario de inicio y tipo de actividad son obligatorios')
       return
     }
 
@@ -270,16 +282,16 @@ function FormBloque({ microcicloId, fecha, bloque, onGuardado, onCancelar, onEli
           </div>
 
           <div className="field">
-            <label>Tipo de trabajo</label>
+            <label>Tipo de actividad</label>
             <div className="mc-toggle-categoria">
-              {CATEGORIAS.map((c) => (
+              {TIPOS_ACTIVIDAD.map((t) => (
                 <button
-                  key={c.valor}
+                  key={t.valor}
                   type="button"
-                  className={`btn btn-sm ${form.categoria === c.valor ? 'btn-primary' : 'btn-ghost'} mc-toggle-${c.valor}`}
-                  onClick={() => setForm({ ...form, categoria: c.valor })}
+                  className={`btn btn-sm ${form.tipo_actividad === t.valor ? 'btn-primary' : 'btn-ghost'} ${t.clase}`}
+                  onClick={() => setForm({ ...form, tipo_actividad: t.valor })}
                 >
-                  {c.etiqueta}
+                  {t.etiqueta}
                 </button>
               ))}
             </div>

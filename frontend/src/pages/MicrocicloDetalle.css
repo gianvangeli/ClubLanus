@@ -1,6 +1,10 @@
+/* flex (no grid): con grid, cuando el último día de la semana no
+   completaba una fila entera, quedaba solo en su columna y el resto de la
+   fila se veía vacío. Con flex-wrap + flex-grow, ese último día estira
+   para ocupar el espacio sobrante en vez de dejarlo en blanco. */
 .mc-grilla {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 18px;
   align-items: start;
@@ -13,6 +17,7 @@
 }
 
 .mc-dia {
+  flex: 1 1 180px;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -141,8 +146,29 @@
 
 .mc-toggle-categoria {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Mismos colores que ve el jugador en su calendario mensual (ver
+   MiCalendario.css): un puntito a la izquierda para asociar rápido, sin
+   depender de la etiqueta. */
+.mc-tipo-general::before,
+.mc-tipo-preparador_fisico::before,
+.mc-tipo-cancha::before,
+.mc-tipo-viaje::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.mc-tipo-general::before { background: #dc4545; }
+.mc-tipo-preparador_fisico::before { background: #2f6fed; }
+.mc-tipo-cancha::before { background: #16a34a; }
+.mc-tipo-viaje::before { background: #d97706; }
 
 .mc-espacios-trabajo {
   display: flex;
@@ -211,11 +237,11 @@
   }
 
   .mc-grilla {
-    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
     gap: 6px;
   }
 
   .mc-dia {
+    flex-basis: 110px;
     break-inside: avoid;
     padding: 6px;
   }

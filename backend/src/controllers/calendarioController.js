@@ -6,6 +6,7 @@ const CAMPOS_BLOQUE = [
   "hora_inicio",
   "hora_fin",
   "categoria",
+  "tipo_actividad",
   "titulo",
   "descripcion",
   "espacio",
@@ -16,8 +17,15 @@ const CAMPOS_BLOQUE = [
   "jugadores_por_tarea",
 ];
 
-const CATEGORIAS = ["preparador_fisico", "cuerpo_tecnico"];
 const ESPACIOS_TRABAJO = ["completa", "media", "reducido"];
+
+// tipo_actividad es lo que ve el jugador (colorea el calendario mensual:
+// general=rojo, preparador_fisico=azul, cancha=verde, viaje=amarillo).
+// categoria es el campo viejo (solo 2 valores) que sigue usando la vista
+// semanal del cuerpo técnico para colorear sus tarjetas: se deriva sola a
+// partir de tipo_actividad, el cuerpo técnico ya no la elige directamente.
+const TIPOS_ACTIVIDAD = ["general", "preparador_fisico", "cancha", "viaje"];
+const derivarCategoria = (tipoActividad) => (tipoActividad === "preparador_fisico" ? "preparador_fisico" : "cuerpo_tecnico");
 
 // mysql2 devuelve las columnas DATE como objetos Date de JS (construidos en
 // hora local), no como texto: String(fecha) da algo tipo "Wed Aug 03 2026
@@ -52,7 +60,7 @@ const crearMicrociclo = async (req, res) => {
     await notificarTodosLosJugadores(
       "calendario",
       "Se subió una nueva planificación semanal",
-      `/calendario/${result.insertId}`
+      "/calendario"
     );
 
     res.status(201).json({ message: "Semana creada correctamente", microciclo_id: result.insertId });
@@ -94,44 +102,34 @@ const obtenerMicrociclo = async (req, res) => {
   }
 };
 
-// Igual que listarMicrociclos, para el jugador (mismos campos: la lista de
-// semanas no tiene nada del trabajo interno, eso vive en los bloques).
-const listarMicrociclosJugador = async (req, res) => {
+// Calendario mensual del jugador: todos los bloques cuya fecha cae en el
+// mes pedido, sin importar a qué microciclo (semana) pertenecen — el
+// jugador navega mes a mes, no semana por semana. Solo los campos
+// "públicos" que ya se veían en la tarjeta compacta / PDF: nunca
+// descripción, espacio, orientación, PSE ni jugadores por tarea (trabajo
+// interno del cuerpo técnico).
+const obtenerBloquesMesJugador = async (req, res) => {
   try {
-    const [microciclos] = await db.query(
-      `SELECT id, fecha_inicio, fecha_fin, nombre, creado_en FROM microciclos ORDER BY fecha_inicio DESC, id DESC`
-    );
-    res.json(microciclos);
-  } catch (error) {
-    res.status(500).json({ message: "Error al listar las semanas", error: error.message });
-  }
-};
+    const anio = Number(req.query.anio);
+    const mes = Number(req.query.mes);
 
-// Igual que obtenerMicrociclo, pero los bloques solo traen los campos que
-// ya se ven en la tarjeta compacta / PDF: nunca descripción, espacio,
-// orientación, PSE ni jugadores por tarea (trabajo interno del cuerpo
-// técnico).
-const obtenerMicrocicloJugador = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const [microciclos] = await db.query(
-      "SELECT id, fecha_inicio, fecha_fin, nombre FROM microciclos WHERE id = ?",
-      [id]
-    );
-    if (microciclos.length === 0) {
-      return res.status(404).json({ message: "Semana no encontrada" });
+    if (!anio || !mes || mes < 1 || mes > 12) {
+      return res.status(400).json({ message: "Año y mes son obligatorios" });
     }
 
+    const desde = `${anio}-${String(mes).padStart(2, "0")}-01`;
+
     const [bloques] = await db.query(
-      `SELECT id, fecha, hora_inicio, hora_fin, categoria, titulo, objetivo, espacio_trabajo
-       FROM microciclo_bloques WHERE microciclo_id = ? ORDER BY fecha ASC, hora_inicio ASC`,
-      [id]
+      `SELECT id, fecha, hora_inicio, hora_fin, titulo, objetivo, tipo_actividad, espacio_trabajo
+       FROM microciclo_bloques
+       WHERE fecha >= ? AND fecha < DATE_ADD(?, INTERVAL 1 MONTH)
+       ORDER BY fecha ASC, hora_inicio ASC`,
+      [desde, desde]
     );
 
-    res.json({ ...microciclos[0], bloques });
+    res.json(bloques);
   } catch (error) {
-    res.status(500).json({ message: "Error al obtener la semana", error: error.message });
+    res.status(500).json({ message: "Error al obtener el calendario", error: error.message });
   }
 };
 
@@ -153,7 +151,7 @@ const eliminarMicrociclo = async (req, res) => {
 const crearBloque = async (req, res) => {
   try {
     const { microcicloId } = req.params;
-    const { fecha, hora_inicio, categoria } = req.body;
+    const { fecha, hora_inicio, tipo_actividad } = req.body;
     const creadoPor = req.usuario.id;
 
     const [microciclos] = await db.query("SELECT id, fecha_inicio, fecha_fin FROM microciclos WHERE id = ?", [microcicloId]);
@@ -161,11 +159,11 @@ const crearBloque = async (req, res) => {
       return res.status(404).json({ message: "Semana no encontrada" });
     }
 
-    if (!fecha || !hora_inicio || !categoria) {
-      return res.status(400).json({ message: "Fecha, horario de inicio y categoría son obligatorios" });
+    if (!fecha || !hora_inicio || !tipo_actividad) {
+      return res.status(400).json({ message: "Fecha, horario de inicio y tipo de actividad son obligatorios" });
     }
-    if (!CATEGORIAS.includes(categoria)) {
-      return res.status(400).json({ message: "Categoría inválida" });
+    if (!TIPOS_ACTIVIDAD.includes(tipo_actividad)) {
+      return res.status(400).json({ message: "Tipo de actividad inválido" });
     }
     if (req.body.espacio_trabajo && !ESPACIOS_TRABAJO.includes(req.body.espacio_trabajo)) {
       return res.status(400).json({ message: "Espacio de trabajo inválido" });
@@ -174,6 +172,8 @@ const crearBloque = async (req, res) => {
     if (fecha < aFechaSimple(desde) || fecha > aFechaSimple(hasta)) {
       return res.status(400).json({ message: "La fecha del bloque tiene que estar dentro de la semana" });
     }
+
+    req.body.categoria = derivarCategoria(tipo_actividad);
 
     const columnas = CAMPOS_BLOQUE.join(", ");
     const placeholders = CAMPOS_BLOQUE.map(() => "?").join(", ");
@@ -193,13 +193,17 @@ const crearBloque = async (req, res) => {
 const actualizarBloque = async (req, res) => {
   try {
     const { bloqueId } = req.params;
-    const { categoria } = req.body;
+    const { tipo_actividad } = req.body;
 
-    if (categoria && !CATEGORIAS.includes(categoria)) {
-      return res.status(400).json({ message: "Categoría inválida" });
+    if (tipo_actividad && !TIPOS_ACTIVIDAD.includes(tipo_actividad)) {
+      return res.status(400).json({ message: "Tipo de actividad inválido" });
     }
     if (req.body.espacio_trabajo && !ESPACIOS_TRABAJO.includes(req.body.espacio_trabajo)) {
       return res.status(400).json({ message: "Espacio de trabajo inválido" });
+    }
+
+    if (tipo_actividad) {
+      req.body.categoria = derivarCategoria(tipo_actividad);
     }
 
     const asignaciones = CAMPOS_BLOQUE.map((campo) => `${campo} = ?`).join(", ");
@@ -238,6 +242,5 @@ module.exports = {
   crearBloque,
   actualizarBloque,
   eliminarBloque,
-  listarMicrociclosJugador,
-  obtenerMicrocicloJugador,
+  obtenerBloquesMesJugador,
 };

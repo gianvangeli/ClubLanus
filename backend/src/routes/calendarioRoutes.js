@@ -9,19 +9,18 @@ const {
   crearBloque,
   actualizarBloque,
   eliminarBloque,
-  listarMicrociclosJugador,
-  obtenerMicrocicloJugador,
+  obtenerBloquesMesJugador,
 } = require("../controllers/calendarioController");
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
-// Vista de solo lectura para el jugador (registrada antes del router.use de
-// abajo, que restringe todo lo demás al cuerpo técnico). Solo trae los
-// campos "públicos" de cada bloque, nunca los de trabajo interno.
-router.get("/jugador", verificarToken, autorizarRoles("jugador"), listarMicrociclosJugador);
-router.get("/jugador/:id", verificarToken, autorizarRoles("jugador"), obtenerMicrocicloJugador);
+// Calendario mensual de solo lectura para el jugador (registrada antes del
+// router.use de abajo, que restringe todo lo demás al cuerpo técnico).
+// Solo trae los campos "públicos" de cada bloque, nunca los de trabajo
+// interno.
+router.get("/jugador/mes", verificarToken, autorizarRoles("jugador"), obtenerBloquesMesJugador);
 
 // Planificación semanal: el resto es exclusivo del cuerpo técnico.
 router.use(verificarToken, autorizarRoles(...CUERPO_TECNICO));
