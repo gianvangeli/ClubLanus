@@ -139,6 +139,10 @@ CREATE TABLE `ejercicios` (
   `duracion` varchar(50) DEFAULT NULL,
   `descripcion` text,
   `dibujo_json` longtext,
+  `pizarra_modo` enum('dibujo','archivo') DEFAULT NULL,
+  `pizarra_archivo_url` varchar(500) DEFAULT NULL,
+  `pizarra_archivo_tipo` enum('imagen','video') DEFAULT NULL,
+  `pizarra_archivo_nombre_original` varchar(255) DEFAULT NULL,
   `creado_por` int DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -154,7 +158,7 @@ DROP TABLE IF EXISTS `ejercicios_tacticos`;
 CREATE TABLE `ejercicios_tacticos` (
   `id` int NOT NULL AUTO_INCREMENT,
   `categoria` varchar(30) NOT NULL,
-  `subcategoria` varchar(60) NOT NULL,
+  `subcategoria` varchar(60) DEFAULT NULL,
   `titulo` varchar(150) NOT NULL,
   `fecha` date DEFAULT NULL,
   `descripcion` text,
@@ -163,11 +167,35 @@ CREATE TABLE `ejercicios_tacticos` (
   `video_url` varchar(500) DEFAULT NULL,
   `video_nombre_original` varchar(255) DEFAULT NULL,
   `dibujo_json` longtext,
+  `pizarra_modo` enum('dibujo','archivo') DEFAULT NULL,
+  `pizarra_archivo_url` varchar(500) DEFAULT NULL,
+  `pizarra_archivo_tipo` enum('imagen','video') DEFAULT NULL,
+  `pizarra_archivo_nombre_original` varchar(255) DEFAULT NULL,
   `creado_por` int DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `ejercicios_tacticos_creado_por_fk` (`creado_por`),
   CONSTRAINT `ejercicios_tacticos_creado_por_fk` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `entrenamiento_accesos`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `entrenamiento_accesos` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `entrenamiento_id` int NOT NULL,
+  `jugador_id` int NOT NULL,
+  `estado` enum('pendiente','aprobado','rechazado') NOT NULL DEFAULT 'pendiente',
+  `solicitado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `resuelto_en` timestamp NULL DEFAULT NULL,
+  `resuelto_por` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_entrenamiento_jugador` (`entrenamiento_id`,`jugador_id`),
+  KEY `entrenamiento_accesos_jugador_fk` (`jugador_id`),
+  KEY `entrenamiento_accesos_resuelto_por_fk` (`resuelto_por`),
+  CONSTRAINT `entrenamiento_accesos_entrenamiento_fk` FOREIGN KEY (`entrenamiento_id`) REFERENCES `entrenamientos` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `entrenamiento_accesos_jugador_fk` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `entrenamiento_accesos_resuelto_por_fk` FOREIGN KEY (`resuelto_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `entrenamiento_jugadores`;
@@ -209,7 +237,6 @@ DROP TABLE IF EXISTS `entrenamientos`;
 CREATE TABLE `entrenamientos` (
   `id` int NOT NULL AUTO_INCREMENT,
   `fecha` date NOT NULL,
-  `titulo` varchar(150) DEFAULT NULL,
   `descripcion` text,
   `creado_por` int DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -647,51 +674,6 @@ CREATE TABLE `pizarras_tacticas` (
   CONSTRAINT `pizarras_tacticas_ibfk_1` FOREIGN KEY (`entrenamiento_id`) REFERENCES `entrenamientos` (`id`),
   CONSTRAINT `pizarras_tacticas_ibfk_2` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `rutina_jugadores`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `rutina_jugadores` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `rutina_id` int NOT NULL,
-  `jugador_id` int NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_rutina_jugador` (`rutina_id`,`jugador_id`),
-  KEY `rutina_jugadores_jugador_fk` (`jugador_id`),
-  CONSTRAINT `rutina_jugadores_jugador_fk` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `rutina_jugadores_rutina_fk` FOREIGN KEY (`rutina_id`) REFERENCES `rutinas` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `rutina_videos`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `rutina_videos` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `rutina_id` int NOT NULL,
-  `video_id` int NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `rutina_videos_rutina_fk` (`rutina_id`),
-  KEY `rutina_videos_video_fk` (`video_id`),
-  CONSTRAINT `rutina_videos_rutina_fk` FOREIGN KEY (`rutina_id`) REFERENCES `rutinas` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `rutina_videos_video_fk` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-DROP TABLE IF EXISTS `rutinas`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `rutinas` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `titulo` varchar(150) NOT NULL,
-  `fecha` date DEFAULT NULL,
-  `descripcion` text,
-  `cantidad_jugadores` int DEFAULT NULL,
-  `alcance` enum('general','individual') NOT NULL DEFAULT 'general',
-  `creado_por` int DEFAULT NULL,
-  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `rutinas_creado_por_fk` (`creado_por`),
-  CONSTRAINT `rutinas_creado_por_fk` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `usuarios`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

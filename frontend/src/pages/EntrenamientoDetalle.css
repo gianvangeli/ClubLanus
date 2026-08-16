@@ -78,3 +78,24 @@
 .buscador-ejercicios-objetivo {
   margin-top: 2px;
 }
+
+.entren-acceso-box p {
+  margin-bottom: 14px;
+}
+
+.entren-solicitudes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.entren-solicitud-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+}

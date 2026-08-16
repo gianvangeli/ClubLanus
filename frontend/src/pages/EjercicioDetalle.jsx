@@ -20,9 +20,12 @@ const CAMPOS_VACIOS = {
 export default function EjercicioDetalle() {
   const { id, ejercicioId } = useParams()
   const navigate = useNavigate()
+  const token = localStorage.getItem('token')
   const [ejercicio, setEjercicio] = useState(null)
   const [form, setForm] = useState(CAMPOS_VACIOS)
   const [dibujo, setDibujo] = useState(ESCENA_VACIA)
+  const [modoPizarra, setModoPizarra] = useState('dibujo')
+  const [archivoPizarra, setArchivoPizarra] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
@@ -44,6 +47,8 @@ export default function EjercicioDetalle() {
           descripcion: data.descripcion || '',
         })
         setDibujo(data.dibujo_json || ESCENA_VACIA)
+        setModoPizarra(data.pizarra_modo || 'dibujo')
+        setArchivoPizarra(null)
       })
       .catch((err) => setError(extraerError(err, 'No se pudo cargar el ejercicio')))
       .finally(() => setCargando(false))
@@ -58,9 +63,17 @@ export default function EjercicioDetalle() {
     setError('')
     setMensaje('')
     try {
-      await api.put(`/ejercicios/${ejercicioId}`, { ...form, dibujo_json: dibujo })
+      const datos = new FormData()
+      Object.entries(form).forEach(([campo, valor]) => datos.append(campo, valor || ''))
+      if (modoPizarra === 'archivo' && archivoPizarra) {
+        datos.append('pizarra_archivo', archivoPizarra)
+      } else if (modoPizarra === 'dibujo') {
+        datos.append('dibujo_json', JSON.stringify(dibujo))
+      }
+      await api.put(`/ejercicios/${ejercicioId}`, datos)
       setMensaje('Guardado correctamente')
       setTimeout(() => setMensaje(''), 2500)
+      cargar()
     } catch (err) {
       setError(extraerError(err, 'No se pudo guardar'))
     } finally {
@@ -153,7 +166,55 @@ export default function EjercicioDetalle() {
 
         <div className="ej-cuerpo">
           <div className="ej-cancha-col">
-            <CanchaEditor value={dibujo} onChange={setDibujo} editable />
+            <div className="modo-toggle" style={{ marginBottom: 10 }}>
+              <button
+                type="button"
+                className={`btn btn-sm ${modoPizarra === 'dibujo' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setModoPizarra('dibujo')}
+              >
+                Dibujar pizarra
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${modoPizarra === 'archivo' ? 'btn-primary' : 'btn-ghost'}`}
+                onClick={() => setModoPizarra('archivo')}
+              >
+                Subir imagen o video
+              </button>
+            </div>
+
+            {modoPizarra === 'dibujo' ? (
+              <CanchaEditor value={dibujo} onChange={setDibujo} editable />
+            ) : (
+              <div className="field">
+                <label>Imagen o video de la pizarra</label>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => setArchivoPizarra(e.target.files[0] || null)}
+                />
+                {archivoPizarra ? (
+                  <span className="texto-muted">{archivoPizarra.name}</span>
+                ) : ejercicio.pizarra_modo === 'archivo' ? (
+                  ejercicio.pizarra_archivo_tipo === 'imagen' ? (
+                    <img
+                      className="et-pizarra-imagen"
+                      src={`${API_BASE}/api/ejercicios/${ejercicioId}/pizarra-archivo?token=${token}`}
+                      alt="Pizarra táctica"
+                    />
+                  ) : (
+                    <video
+                      className="video-player"
+                      controls
+                      preload="metadata"
+                      src={`${API_BASE}/api/ejercicios/${ejercicioId}/pizarra-archivo?token=${token}`}
+                    />
+                  )
+                ) : (
+                  <span className="texto-muted">Todavía no se subió ningún archivo de pizarra.</span>
+                )}
+              </div>
+            )}
           </div>
           <div className="ej-texto-col">
             <div className="ej-campo ej-campo-grande">

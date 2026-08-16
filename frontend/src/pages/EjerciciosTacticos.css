@@ -13,3 +13,10 @@
   margin-top: 14px;
   pointer-events: none;
 }
+
+.et-pizarra-imagen {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin-top: 14px;
+  display: block;
+}

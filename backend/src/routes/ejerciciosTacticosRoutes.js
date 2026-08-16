@@ -9,29 +9,37 @@ const {
   actualizarEjercicioTactico,
   eliminarEjercicioTactico,
   obtenerArchivoVideo,
+  obtenerArchivoPizarra,
 } = require("../controllers/ejerciciosTacticosController");
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
-const uploadVideo = require("../middlewares/uploadMiddleware");
+const uploadPizarra = require("../middlewares/uploadPizarraMiddleware");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
-const TODO_EL_PLANTEL = [...CUERPO_TECNICO, "jugador"];
 
-// Visible para todo el plantel (igual que el resto de Entrenamientos)
-router.get("/categorias", verificarToken, autorizarRoles(...TODO_EL_PLANTEL), listarCategorias);
-router.get("/", verificarToken, autorizarRoles(...TODO_EL_PLANTEL), listarEjerciciosTacticos);
-router.get("/:id", verificarToken, autorizarRoles(...TODO_EL_PLANTEL), obtenerEjercicioTactico);
-router.get("/:id/archivo", verificarToken, autorizarRoles(...TODO_EL_PLANTEL), obtenerArchivoVideo);
+// "Entrenamientos desglosados" es exclusivo del cuerpo técnico: el jugador
+// no tiene acceso a ninguna de estas rutas.
+router.use(verificarToken, autorizarRoles(...CUERPO_TECNICO));
 
-// Alta, edición y borrado: solo cuerpo técnico
+router.get("/categorias", listarCategorias);
+router.get("/", listarEjerciciosTacticos);
+router.get("/:id", obtenerEjercicioTactico);
+router.get("/:id/archivo", obtenerArchivoVideo);
+router.get("/:id/pizarra-archivo", obtenerArchivoPizarra);
+
 router.post(
   "/",
-  verificarToken,
-  autorizarRoles(...CUERPO_TECNICO),
-  uploadVideo.single("video"),
+  uploadPizarra.fields([
+    { name: "video", maxCount: 1 },
+    { name: "pizarra_archivo", maxCount: 1 },
+  ]),
   crearEjercicioTactico
 );
-router.put("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), actualizarEjercicioTactico);
-router.delete("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), eliminarEjercicioTactico);
+router.put(
+  "/:id",
+  uploadPizarra.fields([{ name: "pizarra_archivo", maxCount: 1 }]),
+  actualizarEjercicioTactico
+);
+router.delete("/:id", eliminarEjercicioTactico);
 
 module.exports = router;

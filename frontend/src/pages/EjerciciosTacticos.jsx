@@ -10,16 +10,26 @@ import './EjerciciosTacticos.css'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
-const ETIQUETAS_CATEGORIA = { rondos: 'Rondos', pelota_parada: 'Pelota parada' }
+const ETIQUETAS_CATEGORIA = {
+  rondos: 'Rondos',
+  pelota_parada: 'Pelota parada',
+  preestablecido: 'Preestablecido',
+  ruta_de_pases: 'Ruta de pases',
+  especifico_ofensivo: 'Específico ofensivo',
+  especifico_defensivo: 'Específico defensivo',
+  posesiones: 'Posesiones',
+  salidas_progresivas: 'Salidas progresivas',
+  ejercicios_individuales: 'Ejercicios individuales',
+}
 
-// Ejercicios tácticos: dentro de "Entrenamientos desglosados", una
-// biblioteca de videos cortos organizada en categorías y sub-categorías
-// fijas (Rondos, Pelota parada), cada uno con su pizarra táctica.
-// Si se pasa categoriaFija, se omite el selector de categoría y se muestra
-// directamente esa categoría (así lo usa la pestaña de Entrenamientos).
-export default function EjerciciosTacticos({ categoriaFija }) {
+// Ejercicios tácticos: dentro de "Entrenamientos desglosados" (exclusivo
+// del cuerpo técnico), una biblioteca de videos cortos organizada en
+// categorías fijas — algunas con sub-división (Rondos, Pelota parada) y el
+// resto sin ella —, cada uno con su pizarra táctica (dibujada o subida
+// como imagen/video).
+export default function EjerciciosTacticos() {
   const [categorias, setCategorias] = useState(null)
-  const [categoria, setCategoria] = useState(categoriaFija || null)
+  const [categoria, setCategoria] = useState(null)
   const [subcategoria, setSubcategoria] = useState(null)
   const [error, setError] = useState('')
 
@@ -28,12 +38,12 @@ export default function EjerciciosTacticos({ categoriaFija }) {
       .get('/ejercicios-tacticos/categorias')
       .then(({ data }) => {
         setCategorias(data)
-        const inicial = categoriaFija || Object.keys(data)[0]
+        const inicial = Object.keys(data)[0]
         setCategoria(inicial)
         setSubcategoria(data[inicial]?.[0] || null)
       })
       .catch((err) => setError(extraerError(err, 'No se pudieron cargar las categorías')))
-  }, [categoriaFija])
+  }, [])
 
   if (error) {
     return <div className="alert alert-error">{error}</div>
@@ -49,38 +59,38 @@ export default function EjerciciosTacticos({ categoriaFija }) {
 
   const cambiarCategoria = (c) => {
     setCategoria(c)
-    setSubcategoria(categorias[c][0])
+    setSubcategoria(categorias[c][0] || null)
   }
 
   return (
     <div>
-      {!categoriaFija && (
-        <div className="et-tabs">
-          {Object.keys(categorias).map((c) => (
+      <div className="et-tabs">
+        {Object.keys(categorias).map((c) => (
+          <button
+            key={c}
+            className={`btn btn-sm ${categoria === c ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => cambiarCategoria(c)}
+          >
+            {ETIQUETAS_CATEGORIA[c] || c}
+          </button>
+        ))}
+      </div>
+
+      {categorias[categoria].length > 0 && (
+        <div className="et-tabs et-subtabs">
+          {categorias[categoria].map((s) => (
             <button
-              key={c}
-              className={`btn btn-sm ${categoria === c ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => cambiarCategoria(c)}
+              key={s}
+              className={`btn btn-sm ${subcategoria === s ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setSubcategoria(s)}
             >
-              {ETIQUETAS_CATEGORIA[c] || c}
+              {s}
             </button>
           ))}
         </div>
       )}
 
-      <div className="et-tabs et-subtabs">
-        {categorias[categoria].map((s) => (
-          <button
-            key={s}
-            className={`btn btn-sm ${subcategoria === s ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setSubcategoria(s)}
-          >
-            {s}
-          </button>
-        ))}
-      </div>
-
-      {subcategoria && <ListaEjercicios categoria={categoria} subcategoria={subcategoria} />}
+      <ListaEjercicios categoria={categoria} subcategoria={subcategoria} />
     </div>
   )
 }
@@ -95,8 +105,10 @@ function ListaEjercicios({ categoria, subcategoria }) {
   const cargar = () => {
     setCargando(true)
     setAbierto(null)
+    const params = { categoria }
+    if (subcategoria) params.subcategoria = subcategoria
     api
-      .get('/ejercicios-tacticos', { params: { categoria, subcategoria } })
+      .get('/ejercicios-tacticos', { params })
       .then(({ data }) => setEjercicios(data))
       .catch((err) => setError(extraerError(err, 'No se pudieron cargar los ejercicios')))
       .finally(() => setCargando(false))
@@ -118,7 +130,7 @@ function ListaEjercicios({ categoria, subcategoria }) {
 
       {!cargando && ejercicios.length === 0 && (
         <div className="empty-state card">
-          <p>Todavía no hay ejercicios cargados en &quot;{subcategoria}&quot;.</p>
+          <p>Todavía no hay ejercicios cargados en &quot;{subcategoria || ETIQUETAS_CATEGORIA[categoria] || categoria}&quot;.</p>
         </div>
       )}
 
@@ -203,10 +215,27 @@ function DetalleEjercicio({ id, esCuerpoTecnico, onEliminado }) {
         </a>
       ) : null}
 
-      {detalle.dibujo_json && (
-        <div className="et-pizarra-solo-lectura">
-          <CanchaEditor value={detalle.dibujo_json} onChange={() => {}} editable={false} />
-        </div>
+      {detalle.pizarra_modo === 'archivo' ? (
+        detalle.pizarra_archivo_tipo === 'imagen' ? (
+          <img
+            className="et-pizarra-imagen"
+            src={`${API_BASE}/api/ejercicios-tacticos/${id}/pizarra-archivo?token=${token}`}
+            alt="Pizarra táctica"
+          />
+        ) : (
+          <video
+            className="video-player"
+            controls
+            preload="metadata"
+            src={`${API_BASE}/api/ejercicios-tacticos/${id}/pizarra-archivo?token=${token}`}
+          />
+        )
+      ) : (
+        detalle.dibujo_json && (
+          <div className="et-pizarra-solo-lectura">
+            <CanchaEditor value={detalle.dibujo_json} onChange={() => {}} editable={false} />
+          </div>
+        )
       )}
 
       {esCuerpoTecnico && (
@@ -225,8 +254,9 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
   const [modo, setModo] = useState('archivo')
   const [archivo, setArchivo] = useState(null)
   const [urlVideo, setUrlVideo] = useState('')
+  const [modoPizarra, setModoPizarra] = useState('dibujo')
   const [dibujo, setDibujo] = useState(ESCENA_VACIA)
-  const [mostrarPizarra, setMostrarPizarra] = useState(false)
+  const [archivoPizarra, setArchivoPizarra] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
@@ -241,7 +271,7 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
     try {
       const datos = new FormData()
       datos.append('categoria', categoria)
-      datos.append('subcategoria', subcategoria)
+      if (subcategoria) datos.append('subcategoria', subcategoria)
       datos.append('titulo', form.titulo)
       if (form.fecha) datos.append('fecha', form.fecha)
       if (form.descripcion) datos.append('descripcion', form.descripcion)
@@ -251,17 +281,23 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
       } else if (modo === 'link' && urlVideo.trim()) {
         datos.append('url_video', urlVideo.trim())
       }
-      const pizarraTieneContenido =
-        dibujo.jugadores.length > 0 || dibujo.flechas.length > 0 || dibujo.figuras.length > 0
-      if (pizarraTieneContenido) datos.append('dibujo_json', JSON.stringify(dibujo))
+
+      if (modoPizarra === 'archivo' && archivoPizarra) {
+        datos.append('pizarra_archivo', archivoPizarra)
+      } else if (modoPizarra === 'dibujo') {
+        const pizarraTieneContenido =
+          dibujo.jugadores.length > 0 || dibujo.flechas.length > 0 || dibujo.figuras.length > 0
+        if (pizarraTieneContenido) datos.append('dibujo_json', JSON.stringify(dibujo))
+      }
 
       await api.post('/ejercicios-tacticos', datos)
       setMensaje('Ejercicio guardado correctamente')
       setForm({ ...FORM_VACIO, fecha: hoyISO() })
       setArchivo(null)
       setUrlVideo('')
+      setModoPizarra('dibujo')
       setDibujo(ESCENA_VACIA)
-      setMostrarPizarra(false)
+      setArchivoPizarra(null)
       onCreado()
     } catch (err) {
       setError(extraerError(err, 'No se pudo guardar el ejercicio'))
@@ -272,7 +308,7 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
 
   return (
     <form className="card entren-form" onSubmit={onSubmit}>
-      <h3>Nuevo ejercicio — {subcategoria}</h3>
+      <h3>Nuevo ejercicio — {subcategoria || ETIQUETAS_CATEGORIA[categoria] || categoria}</h3>
 
       {error && <div className="alert alert-error">{error}</div>}
       {mensaje && <div className="alert alert-success">{mensaje}</div>}
@@ -332,16 +368,38 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
         </div>
       )}
 
-      <button
-        type="button"
-        className="btn btn-ghost btn-sm"
-        style={{ alignSelf: 'flex-start' }}
-        onClick={() => setMostrarPizarra((v) => !v)}
-      >
-        {mostrarPizarra ? '− Ocultar' : '+ Agregar'} pizarra táctica
-      </button>
+      <div className="field">
+        <label>Pizarra táctica (opcional)</label>
+        <div className="modo-toggle">
+          <button
+            type="button"
+            className={`btn btn-sm ${modoPizarra === 'dibujo' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setModoPizarra('dibujo')}
+          >
+            Dibujar pizarra
+          </button>
+          <button
+            type="button"
+            className={`btn btn-sm ${modoPizarra === 'archivo' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setModoPizarra('archivo')}
+          >
+            Subir imagen o video
+          </button>
+        </div>
+      </div>
 
-      {mostrarPizarra && <CanchaEditor value={dibujo} onChange={setDibujo} editable />}
+      {modoPizarra === 'dibujo' ? (
+        <CanchaEditor value={dibujo} onChange={setDibujo} editable />
+      ) : (
+        <div className="field">
+          <input
+            type="file"
+            accept="image/*,video/*"
+            onChange={(e) => setArchivoPizarra(e.target.files[0] || null)}
+          />
+          {archivoPizarra && <span className="texto-muted">{archivoPizarra.name}</span>}
+        </div>
+      )}
 
       <button className="btn btn-primary" type="submit" disabled={enviando}>
         {enviando ? <span className="spinner" /> : 'Guardar ejercicio'}

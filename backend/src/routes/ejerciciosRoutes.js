@@ -12,10 +12,12 @@ const {
   agregarVideoEjercicio,
   eliminarVideoEjercicio,
   obtenerArchivoVideoEjercicio,
+  obtenerArchivoPizarra,
 } = require("../controllers/ejerciciosController");
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
+const uploadPizarra = require("../middlewares/uploadPizarraMiddleware");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -29,8 +31,13 @@ router.post("/entrenamiento/:entrenamientoId", crearEjercicio);
 router.get("/entrenamiento/:entrenamientoId", listarEjercicios);
 router.post("/entrenamiento/:entrenamientoId/reutilizar/:origenId", reutilizarEjercicio);
 router.get("/:id", obtenerEjercicio);
-router.put("/:id", actualizarEjercicio);
+router.put(
+  "/:id",
+  uploadPizarra.fields([{ name: "pizarra_archivo", maxCount: 1 }]),
+  actualizarEjercicio
+);
 router.delete("/:id", eliminarEjercicio);
+router.get("/:id/pizarra-archivo", obtenerArchivoPizarra);
 
 // Video real de la ejecución del ejercicio (para comparar con la animación
 // de la pizarra)

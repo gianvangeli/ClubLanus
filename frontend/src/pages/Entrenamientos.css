@@ -157,33 +157,36 @@
   margin-bottom: 18px;
 }
 
-.rutina-jugadores-lista {
-  list-style: none;
-  margin: 14px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13.5px;
+.entren-chip-acceso {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
 }
 
-.rutina-jugadores-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  max-height: 220px;
-  overflow-y: auto;
+.entren-chip-sin_solicitud {
+  background: #f1f1f1;
+  color: var(--text-muted);
+  border-color: var(--border);
 }
 
-.rutina-jugador-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
-  cursor: pointer;
+.entren-chip-pendiente {
+  background: #fef3e2;
+  color: #b46b00;
+  border-color: #f0b562;
+}
+
+.entren-chip-aprobado {
+  background: #eafaf0;
+  color: #1a7a3f;
+  border-color: #8fd9ac;
+}
+
+.entren-chip-rechazado {
+  background: #fdecea;
+  color: #c0392b;
+  border-color: #f3a9a0;
 }
 
 .texto-muted {

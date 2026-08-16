@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api, { extraerError } from '../api/client'
 import { formatFecha } from '../utils/fecha'
-import { VideoEntrenamiento } from './Entrenamientos'
+import { VideoEntrenamiento, tituloSesion } from './Entrenamientos'
 import ImportarGpsPanel from '../components/ImportarGpsPanel'
 import './Entrenamientos.css'
 import './EntrenamientoDetalle.css'
@@ -67,13 +67,15 @@ export default function EntrenamientoDetalle() {
     )
   }
 
+  const puedeVerVideos = esCuerpoTecnico || sesion.acceso === 'aprobado'
+
   return (
     <div className="page">
       <Link to="/entrenamientos" className="btn btn-ghost btn-sm">← Volver a Entrenamientos</Link>
 
       <div className="page-header" style={{ marginTop: 16 }}>
         <div>
-          <h1>{sesion.titulo || 'Entrenamiento del día'}</h1>
+          <h1>{tituloSesion(sesion.fecha)}</h1>
           <p>{formatFecha(sesion.fecha)}</p>
         </div>
         {esCuerpoTecnico && !editando && (
@@ -99,24 +101,32 @@ export default function EntrenamientoDetalle() {
         />
       )}
 
-      <div className="card seccion" style={{ marginTop: 16 }}>
-        <h3>Videos</h3>
+      {!esCuerpoTecnico && !puedeVerVideos && (
+        <SolicitarAcceso entrenamientoId={id} acceso={sesion.acceso} onSolicitado={cargar} />
+      )}
 
-        {sesion.videos.length === 0 && <p className="texto-muted">Esta sesión todavía no tiene videos.</p>}
+      {puedeVerVideos && (
+        <div className="card seccion" style={{ marginTop: 16 }}>
+          <h3>Videos</h3>
 
-        <div className="entren-videos">
-          {sesion.videos.map((v) => (
-            <VideoEntrenamiento
-              key={v.id}
-              video={v}
-              puedeEliminar={esCuerpoTecnico}
-              onEliminar={() => eliminarVideo(v.id)}
-            />
-          ))}
+          {sesion.videos.length === 0 && <p className="texto-muted">Esta sesión todavía no tiene videos.</p>}
+
+          <div className="entren-videos">
+            {sesion.videos.map((v) => (
+              <VideoEntrenamiento
+                key={v.id}
+                video={v}
+                puedeEliminar={esCuerpoTecnico}
+                onEliminar={() => eliminarVideo(v.id)}
+              />
+            ))}
+          </div>
+
+          {esCuerpoTecnico && <AgregarVideo entrenamientoId={id} onAgregado={cargar} />}
         </div>
+      )}
 
-        {esCuerpoTecnico && <AgregarVideo entrenamientoId={id} onAgregado={cargar} />}
-      </div>
+      {esCuerpoTecnico && <SolicitudesAcceso entrenamientoId={id} />}
 
       {esCuerpoTecnico && <Ejercicios entrenamientoId={id} />}
 
@@ -125,7 +135,7 @@ export default function EntrenamientoDetalle() {
           <h3>GPS del entrenamiento</h3>
           <ImportarGpsPanel
             fechaInicial={sesion.fecha ? sesion.fecha.slice(0, 10) : ''}
-            partidoInicial={sesion.titulo || ''}
+            partidoInicial={tituloSesion(sesion.fecha)}
           />
         </div>
       )}
@@ -139,15 +149,128 @@ export default function EntrenamientoDetalle() {
   )
 }
 
-function EdicionSesion({ sesion, onGuardado, onCancelar }) {
-  const [form, setForm] = useState({
-    titulo: sesion.titulo || '',
-    descripcion: sesion.descripcion || '',
-  })
+// Pantalla que ve el jugador cuando todavía no tiene acceso aprobado a la
+// sesión: le permite pedirlo (o volver a pedirlo, si fue rechazado).
+function SolicitarAcceso({ entrenamientoId, acceso, onSolicitado }) {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
 
-  const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+  const solicitar = async () => {
+    setEnviando(true)
+    setError('')
+    try {
+      await api.post(`/entrenamientos/${entrenamientoId}/solicitar-acceso`)
+      onSolicitado()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo enviar la solicitud'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <div className="card seccion entren-acceso-box" style={{ marginTop: 16 }}>
+      {acceso === 'pendiente' ? (
+        <>
+          <h3>Solicitud enviada</h3>
+          <p className="texto-muted">Tu pedido de acceso está esperando la aprobación del cuerpo técnico.</p>
+        </>
+      ) : (
+        <>
+          <h3>Acceso restringido</h3>
+          <p className="texto-muted">
+            {acceso === 'rechazado'
+              ? 'Tu solicitud anterior fue rechazada. Podés volver a pedir acceso.'
+              : 'Para ver los videos de esta sesión, primero tenés que pedirle acceso al cuerpo técnico.'}
+          </p>
+          {error && <div className="alert alert-error">{error}</div>}
+          <button className="btn btn-primary btn-sm" onClick={solicitar} disabled={enviando}>
+            {enviando ? <span className="spinner" /> : 'Solicitar acceso'}
+          </button>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Panel del cuerpo técnico para aprobar o rechazar los pedidos de acceso a
+// esta sesión. No se muestra si nunca hubo ningún pedido.
+function SolicitudesAcceso({ entrenamientoId }) {
+  const [solicitudes, setSolicitudes] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+  const [resolviendoId, setResolviendoId] = useState(null)
+
+  const cargar = () => {
+    setCargando(true)
+    api
+      .get(`/entrenamientos/${entrenamientoId}/solicitudes`)
+      .then(({ data }) => setSolicitudes(data))
+      .catch((err) => setError(extraerError(err, 'No se pudieron cargar las solicitudes')))
+      .finally(() => setCargando(false))
+  }
+
+  useEffect(cargar, [entrenamientoId])
+
+  const resolver = async (solicitudId, estado) => {
+    setResolviendoId(solicitudId)
+    try {
+      await api.put(`/entrenamientos/${entrenamientoId}/solicitudes/${solicitudId}`, { estado })
+      cargar()
+    } catch (err) {
+      setError(extraerError(err, 'No se pudo actualizar la solicitud'))
+    } finally {
+      setResolviendoId(null)
+    }
+  }
+
+  if (cargando || solicitudes.length === 0) {
+    return null
+  }
+
+  return (
+    <div className="card seccion" style={{ marginTop: 16 }}>
+      <h3>Solicitudes de acceso</h3>
+
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <div className="entren-solicitudes-lista">
+        {solicitudes.map((s) => (
+          <div key={s.id} className="entren-solicitud-item">
+            <span>{s.nombre} {s.apellido}</span>
+            {s.estado === 'pendiente' ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => resolver(s.id, 'aprobado')}
+                  disabled={resolviendoId === s.id}
+                >
+                  Aprobar
+                </button>
+                <button
+                  className="btn btn-ghost btn-sm btn-danger"
+                  onClick={() => resolver(s.id, 'rechazado')}
+                  disabled={resolviendoId === s.id}
+                >
+                  Rechazar
+                </button>
+              </div>
+            ) : (
+              <span className={`entren-chip-acceso entren-chip-${s.estado}`}>
+                {s.estado === 'aprobado' ? 'Aprobado' : 'Rechazado'}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function EdicionSesion({ sesion, onGuardado, onCancelar }) {
+  const [descripcion, setDescripcion] = useState(sesion.descripcion || '')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState('')
 
   const guardar = async (e) => {
     e.preventDefault()
@@ -155,9 +278,7 @@ function EdicionSesion({ sesion, onGuardado, onCancelar }) {
     setEnviando(true)
     try {
       const datos = new FormData()
-      Object.entries(form).forEach(([campo, valor]) => {
-        if (valor !== '') datos.append(campo, valor)
-      })
+      if (descripcion !== '') datos.append('descripcion', descripcion)
       await api.put(`/entrenamientos/${sesion.id}`, datos)
       onGuardado()
     } catch (err) {
@@ -172,12 +293,8 @@ function EdicionSesion({ sesion, onGuardado, onCancelar }) {
       {error && <div className="alert alert-error">{error}</div>}
 
       <div className="field">
-        <label>Título del entrenamiento (visible para el jugador)</label>
-        <input value={form.titulo} onChange={onChange('titulo')} />
-      </div>
-      <div className="field">
         <label>Descripción de la sesión (solo cuerpo técnico)</label>
-        <input value={form.descripcion} onChange={onChange('descripcion')} />
+        <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
       </div>
 
       <div className="form-edicion-botones">

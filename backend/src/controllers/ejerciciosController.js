@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { tipoDeArchivoPizarra } = require("../middlewares/uploadPizarraMiddleware");
 
 // Los ejercicios son material de planificación exclusivo del cuerpo técnico:
 // el jugador nunca accede a estas rutas (ver entrenamientosRoutes/autorizarRoles).
@@ -58,7 +59,13 @@ const listarEjercicios = async (req, res) => {
 const obtenerEjercicio = async (req, res) => {
   try {
     const { id } = req.params;
-    const [ejercicios] = await db.query("SELECT * FROM ejercicios WHERE id = ?", [id]);
+    const [ejercicios] = await db.query(
+      `SELECT id, entrenamiento_id, numero, dia, tipo_trabajo, espacio, objetivo, n_jugadores, duracion,
+              descripcion, dibujo_json, pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original,
+              creado_por, creado_en
+       FROM ejercicios WHERE id = ?`,
+      [id]
+    );
     if (ejercicios.length === 0) {
       return res.status(404).json({ message: "Ejercicio no encontrado" });
     }
@@ -82,13 +89,18 @@ const obtenerEjercicio = async (req, res) => {
   }
 };
 
-// Edita los campos de la planilla y/o el dibujo táctico (escena completa en JSON)
+// Edita los campos de la planilla y la pizarra táctica: dibujada (escena
+// completa en JSON) o, como alternativa mutuamente excluyente, subida como
+// imagen/video ya armado.
 const actualizarEjercicio = async (req, res) => {
   try {
     const { id } = req.params;
-    const { dibujo_json } = req.body;
+    const dibujoJson = req.body.dibujo_json;
 
-    const [ejercicios] = await db.query("SELECT id FROM ejercicios WHERE id = ?", [id]);
+    const [ejercicios] = await db.query(
+      "SELECT pizarra_archivo_url FROM ejercicios WHERE id = ?",
+      [id]
+    );
     if (ejercicios.length === 0) {
       return res.status(404).json({ message: "Ejercicio no encontrado" });
     }
@@ -96,10 +108,32 @@ const actualizarEjercicio = async (req, res) => {
     const asignaciones = CAMPOS_EDITABLES.map((campo) => `${campo} = ?`).join(", ");
     const valores = CAMPOS_EDITABLES.map((campo) => req.body[campo] || null);
 
-    await db.query(
-      `UPDATE ejercicios SET ${asignaciones}, dibujo_json = COALESCE(?, dibujo_json) WHERE id = ?`,
-      [...valores, dibujo_json !== undefined ? JSON.stringify(dibujo_json) : null, id]
-    );
+    await db.query(`UPDATE ejercicios SET ${asignaciones} WHERE id = ?`, [...valores, id]);
+
+    const archivoPizarra = (req.files?.pizarra_archivo || [])[0];
+
+    // Dibujo y archivo son mutuamente excluyentes: al cambiar de modo se
+    // borra lo que había del otro.
+    if (archivoPizarra) {
+      if (ejercicios[0].pizarra_archivo_url) eliminarArchivo(ejercicios[0].pizarra_archivo_url);
+      const url = await guardarArchivoDesdeRuta(archivoPizarra.path, "pizarras", archivoPizarra.originalname);
+      await db.query(
+        `UPDATE ejercicios
+         SET pizarra_modo = 'archivo', pizarra_archivo_url = ?, pizarra_archivo_tipo = ?,
+             pizarra_archivo_nombre_original = ?, dibujo_json = NULL
+         WHERE id = ?`,
+        [url, tipoDeArchivoPizarra(archivoPizarra.mimetype), archivoPizarra.originalname, id]
+      );
+    } else if (dibujoJson !== undefined) {
+      if (ejercicios[0].pizarra_archivo_url) eliminarArchivo(ejercicios[0].pizarra_archivo_url);
+      await db.query(
+        `UPDATE ejercicios
+         SET pizarra_modo = 'dibujo', dibujo_json = ?, pizarra_archivo_url = NULL,
+             pizarra_archivo_tipo = NULL, pizarra_archivo_nombre_original = NULL
+         WHERE id = ?`,
+        [typeof dibujoJson === "string" ? dibujoJson : JSON.stringify(dibujoJson), id]
+      );
+    }
 
     res.json({ message: "Ejercicio actualizado correctamente" });
   } catch (error) {
@@ -110,10 +144,18 @@ const actualizarEjercicio = async (req, res) => {
 const eliminarEjercicio = async (req, res) => {
   try {
     const { id } = req.params;
-    const [result] = await db.query("DELETE FROM ejercicios WHERE id = ?", [id]);
-    if (result.affectedRows === 0) {
+
+    const [ejercicios] = await db.query("SELECT pizarra_archivo_url FROM ejercicios WHERE id = ?", [id]);
+    if (ejercicios.length === 0) {
       return res.status(404).json({ message: "Ejercicio no encontrado" });
     }
+
+    await db.query("DELETE FROM ejercicios WHERE id = ?", [id]);
+
+    if (ejercicios[0].pizarra_archivo_url) {
+      eliminarArchivo(ejercicios[0].pizarra_archivo_url);
+    }
+
     res.json({ message: "Ejercicio eliminado correctamente" });
   } catch (error) {
     res.status(500).json({ message: "Error al eliminar el ejercicio", error: error.message });
@@ -290,6 +332,22 @@ const obtenerArchivoVideoEjercicio = async (req, res) => {
   }
 };
 
+// Sirve la pizarra táctica cuando se cargó como imagen/video en vez de dibujada.
+const obtenerArchivoPizarra = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [ejercicios] = await db.query("SELECT pizarra_archivo_url FROM ejercicios WHERE id = ?", [id]);
+    if (ejercicios.length === 0 || !ejercicios[0].pizarra_archivo_url) {
+      return res.status(404).json({ message: "Archivo no encontrado" });
+    }
+
+    await servirArchivo(req, res, ejercicios[0].pizarra_archivo_url);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener el archivo", error: error.message });
+  }
+};
+
 module.exports = {
   crearEjercicio,
   listarEjercicios,
@@ -301,4 +359,5 @@ module.exports = {
   agregarVideoEjercicio,
   eliminarVideoEjercicio,
   obtenerArchivoVideoEjercicio,
+  obtenerArchivoPizarra,
 };

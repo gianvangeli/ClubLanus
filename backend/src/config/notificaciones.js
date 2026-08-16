@@ -45,9 +45,25 @@ const notificarTodosLosJugadores = async (tipo, titulo, ruta) => {
   }
 };
 
+// Notifica a todo el cuerpo técnico (admin, entrenador, preparador físico) —
+// usado por ejemplo cuando un jugador solicita acceso a un entrenamiento.
+const notificarCuerpoTecnico = async (tipo, titulo, ruta) => {
+  try {
+    const [usuarios] = await db.query(
+      "SELECT id FROM usuarios WHERE rol IN ('admin', 'entrenador', 'preparador_fisico')"
+    );
+    for (const { id } of usuarios) {
+      await crearNotificacion(id, tipo, titulo, ruta);
+    }
+  } catch (error) {
+    console.error("Error al notificar al cuerpo técnico:", error.message);
+  }
+};
+
 module.exports = {
   crearNotificacion,
   notificarJugador,
   notificarJugadores,
   notificarTodosLosJugadores,
+  notificarCuerpoTecnico,
 };

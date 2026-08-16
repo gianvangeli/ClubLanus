@@ -191,6 +191,13 @@
   margin-top: 6px;
 }
 
+.et-pizarra-imagen {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+  display: block;
+}
+
 .modo-toggle {
   display: flex;
   gap: 8px;

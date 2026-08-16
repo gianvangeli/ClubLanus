@@ -11,6 +11,9 @@ const {
   obtenerArchivoVideo,
   obtenerReflexion,
   actualizarReflexion,
+  solicitarAcceso,
+  listarSolicitudes,
+  resolverSolicitud,
 } = require("../controllers/entrenamientosController");
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
@@ -61,5 +64,15 @@ router.get("/videos/:videoId/archivo", verificarToken, obtenerArchivoVideo);
 // Página de reflexión post-entrenamiento (solo cuerpo técnico)
 router.get("/:id/reflexion", verificarToken, autorizarRoles(...CUERPO_TECNICO), obtenerReflexion);
 router.put("/:id/reflexion", verificarToken, autorizarRoles(...CUERPO_TECNICO), actualizarReflexion);
+
+// Solicitud de acceso a una sesión (jugador) y su aprobación/rechazo (CT)
+router.post("/:id/solicitar-acceso", verificarToken, autorizarRoles("jugador"), solicitarAcceso);
+router.get("/:id/solicitudes", verificarToken, autorizarRoles(...CUERPO_TECNICO), listarSolicitudes);
+router.put(
+  "/:id/solicitudes/:solicitudId",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  resolverSolicitud
+);
 
 module.exports = router;
