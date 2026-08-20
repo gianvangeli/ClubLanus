@@ -17,7 +17,7 @@ const CAMPOS_BLOQUE = [
   "jugadores_por_tarea",
 ];
 
-const ESPACIOS_TRABAJO = ["completa", "media", "reducido"];
+const ESPACIOS_TRABAJO = ["completa", "media", "reducido", "gimnasio"];
 
 // tipo_actividad es lo que ve el jugador (colorea el calendario mensual:
 // general=rojo, preparador_fisico=azul, cancha=verde, viaje=amarillo).

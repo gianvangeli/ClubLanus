@@ -4,6 +4,7 @@ const TIPOS = {
   completa: { alto: 60 },
   media: { alto: 60 },
   reducido: { alto: 60 },
+  gimnasio: { alto: 60 },
 }
 
 export default function CanchaMiniatura({ tipo = 'completa', size = 46 }) {
@@ -11,6 +12,21 @@ export default function CanchaMiniatura({ tipo = 'completa', size = 46 }) {
   const w = 40
   const h = cfg.alto
   const linea = 'rgba(255,255,255,0.85)'
+
+  if (tipo === 'gimnasio') {
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${w} ${h}`} role="img" aria-label="Espacio de trabajo: gimnasio">
+        <rect x={0} y={0} width={w} height={h} fill="#5b5f97" rx={2} />
+        <g stroke={linea} strokeWidth={2} strokeLinecap="round">
+          <line x1={8} y1={h / 2} x2={w - 8} y2={h / 2} />
+          <line x1={13} y1={h / 2 - 8} x2={13} y2={h / 2 + 8} />
+          <line x1={w - 13} y1={h / 2 - 8} x2={w - 13} y2={h / 2 + 8} />
+          <line x1={9} y1={h / 2 - 5} x2={9} y2={h / 2 + 5} />
+          <line x1={w - 9} y1={h / 2 - 5} x2={w - 9} y2={h / 2 + 5} />
+        </g>
+      </svg>
+    )
+  }
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`Espacio de trabajo: ${tipo}`}>

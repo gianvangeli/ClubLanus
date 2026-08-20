@@ -208,19 +208,25 @@
 @media print {
   @page {
     size: landscape;
-    margin: 10mm;
+    margin: 8mm;
   }
 
   .no-print {
     display: none !important;
   }
 
+  .page {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
   .mc-print-header {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 12px;
-    padding-bottom: 10px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
     border-bottom: 2px solid var(--granate-700);
   }
 
@@ -237,22 +243,34 @@
   }
 
   .mc-grilla {
-    gap: 6px;
+    gap: 5px;
+    flex-wrap: nowrap;
   }
 
   .mc-dia {
-    flex-basis: 110px;
+    flex: 1 1 0;
+    flex-basis: 0;
+    min-height: 0;
     break-inside: avoid;
-    padding: 6px;
+    padding: 5px;
+  }
+
+  .mc-dia-header {
+    padding-bottom: 4px;
   }
 
   .mc-bloque {
-    padding: 5px 6px;
+    padding: 4px 5px;
     break-inside: avoid;
   }
 
+  .mc-bloque-titulo,
+  .mc-bloque-detalle {
+    font-size: 10px;
+  }
+
   .mc-bloque-cancha svg {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
   }
 }

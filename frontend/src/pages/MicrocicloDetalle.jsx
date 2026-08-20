@@ -27,6 +27,7 @@ const ESPACIOS_TRABAJO = [
   { valor: 'completa', etiqueta: 'Cancha completa' },
   { valor: 'media', etiqueta: 'Media cancha' },
   { valor: 'reducido', etiqueta: 'Espacio reducido' },
+  { valor: 'gimnasio', etiqueta: 'Gimnasio' },
 ]
 
 const etiquetaCategoria = (valor) => CATEGORIAS.find((c) => c.valor === valor)?.etiqueta || valor
@@ -119,7 +120,7 @@ export default function MicrocicloDetalle() {
     <div className="page">
       <Link to="/admin/calendario" className="btn btn-ghost btn-sm no-print">← Volver al calendario</Link>
 
-      <div className="page-header" style={{ marginTop: 16 }}>
+      <div className="page-header no-print" style={{ marginTop: 16 }}>
         <div>
           <h1>{microciclo.nombre || 'Planificación semanal'}</h1>
           <p className="texto-muted">
@@ -289,7 +290,13 @@ function FormBloque({ microcicloId, fecha, bloque, onGuardado, onCancelar, onEli
                   key={t.valor}
                   type="button"
                   className={`btn btn-sm ${form.tipo_actividad === t.valor ? 'btn-primary' : 'btn-ghost'} ${t.clase}`}
-                  onClick={() => setForm({ ...form, tipo_actividad: t.valor })}
+                  onClick={() =>
+                    setForm(
+                      t.valor === 'general'
+                        ? { ...form, tipo_actividad: t.valor, espacio: '', orientacion: '', pse: '', objetivo: '', espacio_trabajo: '', jugadores_por_tarea: '' }
+                        : { ...form, tipo_actividad: t.valor }
+                    )
+                  }
                 >
                   {t.etiqueta}
                 </button>
@@ -307,49 +314,53 @@ function FormBloque({ microcicloId, fecha, bloque, onGuardado, onCancelar, onEli
             <textarea rows={3} value={form.descripcion} onChange={onChange('descripcion')} />
           </div>
 
-          <div className="mc-form-row">
-            <div className="field">
-              <label>Espacio</label>
-              <input value={form.espacio} onChange={onChange('espacio')} placeholder="Ej: Cancha 3" />
-            </div>
-            <div className="field">
-              <label>Orientación</label>
-              <input value={form.orientacion} onChange={onChange('orientacion')} placeholder="Ej: Metabólica" />
-            </div>
-          </div>
+          {form.tipo_actividad !== 'general' && (
+            <>
+              <div className="mc-form-row">
+                <div className="field">
+                  <label>Espacio</label>
+                  <input value={form.espacio} onChange={onChange('espacio')} placeholder="Ej: Cancha 3" />
+                </div>
+                <div className="field">
+                  <label>Orientación</label>
+                  <input value={form.orientacion} onChange={onChange('orientacion')} placeholder="Ej: Metabólica" />
+                </div>
+              </div>
 
-          <div className="mc-form-row">
-            <div className="field">
-              <label>PSE</label>
-              <input value={form.pse} onChange={onChange('pse')} placeholder="Ej: 6-8" />
-            </div>
-            <div className="field">
-              <label>Jugadores por tarea</label>
-              <input value={form.jugadores_por_tarea} onChange={onChange('jugadores_por_tarea')} placeholder="Ej: 10 vs 5" />
-            </div>
-          </div>
+              <div className="mc-form-row">
+                <div className="field">
+                  <label>PSE</label>
+                  <input value={form.pse} onChange={onChange('pse')} placeholder="Ej: 6-8" />
+                </div>
+                <div className="field">
+                  <label>Jugadores por tarea</label>
+                  <input value={form.jugadores_por_tarea} onChange={onChange('jugadores_por_tarea')} placeholder="Ej: 10 vs 5" />
+                </div>
+              </div>
 
-          <div className="field">
-            <label>Objetivo</label>
-            <input value={form.objetivo} onChange={onChange('objetivo')} placeholder="Ej: Recuperación muscular" />
-          </div>
+              <div className="field">
+                <label>Objetivo</label>
+                <input value={form.objetivo} onChange={onChange('objetivo')} placeholder="Ej: Recuperación muscular" />
+              </div>
 
-          <div className="field">
-            <label>Espacio de trabajo</label>
-            <div className="mc-espacios-trabajo">
-              {ESPACIOS_TRABAJO.map((e) => (
-                <button
-                  key={e.valor}
-                  type="button"
-                  className={`mc-espacio-opcion ${form.espacio_trabajo === e.valor ? 'mc-espacio-opcion-activa' : ''}`}
-                  onClick={() => setForm({ ...form, espacio_trabajo: form.espacio_trabajo === e.valor ? '' : e.valor })}
-                >
-                  <CanchaMiniatura tipo={e.valor} size={38} />
-                  <span>{e.etiqueta}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+              <div className="field">
+                <label>Espacio de trabajo</label>
+                <div className="mc-espacios-trabajo">
+                  {ESPACIOS_TRABAJO.map((e) => (
+                    <button
+                      key={e.valor}
+                      type="button"
+                      className={`mc-espacio-opcion ${form.espacio_trabajo === e.valor ? 'mc-espacio-opcion-activa' : ''}`}
+                      onClick={() => setForm({ ...form, espacio_trabajo: form.espacio_trabajo === e.valor ? '' : e.valor })}
+                    >
+                      <CanchaMiniatura tipo={e.valor} size={38} />
+                      <span>{e.etiqueta}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="form-edicion-botones">
             <button className="btn btn-primary btn-sm" type="submit" disabled={enviando}>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import api, { extraerError } from '../api/client'
+import api, { API_BASE, extraerError } from '../api/client'
 import { aInputDate, calcularEdad, formatFecha } from '../utils/fecha'
+import { colorSemaforo } from '../utils/semaforo'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
 import './AdminJugadorDetalle.css'
 
@@ -124,7 +125,15 @@ export default function AdminJugadorDetalle() {
       </Link>
 
       <div className="detalle-header">
-        <div className="detalle-header-avatar">{iniciales}</div>
+        {jugador.tiene_foto ? (
+          <img
+            className="detalle-header-avatar detalle-header-avatar-foto"
+            src={`${API_BASE}/api/jugadores/${id}/foto?token=${localStorage.getItem('token')}`}
+            alt={`${jugador.nombre} ${jugador.apellido}`}
+          />
+        ) : (
+          <div className="detalle-header-avatar">{iniciales}</div>
+        )}
         <div className="detalle-header-info">
           <h1>
             {jugador.nombre} {jugador.apellido}
@@ -136,6 +145,12 @@ export default function AdminJugadorDetalle() {
             {jugador.contrato && (
               <span className={`chip-outline ${jugador.contrato === 'si' ? 'chip-outline-ok' : ''}`}>
                 Contrato {jugador.contrato === 'si' ? 'vigente' : 'vencido'}
+              </span>
+            )}
+            {jugador.semaforo_riesgo_ia && (
+              <span className="chip-outline" title={jugador.motivo_riesgo_ia || ''}>
+                <span className="chip-dot" style={{ background: colorSemaforo(jugador.semaforo_riesgo_ia) }} />
+                Riesgo IA
               </span>
             )}
           </div>

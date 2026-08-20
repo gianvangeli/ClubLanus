@@ -1,6 +1,13 @@
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const db = require("../config/db");
+const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { recalcularRiesgoIA } = require("../config/riesgoIa");
+
+// Recalcular el riesgo nunca debe frenar ni romper la respuesta al cuerpo
+// técnico: se dispara sin esperar (fire and forget) y solo se loguea si falla.
+const dispararRecalculoRiesgo = (jugadorId) =>
+  recalcularRiesgoIA(jugadorId).catch((error) => console.error("Error al recalcular riesgo IA:", error.message));
 
 // Posiciones válidas para el gráfico de cancha (ver POSICIONES_CANCHA en el frontend)
 const POSICIONES_CANCHA = [
@@ -68,7 +75,8 @@ const crearJugador = async (req, res) => {
 const listarJugadores = async (req, res) => {
   try {
     const [jugadores] = await db.query(
-      `SELECT id, usuario_id, nombre, apellido, fecha_nacimiento, peso, posicion, categoria, division_nombre, creado_en
+      `SELECT id, usuario_id, nombre, apellido, (foto_url IS NOT NULL) AS tiene_foto, fecha_nacimiento, peso, posicion, categoria, division_nombre, creado_en,
+              semaforo_riesgo_ia, motivo_riesgo_ia
        FROM jugadores
        ORDER BY apellido, nombre`
     );
@@ -306,11 +314,12 @@ const obtenerJugador = async (req, res) => {
     const { id } = req.params;
 
     const [jugadores] = await db.query(
-      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, j.fecha_nacimiento, j.peso, j.nacionalidad_1, j.nacionalidad_2, j.nacionalidad_2_tramite, j.posicion, j.categoria, j.division_nombre,
+      `SELECT j.id, j.usuario_id, j.nombre, j.apellido, (j.foto_url IS NOT NULL) AS tiene_foto, j.fecha_nacimiento, j.peso, j.nacionalidad_1, j.nacionalidad_2, j.nacionalidad_2_tramite, j.posicion, j.categoria, j.division_nombre,
               j.contrato, j.contrato_hasta_mes, j.contrato_hasta_anio, j.agente_nombre, j.agente_apellido, j.agente_empresa, j.agente_mail, j.agente_telefono,
               j.contacto_emergencia_nombre, j.contacto_emergencia_apellido, j.contacto_emergencia_relacion, j.contacto_emergencia_telefono,
               j.pie, j.posiciones_cancha, j.partidos_jugados, j.psicologo_id,
               j.semaforo_psicologico, j.semaforo_analisis,
+              j.semaforo_riesgo_ia, j.motivo_riesgo_ia, j.riesgo_ia_actualizado_en,
               j.creado_en, u.email AS usuario_email, p.email AS psicologo_email
        FROM jugadores j
        LEFT JOIN usuarios u ON u.id = j.usuario_id
@@ -404,6 +413,84 @@ const actualizarJugador = async (req, res) => {
   }
 };
 
+// Sube (o reemplaza) la foto de perfil del jugador, mostrada en vez de las
+// iniciales en el listado y la ficha. Nunca se expone la key/url interna al
+// frontend: se sirve siempre vía obtenerFotoJugador.
+const subirFotoJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ message: "Subí una imagen" });
+    }
+
+    const [jugadores] = await db.query("SELECT foto_url FROM jugadores WHERE id = ?", [id]);
+    if (jugadores.length === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+
+    const url = await guardarArchivo(req.file.buffer, "jugadores-fotos", req.file.originalname);
+
+    if (jugadores[0].foto_url) {
+      eliminarArchivo(jugadores[0].foto_url);
+    }
+
+    await db.query("UPDATE jugadores SET foto_url = ? WHERE id = ?", [url, id]);
+
+    res.json({ message: "Foto actualizada correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al subir la foto",
+      error: error.message,
+    });
+  }
+};
+
+// Quita la foto de perfil (vuelve a mostrar las iniciales).
+const eliminarFotoJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [jugadores] = await db.query("SELECT foto_url FROM jugadores WHERE id = ?", [id]);
+    if (jugadores.length === 0) {
+      return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+    if (!jugadores[0].foto_url) {
+      return res.status(404).json({ message: "Este jugador no tiene foto cargada" });
+    }
+
+    eliminarArchivo(jugadores[0].foto_url);
+    await db.query("UPDATE jugadores SET foto_url = NULL WHERE id = ?", [id]);
+
+    res.json({ message: "Foto eliminada correctamente" });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al eliminar la foto",
+      error: error.message,
+    });
+  }
+};
+
+// Sirve la foto de perfil (misma lógica de disco/nube que el resto de los
+// archivos del sistema, ver config/storage.js).
+const obtenerFotoJugador = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [jugadores] = await db.query("SELECT foto_url FROM jugadores WHERE id = ?", [id]);
+    if (!jugadores[0]?.foto_url) {
+      return res.status(404).json({ message: "Este jugador no tiene foto cargada" });
+    }
+
+    await servirArchivo(req, res, jugadores[0].foto_url);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error al obtener la foto",
+      error: error.message,
+    });
+  }
+};
+
 // Elimina la ficha de un jugador (por si el cuerpo técnico se equivocó al
 // cargarlo). Borra en cascada todo lo que depende de él: composición
 // corporal y las tablas legadas con FK hacia jugadores.
@@ -412,9 +499,12 @@ const eliminarJugador = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [jugadores] = await conn.query("SELECT id FROM jugadores WHERE id = ?", [id]);
+    const [jugadores] = await conn.query("SELECT id, foto_url FROM jugadores WHERE id = ?", [id]);
     if (jugadores.length === 0) {
       return res.status(404).json({ message: "Jugador no encontrado" });
+    }
+    if (jugadores[0].foto_url) {
+      eliminarArchivo(jugadores[0].foto_url);
     }
 
     await conn.beginTransaction();
@@ -578,6 +668,8 @@ const agregarComposicion = async (req, res) => {
 
     await db.query("UPDATE jugadores SET peso = ? WHERE id = ?", [peso, id]);
 
+    dispararRecalculoRiesgo(id);
+
     res.status(201).json({
       message: "Medición registrada correctamente",
       composicion_id: result.insertId,
@@ -621,6 +713,9 @@ module.exports = {
   vincularPsicologo,
   obtenerJugador,
   actualizarJugador,
+  subirFotoJugador,
+  eliminarFotoJugador,
+  obtenerFotoJugador,
   eliminarJugador,
   actualizarAgente,
   actualizarContactoEmergencia,

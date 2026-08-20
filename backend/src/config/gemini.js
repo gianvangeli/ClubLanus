@@ -66,6 +66,23 @@ const generarJSON = async (prompt, archivo) => {
   }
 };
 
+// Igual que generarTexto, pero en un solo llamado (sin archivo, sin
+// historial) le pide a Gemini que responda en JSON puro — usado para
+// cálculos puntuales (ej. el semáforo de riesgo) donde no hace falta una
+// conversación.
+const generarJSONDesdeTexto = async (prompt, mensajeErrorGenerico) => {
+  const texto = await llamarGemini(
+    { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } },
+    mensajeErrorGenerico || "Error al generar el análisis con IA"
+  );
+
+  try {
+    return JSON.parse(texto);
+  } catch {
+    throw new Error("La IA no devolvió un JSON válido");
+  }
+};
+
 // Conversación de varios turnos (chat). `historial` es un array de
 // { rol: 'usuario'|'asistente', contenido } en orden cronológico, incluido
 // el último mensaje del usuario. `systemInstruction` fija el contexto/reglas
@@ -90,4 +107,4 @@ const generarConversacion = async (systemInstruction, historial) => {
   }
 };
 
-module.exports = { generarTexto, generarJSON, generarConversacion };
+module.exports = { generarTexto, generarJSON, generarJSONDesdeTexto, generarConversacion };

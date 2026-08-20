@@ -1,5 +1,11 @@
 const db = require("../config/db");
 const { generarJSON } = require("../config/gemini");
+const { recalcularRiesgoIA } = require("../config/riesgoIa");
+
+// Recalcular el riesgo nunca debe frenar ni romper la respuesta al cuerpo
+// técnico: se dispara sin esperar (fire and forget) y solo se loguea si falla.
+const dispararRecalculoRiesgo = (jugadorId) =>
+  recalcularRiesgoIA(jugadorId).catch((error) => console.error("Error al recalcular riesgo IA:", error.message));
 
 const redondear2 = (n) => Math.round(n * 100) / 100;
 
@@ -38,22 +44,30 @@ const calcularCamposDerivados = (evaluacion, fechaNacimientoJugador) => {
   };
 };
 
+// Las masas corporales (masa_muscular_kg, masa_adiposa_kg, ...) y el índice
+// músculo-óseo salieron del alta manual: son resultados que hasta ahora se
+// tipeaban a mano a partir de una planilla externa, pero se van a
+// recalcular en la app más adelante. Quedan como columnas nullable en la
+// tabla para no perder el historial ya cargado (ver listarEvaluacionesNutricionales).
 const CAMPOS_OBLIGATORIOS = [
   "fecha",
   "peso",
   "talla",
-  "masa_muscular_kg",
-  "masa_adiposa_kg",
-  "masa_osea_kg",
-  "masa_residual_kg",
-  "masa_piel_kg",
-  "indice_musculo_oseo",
   "pliegue_triceps",
   "pliegue_subescapular",
   "pliegue_supraespinal",
   "pliegue_abdominal",
   "pliegue_muslo",
   "pliegue_pantorrilla",
+];
+
+const CAMPOS_MASAS_OPCIONALES = [
+  "masa_muscular_kg",
+  "masa_adiposa_kg",
+  "masa_osea_kg",
+  "masa_residual_kg",
+  "masa_piel_kg",
+  "indice_musculo_oseo",
 ];
 
 // Campos antropométricos de registro (básicos extra, diámetros y
@@ -96,18 +110,7 @@ const CAMPOS_PLIEGUES = [
 const agregarEvaluacionNutricional = async (req, res) => {
   try {
     const { id } = req.params;
-    const {
-      fecha,
-      peso,
-      talla,
-      masa_muscular_kg,
-      masa_adiposa_kg,
-      masa_osea_kg,
-      masa_residual_kg,
-      masa_piel_kg,
-      indice_musculo_oseo,
-      observaciones,
-    } = req.body;
+    const { fecha, peso, talla, observaciones } = req.body;
     const registradoPor = req.usuario.id;
 
     const faltante = CAMPOS_OBLIGATORIOS.find((campo) => req.body[campo] === undefined || req.body[campo] === null || req.body[campo] === "");
@@ -126,6 +129,7 @@ const agregarEvaluacionNutricional = async (req, res) => {
 
     const antropometria = CAMPOS_ANTROPOMETRIA_OPCIONALES.map((campo) => (req.body[campo] === undefined || req.body[campo] === "" ? null : req.body[campo]));
     const pliegues = CAMPOS_PLIEGUES.map((campo) => req.body[campo]);
+    const masas = CAMPOS_MASAS_OPCIONALES.map((campo) => (req.body[campo] === undefined || req.body[campo] === "" ? null : req.body[campo]));
 
     const [result] = await db.query(
       `INSERT INTO nutricion_evaluaciones
@@ -147,17 +151,19 @@ const agregarEvaluacionNutricional = async (req, res) => {
         talla,
         ...antropometria,
         ...pliegues,
-        masa_muscular_kg,
-        masa_adiposa_kg,
+        masas[0],
+        masas[1],
         redondear2(sumatoriaPliegues),
-        masa_osea_kg,
-        masa_residual_kg,
-        masa_piel_kg,
-        indice_musculo_oseo,
+        masas[2],
+        masas[3],
+        masas[4],
+        masas[5],
         observaciones || null,
         registradoPor,
       ]
     );
+
+    dispararRecalculoRiesgo(id);
 
     res.status(201).json({
       message: "Evaluación nutricional registrada correctamente",

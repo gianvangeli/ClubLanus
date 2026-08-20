@@ -3,23 +3,18 @@ import { useAuth } from '../context/AuthContext'
 import EscudoClub from './EscudoClub'
 import NotificacionesCampana from './NotificacionesCampana'
 import MenuJugador from './MenuJugador'
+import UsuarioMenu from './UsuarioMenu'
 import './Layout.css'
 
 export default function Layout() {
   const { usuario, esCuerpoTecnico, logout } = useAuth()
   const navigate = useNavigate()
+  const esJugador = usuario?.rol === 'jugador'
 
   const salir = () => {
     logout()
     navigate('/login')
   }
-
-  const iniciales = (usuario?.nombre || '?')
-    .split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase()
 
   return (
     <div className="layout">
@@ -69,15 +64,13 @@ export default function Layout() {
         </nav>
 
         <div className="navbar-user">
-          <NotificacionesCampana />
-          <div className="navbar-avatar">{iniciales}</div>
-          <div className="navbar-user-text">
-            <strong>{usuario?.nombre}</strong>
-            <span>{formatearRol(usuario?.rol)}</span>
-          </div>
-          <button className="btn btn-ghost btn-sm" onClick={salir}>
-            Salir
-          </button>
+          {esJugador && (
+            <>
+              <NotificacionesCampana />
+              <span className="navbar-divisor" />
+            </>
+          )}
+          <UsuarioMenu usuario={usuario} onSalir={salir} />
         </div>
       </header>
 
@@ -86,14 +79,4 @@ export default function Layout() {
       </main>
     </div>
   )
-}
-
-function formatearRol(rol) {
-  const nombres = {
-    admin: 'Administrador',
-    entrenador: 'Entrenador',
-    preparador_fisico: 'Preparador físico',
-    jugador: 'Jugador',
-  }
-  return nombres[rol] || rol
 }

@@ -1,0 +1,81 @@
+.aia-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.aia-banner-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.aia-banner strong {
+  display: block;
+  font-size: 14.5px;
+}
+
+.aia-banner p {
+  margin-top: 2px;
+  font-size: 13px;
+}
+
+.chat-ia-mensajes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding: 4px 2px;
+  margin-bottom: 12px;
+}
+
+.chat-ia-burbuja {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+}
+
+.chat-ia-burbuja p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.chat-ia-burbuja-usuario {
+  align-self: flex-end;
+  background: var(--granate-50);
+  border: 1px solid var(--granate-100);
+}
+
+.chat-ia-burbuja-asistente {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.chat-ia-burbuja-asistente button {
+  margin-top: 8px;
+}
+
+.chat-ia-form {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.chat-ia-form textarea {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  resize: vertical;
+  font-family: inherit;
+}

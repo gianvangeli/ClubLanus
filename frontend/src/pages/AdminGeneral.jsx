@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import api, { extraerError } from '../api/client'
 import './AdminGeneral.css'
 
-// Mismas 6 áreas especializadas de la ficha del jugador. Cada una linkea
-// directo a su página para poder entrar con un clic desde el resumen.
+// Mismas áreas especializadas de la ficha del jugador (+ el riesgo que
+// calcula el Asistente IA). Cada una linkea directo a su página para poder
+// entrar con un clic desde el resumen.
 const AREAS = [
   { key: 'nutricion', etiqueta: 'Nutrición', ruta: (id) => `/admin/jugadores/${id}/nutricion` },
   { key: 'lesiones', etiqueta: 'Lesiones', ruta: (id) => `/admin/jugadores/${id}/lesiones` },
@@ -12,6 +13,7 @@ const AREAS = [
   { key: 'preparacion_fisica', etiqueta: 'Preparación física', ruta: (id) => `/admin/jugadores/${id}/preparacion-fisica` },
   { key: 'analisis_futbolistico', etiqueta: 'Análisis futbolístico', ruta: (id) => `/admin/jugadores/${id}/analisis-futbolistico` },
   { key: 'datos_bigdata', etiqueta: 'Datos (Big Data)', ruta: (id) => `/admin/jugadores/${id}/datos` },
+  { key: 'riesgo_ia', etiqueta: 'Riesgo (IA)', ruta: (id) => `/admin/jugadores/${id}/asistente-ia` },
 ]
 
 const ESTADO_INFO = {

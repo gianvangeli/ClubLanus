@@ -47,22 +47,16 @@ const CAMPOS_PLIEGUES = [
 
 const CAMPOS_ANTROPOMETRIA_OPCIONALES = [...CAMPOS_BASICOS_EXTRA, ...CAMPOS_DIAMETROS, ...CAMPOS_PERIMETROS]
 
-const CAMPOS_MASAS = [
-  ['masa_muscular_kg', 'Masa muscular (kg)'],
-  ['masa_adiposa_kg', 'Masa adiposa (kg)'],
-  ['masa_osea_kg', 'Masa ósea (kg)'],
-  ['masa_residual_kg', 'Masa residual (kg)'],
-  ['masa_piel_kg', 'Masa de la piel (kg)'],
-]
-
+// Las masas corporales (masa muscular, adiposa, ósea, residual, de la piel)
+// y el índice músculo-óseo salieron del alta manual: son resultados que se
+// van a calcular en la app más adelante, no se cargan a mano por ahora. El
+// historial ya cargado se sigue mostrando igual en la tabla de abajo.
 const FORM_VACIO = {
   fecha: '',
   peso: '',
   talla: '',
   ...Object.fromEntries(CAMPOS_ANTROPOMETRIA_OPCIONALES.map(([campo]) => [campo, ''])),
   ...Object.fromEntries(CAMPOS_PLIEGUES.map(([campo]) => [campo, ''])),
-  ...Object.fromEntries(CAMPOS_MASAS.map(([campo]) => [campo, ''])),
-  indice_musculo_oseo: '',
   observaciones: '',
 }
 
@@ -72,8 +66,6 @@ const CAMPOS_NUMERICOS = [
   ['peso', 'El peso'],
   ['talla', 'La talla'],
   ...CAMPOS_PLIEGUES,
-  ...CAMPOS_MASAS,
-  ['indice_musculo_oseo', 'El índice músculo-óseo'],
 ]
 
 export default function JugadorNutricionEvaluaciones() {
@@ -308,20 +300,6 @@ function Evaluaciones({ jugadorId }) {
             ))}
           </div>
 
-          <h4 className="nutri-form-seccion">Masas corporales</h4>
-          <div className="form-nutricion-grid">
-            {CAMPOS_MASAS.map(([campo, etiqueta]) => (
-              <div className="field" key={campo}>
-                <label>{etiqueta}</label>
-                <input type="text" inputMode="decimal" value={form[campo]} onChange={onChange(campo)} />
-              </div>
-            ))}
-            <div className="field">
-              <label>Índice músculo-óseo</label>
-              <input type="text" inputMode="decimal" value={form.indice_musculo_oseo} onChange={onChange('indice_musculo_oseo')} />
-            </div>
-          </div>
-
           <div className="field">
             <label>Observaciones</label>
             <input value={form.observaciones} onChange={onChange('observaciones')} />
@@ -382,7 +360,7 @@ function Evaluaciones({ jugadorId }) {
                   <td>{e.masa_residual_pct != null ? `${e.masa_residual_pct}%` : '—'}</td>
                   <td>{e.masa_piel_pct != null ? `${e.masa_piel_pct}%` : '—'}</td>
                   <td>{e.sumatoria_pliegues}</td>
-                  <td>{e.indice_musculo_oseo}</td>
+                  <td>{e.indice_musculo_oseo ?? '—'}</td>
                   <td>{e.imc ?? '—'}</td>
                   <td className="texto-muted">{e.observaciones || '—'}</td>
                 </tr>

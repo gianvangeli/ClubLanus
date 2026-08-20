@@ -16,17 +16,19 @@ const PENDIENTE = { estado: "sin_datos", etiqueta: "Pendiente de definir" };
 const listarResumenGeneral = async (req, res) => {
   try {
     const [jugadores] = await db.query(
-      "SELECT id, nombre, apellido, categoria, posicion, semaforo_psicologico, semaforo_analisis FROM jugadores ORDER BY apellido, nombre"
+      `SELECT id, nombre, apellido, categoria, posicion, semaforo_psicologico, semaforo_analisis,
+              semaforo_riesgo_ia, motivo_riesgo_ia
+       FROM jugadores ORDER BY apellido, nombre`
     );
 
     const [evaluaciones] = await db.query(
-      `SELECT ne.jugador_id, ne.peso, ne.talla, ne.sumatoria_pliegues
+      `SELECT ne.jugador_id, ne.sumatoria_pliegues, ne.indice_musculo_oseo
        FROM nutricion_evaluaciones ne
        INNER JOIN (SELECT jugador_id, MAX(id) AS max_id FROM nutricion_evaluaciones GROUP BY jugador_id) ult
          ON ult.max_id = ne.id`
     );
     const [objetivos] = await db.query(
-      "SELECT categoria, suma_6_pliegues_objetivo, imc_objetivo FROM objetivos_nutricionales"
+      "SELECT categoria, suma_6_pliegues_objetivo, indice_musculo_oseo_objetivo FROM objetivos_nutricionales"
     );
     const [lesionesActivas] = await db.query(
       "SELECT jugador_id, COUNT(*) AS activas FROM lesiones WHERE fecha_alta IS NULL OR fecha_alta > CURDATE() GROUP BY jugador_id"
@@ -37,20 +39,19 @@ const listarResumenGeneral = async (req, res) => {
     const mapaLesiones = new Map(lesionesActivas.map((l) => [l.jugador_id, l.activas]));
 
     const resumen = jugadores.map((j) => {
-      // Nutrición: compara la última evaluación semanal contra los
-      // objetivos antropométricos de la categoría del jugador (misma
-      // lógica que el cuadrante del informe nutricional).
+      // Nutrición: compara la última evaluación contra los objetivos
+      // antropométricos de la categoría del jugador (suma de 6 pliegues e
+      // índice músculo-óseo, ver objetivosNutricionalesController.js).
       let nutricion = { estado: "sin_datos", etiqueta: "Sin evaluaciones" };
       const evaluacion = mapaEvaluaciones.get(j.id);
       const objetivo = j.categoria ? mapaObjetivos.get(j.categoria) : null;
-      if (evaluacion && objetivo && objetivo.imc_objetivo != null && objetivo.suma_6_pliegues_objetivo != null) {
-        const imc = evaluacion.peso && evaluacion.talla ? Number(evaluacion.peso) / (Number(evaluacion.talla) / 100) ** 2 : null;
-        if (imc != null && evaluacion.sumatoria_pliegues != null) {
-          const superaImc = imc > Number(objetivo.imc_objetivo);
+      if (evaluacion && objetivo && objetivo.suma_6_pliegues_objetivo != null && objetivo.indice_musculo_oseo_objetivo != null) {
+        if (evaluacion.sumatoria_pliegues != null && evaluacion.indice_musculo_oseo != null) {
           const superaPliegues = Number(evaluacion.sumatoria_pliegues) > Number(objetivo.suma_6_pliegues_objetivo);
-          if (!superaImc && !superaPliegues) nutricion = { estado: "good", etiqueta: "Óptimo" };
-          else if (superaImc && superaPliegues) nutricion = { estado: "critical", etiqueta: "Bajar MA / subir MM" };
-          else nutricion = { estado: "warning", etiqueta: superaImc ? "Bajar masa adiposa" : "Subir masa muscular" };
+          const bajoIndiceMuscular = Number(evaluacion.indice_musculo_oseo) < Number(objetivo.indice_musculo_oseo_objetivo);
+          if (!superaPliegues && !bajoIndiceMuscular) nutricion = { estado: "good", etiqueta: "Óptimo" };
+          else if (superaPliegues && bajoIndiceMuscular) nutricion = { estado: "critical", etiqueta: "Bajar MA / subir MM" };
+          else nutricion = { estado: "warning", etiqueta: superaPliegues ? "Bajar masa adiposa" : "Subir masa muscular" };
         }
       } else if (evaluacion && !objetivo) {
         nutricion = { estado: "sin_datos", etiqueta: "Sin objetivos de categoría" };
@@ -71,6 +72,13 @@ const listarResumenGeneral = async (req, res) => {
       // técnico (chances de jugar en primera).
       const analisisFutbolistico = estadoDesdeSemaforo(j.semaforo_analisis, "Sin evaluar");
 
+      // Riesgo de lesión: a diferencia de los semáforos manuales de arriba,
+      // este lo calcula el Asistente IA solo (ver riesgoIa.js), cada vez que
+      // se carga un dato relevante del jugador.
+      const riesgoIa = j.semaforo_riesgo_ia
+        ? { estado: SEMAFORO_A_ESTADO[j.semaforo_riesgo_ia], etiqueta: j.motivo_riesgo_ia || "Sin motivo" }
+        : { estado: "sin_datos", etiqueta: "Sin evaluar" };
+
       return {
         id: j.id,
         nombre: j.nombre,
@@ -84,6 +92,7 @@ const listarResumenGeneral = async (req, res) => {
           preparacion_fisica: PENDIENTE,
           analisis_futbolistico: analisisFutbolistico,
           datos_bigdata: PENDIENTE,
+          riesgo_ia: riesgoIa,
         },
       };
     });

@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import api, { extraerError } from '../api/client'
+import api, { API_BASE, extraerError } from '../api/client'
 import { calcularEdad } from '../utils/fecha'
+import { colorSemaforo } from '../utils/semaforo'
 import './AdminJugadores.css'
 
 const VACIO = { nombre: '', apellido: '', fecha_nacimiento: '' }
@@ -152,9 +153,11 @@ export default function AdminJugadores() {
                 {jugadores.map((j, i) => (
                   <div className="jg-fila" key={j.id}>
                     <Link className="jg-fila-link" to={`/admin/jugadores/${j.id}`}>
-                      <div className={`jg-avatar ${COLORES_AVATAR[i % COLORES_AVATAR.length]}`}>
-                        {iniciales(j)}
-                      </div>
+                      <AvatarJugador
+                        jugador={j}
+                        colorClase={COLORES_AVATAR[i % COLORES_AVATAR.length]}
+                        onFotoActualizada={cargar}
+                      />
                       <div className="jg-fila-info">
                         <strong>
                           {j.nombre} {j.apellido}
@@ -162,6 +165,12 @@ export default function AdminJugadores() {
                         <span>{j.posicion || j.categoria || 'Sin posición'}</span>
                       </div>
                       <div className="jg-fila-chips">
+                        {j.semaforo_riesgo_ia && (
+                          <span className="jg-chip" title={j.motivo_riesgo_ia || ''}>
+                            <span className="jg-chip-dot" style={{ background: colorSemaforo(j.semaforo_riesgo_ia) }} />
+                            Riesgo IA
+                          </span>
+                        )}
                         {j.edad && <span className="jg-chip">{j.edad} años</span>}
                         {j.peso && <span className="jg-chip">{j.peso} kg</span>}
                         {j.usuario_id ? (
@@ -185,6 +194,68 @@ export default function AdminJugadores() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+function AvatarJugador({ jugador, colorClase, onFotoActualizada }) {
+  const inputRef = useRef(null)
+  const [subiendo, setSubiendo] = useState(false)
+  const token = localStorage.getItem('token')
+
+  const elegirArchivo = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    inputRef.current?.click()
+  }
+
+  const onArchivoElegido = async (e) => {
+    const archivo = e.target.files[0]
+    e.target.value = ''
+    if (!archivo) return
+
+    const formData = new FormData()
+    formData.append('foto', archivo)
+
+    setSubiendo(true)
+    try {
+      await api.post(`/jugadores/${jugador.id}/foto`, formData)
+      onFotoActualizada()
+    } catch {
+      // El error de subida no bloquea el listado; el jugador simplemente sigue con iniciales.
+    } finally {
+      setSubiendo(false)
+    }
+  }
+
+  return (
+    <div className="jg-avatar-wrap">
+      {jugador.tiene_foto ? (
+        <img
+          className="jg-avatar jg-avatar-foto"
+          src={`${API_BASE}/api/jugadores/${jugador.id}/foto?token=${token}`}
+          alt={`${jugador.nombre} ${jugador.apellido}`}
+        />
+      ) : (
+        <div className={`jg-avatar ${colorClase}`}>{iniciales(jugador)}</div>
+      )}
+      <button
+        type="button"
+        className="jg-avatar-subir"
+        title="Cambiar foto"
+        onClick={elegirArchivo}
+        disabled={subiendo}
+      >
+        {subiendo ? <span className="spinner" /> : '📷'}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onClick={(e) => e.stopPropagation()}
+        onChange={onArchivoElegido}
+      />
     </div>
   )
 }

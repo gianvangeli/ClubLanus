@@ -11,6 +11,9 @@ const {
   vincularPsicologo,
   obtenerJugador,
   actualizarJugador,
+  subirFotoJugador,
+  eliminarFotoJugador,
+  obtenerFotoJugador,
   eliminarJugador,
   actualizarAgente,
   actualizarContactoEmergencia,
@@ -59,10 +62,10 @@ const {
 } = require("../controllers/informeFisicoController");
 
 const {
-  listarMensajes: listarMensajesChatIa,
-  enviarMensaje: enviarMensajeChatIa,
-  eliminarConversacion: eliminarConversacionChatIa,
-} = require("../controllers/chatIaController");
+  listarMensajes: listarMensajesAsistenteIa,
+  enviarMensaje: enviarMensajeAsistenteIa,
+  eliminarConversacion: eliminarConversacionAsistenteIa,
+} = require("../controllers/asistenteIaController");
 
 const {
   subirVideoJugador,
@@ -163,6 +166,22 @@ router.put("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), actualizar
 
 // Eliminar la ficha de un jugador (por error de carga del cuerpo técnico)
 router.delete("/:id", verificarToken, autorizarRoles(...CUERPO_TECNICO), eliminarJugador);
+
+// Foto de perfil del jugador (reemplaza el avatar de iniciales)
+router.post(
+  "/:id/foto",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  uploadImage.single("foto"),
+  subirFotoJugador
+);
+router.delete(
+  "/:id/foto",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  eliminarFotoJugador
+);
+router.get("/:id/foto", verificarToken, autorizarRoles(...CUERPO_TECNICO), obtenerFotoJugador);
 
 // Crear la cuenta de acceso del jugador (a partir de su mail) y vincularla
 router.post(
@@ -415,25 +434,26 @@ router.put(
   guardarInformeFisico
 );
 
-// Preparación física — Chat con IA: conversación por jugador, con contexto
-// de cargas físicas de todo el plantel de su categoría (para comparar).
+// Asistente IA: chat único por jugador, con contexto de todas sus áreas
+// (lesiones, composición corporal, nutrición, cargas físicas/GPS de su
+// categoría, análisis futbolístico).
 router.get(
-  "/:id/chat-ia",
+  "/:id/asistente-ia",
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
-  listarMensajesChatIa
+  listarMensajesAsistenteIa
 );
 router.post(
-  "/:id/chat-ia",
+  "/:id/asistente-ia",
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
-  enviarMensajeChatIa
+  enviarMensajeAsistenteIa
 );
 router.delete(
-  "/:id/chat-ia",
+  "/:id/asistente-ia",
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
-  eliminarConversacionChatIa
+  eliminarConversacionAsistenteIa
 );
 
 // Videos individuales del jugador: segunda vía de "Biblioteca", pensada

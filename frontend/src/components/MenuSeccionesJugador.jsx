@@ -15,6 +15,7 @@ const SECCIONES = [
   { key: 'videos', etiqueta: 'Videos', icono: 'V', to: (id) => `/admin/jugadores/${id}/videos` },
   { key: 'analisis-futbolistico', etiqueta: 'Análisis futbolístico', icono: 'AF', to: (id) => `/admin/jugadores/${id}/analisis-futbolistico` },
   { key: 'datos', etiqueta: 'Datos (Big Data)', icono: 'D', to: (id) => `/admin/jugadores/${id}/datos` },
+  { key: 'asistente-ia', etiqueta: 'Asistente IA', icono: 'IA', to: (id) => `/admin/jugadores/${id}/asistente-ia` },
 ]
 
 const COLORES = ['msj-icono-granate', 'msj-icono-oro', 'msj-icono-gris']

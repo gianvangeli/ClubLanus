@@ -1,5 +1,11 @@
 const db = require("../config/db");
 const { guardarArchivo, servirArchivo, eliminarArchivo } = require("../config/storage");
+const { recalcularRiesgoIA } = require("../config/riesgoIa");
+
+// Recalcular el riesgo nunca debe frenar ni romper la respuesta al cuerpo
+// técnico: se dispara sin esperar (fire and forget) y solo se loguea si falla.
+const dispararRecalculoRiesgo = (jugadorId) =>
+  recalcularRiesgoIA(jugadorId).catch((error) => console.error("Error al recalcular riesgo IA:", error.message));
 
 const TIPOS_DOCUMENTO = ["diagnostico", "resonancia", "estudio", "informe", "otro"];
 
@@ -26,6 +32,8 @@ const crearLesion = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [jugadorId, fecha, lesion, diagnostico || null, proceso_recuperacion || null, fecha_alta || null, registradoPor]
     );
+
+    dispararRecalculoRiesgo(jugadorId);
 
     res.status(201).json({
       message: "Lesión registrada correctamente",
@@ -105,6 +113,11 @@ const actualizarLesion = async (req, res) => {
       return res.status(400).json({ message: "Fecha y lesión son obligatorios" });
     }
 
+    const [lesionesPrevias] = await db.query("SELECT jugador_id FROM lesiones WHERE id = ?", [id]);
+    if (lesionesPrevias.length === 0) {
+      return res.status(404).json({ message: "Lesión no encontrada" });
+    }
+
     const [result] = await db.query(
       `UPDATE lesiones
        SET fecha = ?, lesion = ?, diagnostico = ?, proceso_recuperacion = ?, fecha_alta = ?
@@ -115,6 +128,8 @@ const actualizarLesion = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Lesión no encontrada" });
     }
+
+    dispararRecalculoRiesgo(lesionesPrevias[0].jugador_id);
 
     res.json({ message: "Lesión actualizada correctamente" });
   } catch (error) {

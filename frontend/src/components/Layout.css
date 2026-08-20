@@ -78,37 +78,13 @@
 .navbar-user {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
 }
 
-.navbar-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--white);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 13px;
-  flex-shrink: 0;
-}
-
-.navbar-user-text {
-  display: none;
-  flex-direction: column;
-  line-height: 1.25;
-  color: var(--white);
-}
-
-.navbar-user-text strong {
-  font-size: 13.5px;
-}
-
-.navbar-user-text span {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.7);
+.navbar-divisor {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .navbar .btn-ghost {
@@ -120,12 +96,6 @@
 .navbar .btn-ghost:hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: rgba(255, 255, 255, 0.5);
-}
-
-@media (min-width: 860px) {
-  .navbar-user-text {
-    display: flex;
-  }
 }
 
 @media (max-width: 720px) {

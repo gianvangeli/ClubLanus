@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import { aNumero } from '../utils/numero'
@@ -11,7 +11,6 @@ import './PreparacionFisica.css'
 const TABS = [
   { key: 'informe', etiqueta: 'Informe físico' },
   { key: 'picos', etiqueta: 'Cargas físicas' },
-  { key: 'chat', etiqueta: 'Chat con IA' },
   { key: 'extra', etiqueta: 'Entrenamientos extra' },
 ]
 
@@ -81,7 +80,6 @@ export default function JugadorPreparacionFisica() {
         </>
       )}
       {tab === 'picos' && <PicosRendimiento jugadorId={id} />}
-      {tab === 'chat' && <ChatIA jugadorId={id} />}
       {tab === 'extra' && <EntrenamientosExtra jugadorId={id} />}
     </div>
   )
@@ -560,145 +558,6 @@ function PicosRendimiento({ jugadorId }) {
             </div>
           ))}
         </div>
-      )}
-    </div>
-  )
-}
-
-function ChatIA({ jugadorId }) {
-  const [mensajes, setMensajes] = useState([])
-  const [cargando, setCargando] = useState(true)
-  const [texto, setTexto] = useState('')
-  const [enviando, setEnviando] = useState(false)
-  const [error, setError] = useState('')
-  const finRef = useRef(null)
-
-  const cargar = () => {
-    setCargando(true)
-    api
-      .get(`/jugadores/${jugadorId}/chat-ia`)
-      .then(({ data }) => setMensajes(data))
-      .catch((err) => setError(extraerError(err, 'No se pudo cargar el chat')))
-      .finally(() => setCargando(false))
-  }
-
-  useEffect(cargar, [jugadorId])
-
-  useEffect(() => {
-    finRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [mensajes, enviando])
-
-  const enviar = async (e) => {
-    e.preventDefault()
-    if (!texto.trim() || enviando) return
-
-    setError('')
-    const mensaje = texto.trim()
-    setTexto('')
-    setEnviando(true)
-    try {
-      const { data } = await api.post(`/jugadores/${jugadorId}/chat-ia`, { mensaje })
-      setMensajes((prev) => [...prev, ...data])
-    } catch (err) {
-      setError(extraerError(err, 'No se pudo enviar el mensaje'))
-      setTexto(mensaje)
-    } finally {
-      setEnviando(false)
-    }
-  }
-
-  const nuevaConversacion = async () => {
-    if (!window.confirm('¿Borrar esta conversación y empezar una nueva?')) return
-    try {
-      await api.delete(`/jugadores/${jugadorId}/chat-ia`)
-      setMensajes([])
-    } catch (err) {
-      setError(extraerError(err, 'No se pudo borrar la conversación'))
-    }
-  }
-
-  const descargarArchivo = (archivo) => {
-    const escaparCsv = (valor) => {
-      const t = String(valor ?? '')
-      return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
-    }
-    const lineas = [
-      archivo.columnas.map(escaparCsv).join(','),
-      ...archivo.filas.map((fila) => fila.map(escaparCsv).join(',')),
-    ]
-    const blob = new Blob(['﻿' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = archivo.nombre.endsWith('.csv') ? archivo.nombre : `${archivo.nombre}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  return (
-    <div className="card seccion">
-      <div className="seccion-header">
-        <h3>Chat con IA</h3>
-        {mensajes.length > 0 && (
-          <button className="btn btn-ghost btn-sm" onClick={nuevaConversacion}>
-            Nueva conversación
-          </button>
-        )}
-      </div>
-
-      <p className="texto-muted" style={{ marginBottom: 12 }}>
-        Preguntale sobre las cargas físicas de este jugador y las de su categoría: pensar entrenamientos,
-        comparar, sacar conclusiones o pedir un archivo con datos puntuales.
-      </p>
-
-      {error && <div className="alert alert-error">{error}</div>}
-
-      {cargando ? (
-        <div className="empty-state">
-          <span className="spinner spinner-dark" />
-        </div>
-      ) : (
-        <>
-          <div className="chat-ia-mensajes">
-            {mensajes.length === 0 && (
-              <p className="texto-muted">Todavía no hay conversación. Escribí tu primera pregunta abajo.</p>
-            )}
-            {mensajes.map((m) => (
-              <div key={m.id} className={`chat-ia-burbuja chat-ia-burbuja-${m.rol}`}>
-                <p>{m.contenido}</p>
-                {m.archivo && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => descargarArchivo(m.archivo)}>
-                    ⬇ Descargar {m.archivo.nombre}
-                  </button>
-                )}
-              </div>
-            ))}
-            {enviando && (
-              <div className="chat-ia-burbuja chat-ia-burbuja-asistente">
-                <span className="spinner spinner-dark" />
-              </div>
-            )}
-            <div ref={finRef} />
-          </div>
-
-          <form className="chat-ia-form" onSubmit={enviar}>
-            <textarea
-              rows={2}
-              value={texto}
-              onChange={(e) => setTexto(e.target.value)}
-              placeholder="Ej: ¿Cómo viene la distancia recorrida en los últimos partidos?"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  enviar(e)
-                }
-              }}
-            />
-            <button className="btn btn-primary btn-sm" type="submit" disabled={enviando || !texto.trim()}>
-              {enviando ? <span className="spinner" /> : 'Enviar'}
-            </button>
-          </form>
-        </>
       )}
     </div>
   )

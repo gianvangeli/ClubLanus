@@ -1,15 +1,11 @@
 const db = require("../config/db");
 const { generarConversacion } = require("../config/gemini");
+const { armarContextoCompleto } = require("../config/contextoJugadorIa");
 
 // Cuántos mensajes previos (usuario + asistente) se le mandan a la IA como
 // historial de la charla. Acota el tamaño del prompt en conversaciones
 // largas sin perder el hilo reciente.
 const MAX_HISTORIAL = 20;
-
-// Cuántas filas de picos_rendimiento (de todo el plantel de la categoría) se
-// le pasan como contexto a la IA. Alcanza y sobra para "sacar conclusiones"
-// sin inflar el prompt con años de historial.
-const MAX_FILAS_CONTEXTO = 200;
 
 const parseArchivo = (archivoJson) => {
   if (!archivoJson) return null;
@@ -24,65 +20,18 @@ const formatearMensaje = (fila) => ({
   creado_en: fila.creado_en,
 });
 
-// Arma el contexto de datos (jugador + plantel de su categoría + cargas
-// físicas ya cargadas) que la IA necesita para responder con criterio, en
-// vez de alucinar números. Nunca se le manda al modelo más que esto: no ve
-// otras secciones del jugador (nutrición, lesiones, etc.), solo cargas
-// físicas — lo que corresponde a esta pestaña.
-const armarContextoDatos = async (jugador) => {
-  const [plantel] = await db.query(
-    "SELECT id, nombre, apellido, posicion FROM jugadores WHERE categoria <=> ? ORDER BY apellido, nombre",
-    [jugador.categoria]
-  );
-
-  const idsPlantel = plantel.map((j) => j.id);
-  let picos = [];
-  if (idsPlantel.length > 0) {
-    const [filas] = await db.query(
-      `SELECT jugador_id, fecha, partido, indicadores
-       FROM picos_rendimiento
-       WHERE jugador_id IN (?)
-       ORDER BY fecha DESC, id DESC
-       LIMIT ?`,
-      [idsPlantel, MAX_FILAS_CONTEXTO]
-    );
-    picos = filas;
-  }
-
-  const nombrePorId = Object.fromEntries(plantel.map((j) => [j.id, `${j.nombre} ${j.apellido}`]));
-
-  const listaPlantel = plantel
-    .map((j) => `- id ${j.id}: ${j.nombre} ${j.apellido}${j.posicion ? ` (${j.posicion})` : ""}`)
-    .join("\n") || "(sin otros jugadores cargados en esta categoría)";
-
-  const listaCargas = picos
-    .map((p) => {
-      const indicadores = JSON.parse(p.indicadores)
-        .map((i) => `${i.indicador}=${i.valor}`)
-        .join(", ");
-      const fecha = new Date(p.fecha).toISOString().slice(0, 10);
-      return `- ${nombrePorId[p.jugador_id] || `jugador ${p.jugador_id}`} | ${fecha} | ${p.partido}: ${indicadores}`;
-    })
-    .join("\n") || "(todavía no hay cargas físicas cargadas en esta categoría)";
-
-  return { listaPlantel, listaCargas };
-};
-
-const armarSystemInstruction = (jugador, contexto) =>
+const armarSystemInstruction = (contexto) =>
   [
-    "Sos el asistente de preparación física del cuerpo técnico del Club Atlético Lanús.",
-    "Estás dentro de la ficha de preparación física de un jugador puntual, pero tenés acceso a las cargas físicas de todo su plantel/categoría para poder comparar cuando te lo pidan.",
+    "Sos el Asistente IA del cuerpo técnico del Club Atlético Lanús, dentro de la ficha de un jugador puntual.",
+    "Tenés acceso a TODOS los datos cargados de este jugador (lesiones, composición corporal, nutrición/antropometría, cargas físicas/GPS de su plantel, análisis futbolístico) para poder comprender sus límites, cruzar información entre áreas y sacar conclusiones — no solo mirar un área aislada.",
     "",
-    `Jugador de esta ficha: ${jugador.nombre} ${jugador.apellido}${jugador.posicion ? ` (${jugador.posicion})` : ""}, categoría: ${jugador.categoria || "sin categoría asignada"}.`,
+    contexto.texto,
     "",
-    "Plantel de esta categoría (id: nombre):",
+    "Plantel de su categoría (id: nombre), por si te piden comparar con compañeros:",
     contexto.listaPlantel,
     "",
-    "Cargas físicas cargadas (jugador | fecha | partido: indicador=valor, ...). Son datos reales del club, cargados a mano o importados de GPS:",
-    contexto.listaCargas,
-    "",
-    "Tu trabajo: ayudar a pensar entrenamientos, comparar jugadores, explicar tendencias y sacar conclusiones a partir de estos datos.",
-    "Nunca inventes números que no estén en la lista de cargas físicas. Si no hay datos suficientes para responder algo, decilo con claridad en vez de inventar.",
+    "Tu trabajo: responder preguntas del cuerpo técnico ayudándolos a pensar entrenamientos, anticipar riesgo de lesión, comparar jugadores, explicar tendencias y sacar conclusiones cruzando todos estos datos.",
+    "Nunca inventes números que no estén en el contexto. Si no hay datos suficientes para responder algo, decilo con claridad en vez de inventar.",
     "",
     'Si el pedido es explícitamente para generar un archivo/reporte descargable (ej. "hacé un archivo con los picos de cada jugador"), armá los datos en el campo "archivo" además de explicarlo en "respuesta". Si no piden un archivo, dejá "archivo" en null.',
     "Respondé SIEMPRE JSON válido, sin texto adicional ni fences de markdown, con este schema exacto:",
@@ -90,9 +39,8 @@ const armarSystemInstruction = (jugador, contexto) =>
     '"respuesta" es el mensaje conversacional para el cuerpo técnico (puede tener saltos de línea). "archivo.nombre" termina en ".csv". Cada fila de "archivo.filas" tiene la misma cantidad de elementos que "archivo.columnas".',
   ].join("\n");
 
-// Lista el historial de la conversación de este jugador (no de todo el
-// plantel: cada ficha tiene su propio hilo, aunque el contexto que reciba la
-// IA sea más amplio).
+// Lista el historial de la conversación de este jugador (una sola charla
+// por jugador, no por área).
 const listarMensajes = async (req, res) => {
   try {
     const { id } = req.params;
@@ -124,14 +72,10 @@ const enviarMensaje = async (req, res) => {
       return res.status(400).json({ message: "Escribí un mensaje" });
     }
 
-    const [jugadores] = await db.query(
-      "SELECT id, nombre, apellido, posicion, categoria FROM jugadores WHERE id = ?",
-      [id]
-    );
-    if (jugadores.length === 0) {
+    const contexto = await armarContextoCompleto(id);
+    if (!contexto) {
       return res.status(404).json({ message: "Jugador no encontrado" });
     }
-    const jugador = jugadores[0];
 
     const [previos] = await db.query(
       `SELECT rol, contenido FROM chat_ia_mensajes WHERE jugador_id = ? ORDER BY id DESC LIMIT ?`,
@@ -140,8 +84,7 @@ const enviarMensaje = async (req, res) => {
     const historial = [...previos].reverse();
     historial.push({ rol: "usuario", contenido: mensaje.trim() });
 
-    const contexto = await armarContextoDatos(jugador);
-    const systemInstruction = armarSystemInstruction(jugador, contexto);
+    const systemInstruction = armarSystemInstruction(contexto);
 
     let resultado;
     try {

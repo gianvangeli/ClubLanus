@@ -19,6 +19,7 @@ import LesionDetalle from './pages/LesionDetalle'
 import JugadorPsicologia from './pages/JugadorPsicologia'
 import JugadorPreparacionFisica from './pages/JugadorPreparacionFisica'
 import JugadorAnalisisFutbolistico from './pages/JugadorAnalisisFutbolistico'
+import JugadorAsistenteIA from './pages/JugadorAsistenteIA'
 import JugadorDatosBigdata from './pages/JugadorDatosBigdata'
 import JugadorVideos from './pages/JugadorVideos'
 import MisVideos from './pages/MisVideos'
@@ -200,6 +201,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <JugadorAnalisisFutbolistico />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/jugadores/:id/asistente-ia"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <JugadorAsistenteIA />
                 </ProtectedRoute>
               }
             />

@@ -49,7 +49,7 @@ export default function JugadorNutricion() {
         jugadorId={id}
         area="nutricion"
         titulo="Diagnóstico nutricional con IA"
-        descripcion="Generado a partir de la última evaluación nutricional y los objetivos de la categoría del jugador."
+        soloLectura
       />
     </div>
   )

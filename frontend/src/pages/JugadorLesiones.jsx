@@ -36,7 +36,7 @@ export default function JugadorLesiones() {
         jugadorId={id}
         area="lesiones"
         titulo="Diagnóstico de lesiones con IA"
-        descripcion="Generado a partir del historial de lesiones del jugador."
+        soloLectura
       />
     </div>
   )

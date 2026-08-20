@@ -1,5 +1,11 @@
 const db = require("../config/db");
 const { claveDePeriodo, etiquetaDePeriodo } = require("../utils/periodos");
+const { recalcularRiesgoIA } = require("../config/riesgoIa");
+
+// Recalcular el riesgo nunca debe frenar ni romper la respuesta al cuerpo
+// técnico: se dispara sin esperar (fire and forget) y solo se loguea si falla.
+const dispararRecalculoRiesgo = (jugadorId) =>
+  recalcularRiesgoIA(jugadorId).catch((error) => console.error("Error al recalcular riesgo IA:", error.message));
 
 // Registra una nueva evaluación de máximo rendimiento. Cada evaluación es
 // un registro propio: nunca se sobrescribe una anterior, así se pueden
@@ -30,6 +36,8 @@ const crearPico = async (req, res) => {
        VALUES (?, ?, ?, ?, ?)`,
       [id, fecha, partido, JSON.stringify(indicadores), registradoPor]
     );
+
+    dispararRecalculoRiesgo(id);
 
     res.status(201).json({
       message: "Evaluación registrada correctamente",
