@@ -7,6 +7,7 @@
 }
 
 .ce-toolbar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   gap: 10px 14px;
@@ -96,6 +97,51 @@
   right: 6px;
   z-index: 5;
   background: rgba(255, 255, 255, 0.92);
+}
+
+.ce-editor-texto {
+  position: absolute;
+  z-index: 6;
+  min-width: 60px;
+  border: 1px solid var(--granate-700);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 13px;
+  font-weight: bold;
+  font-family: inherit;
+  background: #fff;
+  outline: none;
+}
+
+.ce-plantel-popover {
+  position: absolute;
+  z-index: 10;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  min-width: 220px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface, #fff);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.ce-plantel-fila {
+  justify-content: flex-start;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ce-plantel-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
 }
 
 .ce-animacion-barra {

@@ -78,7 +78,7 @@ export default function AdminJugadores() {
   }, [jugadores])
 
   return (
-    <div className="jugadores-dark">
+    <div className="jugadores-tema">
       <div className="page jugadores-page">
         <div className="page-header">
           <div>
