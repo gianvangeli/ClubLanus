@@ -1,3 +1,10 @@
+.page.ejercicio-page {
+  /* Esta ficha necesita mucho más ancho que el resto de la app (texto +
+     pizarra completa lado a lado) — se le da su propio presupuesto en vez
+     de heredar el max-width:1080px genérico de `.page`. */
+  max-width: 1500px;
+}
+
 .ej-hoja {
   background: #fff;
   border: 1px solid var(--border);
@@ -121,21 +128,24 @@
 
 .ej-cuerpo {
   display: grid;
-  grid-template-columns: minmax(0, 440px) 1fr;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
   gap: 20px;
   padding: 16px 20px;
 }
 
 .ej-cancha-col {
   display: flex;
-  justify-content: flex-start;
+  flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
+  overflow-x: auto;
 }
 
 .ej-texto-col {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .ej-campo-grande {

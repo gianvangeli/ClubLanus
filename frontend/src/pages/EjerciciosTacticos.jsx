@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import api, { API_BASE, extraerError } from '../api/client'
+import api, { extraerError } from '../api/client'
 import CanchaEditor, { ESCENA_VACIA } from '../components/CanchaEditor'
-import YouTubePlayer from '../components/YouTubePlayer'
-import { extraerIdYouTube } from '../utils/youtube'
 import { formatFecha } from '../utils/fecha'
 import './Entrenamientos.css'
 import './EjerciciosTacticos.css'
@@ -97,14 +96,13 @@ export default function EjerciciosTacticos() {
 
 function ListaEjercicios({ categoria, subcategoria }) {
   const { esCuerpoTecnico } = useAuth()
+  const navigate = useNavigate()
   const [ejercicios, setEjercicios] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
-  const [abierto, setAbierto] = useState(null)
 
   const cargar = () => {
     setCargando(true)
-    setAbierto(null)
     const params = { categoria }
     if (subcategoria) params.subcategoria = subcategoria
     api
@@ -137,7 +135,7 @@ function ListaEjercicios({ categoria, subcategoria }) {
       <div className="entren-lista">
         {ejercicios.map((ej) => (
           <div className="card entren-sesion" key={ej.id}>
-            <button className="entren-sesion-header" onClick={() => setAbierto(abierto === ej.id ? null : ej.id)}>
+            <button className="entren-sesion-header" onClick={() => navigate(`/entrenamientos/ejercicios-tacticos/${ej.id}`)}>
               <div className="entren-sesion-fecha">{ej.titulo}</div>
               <div className="entren-sesion-meta">
                 {ej.fecha && (
@@ -146,13 +144,10 @@ function ListaEjercicios({ categoria, subcategoria }) {
                   </span>
                 )}
                 {ej.cantidad_jugadores && <span className="entren-count-chip">{ej.cantidad_jugadores} jugador(es)</span>}
-                <span className="entren-chevron">{abierto === ej.id ? '▲' : '▼'}</span>
+                {ej.duracion_minutos && <span className="entren-count-chip">{ej.duracion_minutos}′</span>}
+                <span className="entren-chevron">→</span>
               </div>
             </button>
-
-            {abierto === ej.id && (
-              <DetalleEjercicio id={ej.id} esCuerpoTecnico={esCuerpoTecnico} onEliminado={cargar} />
-            )}
           </div>
         ))}
       </div>
@@ -160,96 +155,10 @@ function ListaEjercicios({ categoria, subcategoria }) {
   )
 }
 
-function DetalleEjercicio({ id, esCuerpoTecnico, onEliminado }) {
-  const [detalle, setDetalle] = useState(null)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    api
-      .get(`/ejercicios-tacticos/${id}`)
-      .then(({ data }) => setDetalle(data))
-      .catch((err) => setError(extraerError(err, 'No se pudo cargar el ejercicio')))
-  }, [id])
-
-  const eliminar = async () => {
-    if (!window.confirm('¿Eliminar este ejercicio? Esta acción no se puede deshacer.')) return
-    try {
-      await api.delete(`/ejercicios-tacticos/${id}`)
-      onEliminado()
-    } catch (err) {
-      setError(extraerError(err, 'No se pudo eliminar el ejercicio'))
-    }
-  }
-
-  if (error) {
-    return <div className="alert alert-error" style={{ margin: '0 20px 16px' }}>{error}</div>
-  }
-
-  if (!detalle) {
-    return (
-      <div className="empty-state">
-        <span className="spinner spinner-dark" />
-      </div>
-    )
-  }
-
-  const token = localStorage.getItem('token')
-  const idYouTube = detalle.video_tipo === 'link' ? extraerIdYouTube(detalle.video_url) : null
-
-  return (
-    <div className="entren-sesion-body">
-      {detalle.descripcion && <p className="texto-muted" style={{ margin: '12px 0' }}>{detalle.descripcion}</p>}
-
-      {detalle.video_tipo === 'archivo' ? (
-        <video
-          className="video-player"
-          controls
-          preload="metadata"
-          src={`${API_BASE}/api/ejercicios-tacticos/${id}/archivo?token=${token}`}
-        />
-      ) : idYouTube ? (
-        <YouTubePlayer videoId={idYouTube} />
-      ) : detalle.video_tipo === 'link' ? (
-        <a className="btn btn-ghost btn-sm" href={detalle.video_url} target="_blank" rel="noreferrer">
-          Ver video externo ↗
-        </a>
-      ) : null}
-
-      {detalle.pizarra_modo === 'archivo' ? (
-        detalle.pizarra_archivo_tipo === 'imagen' ? (
-          <img
-            className="et-pizarra-imagen"
-            src={`${API_BASE}/api/ejercicios-tacticos/${id}/pizarra-archivo?token=${token}`}
-            alt="Pizarra táctica"
-          />
-        ) : (
-          <video
-            className="video-player"
-            controls
-            preload="metadata"
-            src={`${API_BASE}/api/ejercicios-tacticos/${id}/pizarra-archivo?token=${token}`}
-          />
-        )
-      ) : (
-        detalle.dibujo_json && (
-          <div className="et-pizarra-solo-lectura">
-            <CanchaEditor value={detalle.dibujo_json} onChange={() => {}} editable={false} />
-          </div>
-        )
-      )}
-
-      {esCuerpoTecnico && (
-        <button className="btn btn-ghost btn-sm btn-danger" style={{ marginTop: 14 }} onClick={eliminar}>
-          Eliminar ejercicio
-        </button>
-      )}
-    </div>
-  )
-}
-
 const FORM_VACIO = { titulo: '', descripcion: '', cantidad_jugadores: '' }
 
 function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
+  const navigate = useNavigate()
   const [form, setForm] = useState({ ...FORM_VACIO, fecha: hoyISO() })
   const [modo, setModo] = useState('archivo')
   const [archivo, setArchivo] = useState(null)
@@ -259,14 +168,12 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
   const [archivoPizarra, setArchivoPizarra] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
-  const [mensaje, setMensaje] = useState('')
 
   const onChange = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
 
   const onSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    setMensaje('')
     setEnviando(true)
     try {
       const datos = new FormData()
@@ -290,15 +197,11 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
         if (pizarraTieneContenido) datos.append('dibujo_json', JSON.stringify(dibujo))
       }
 
-      await api.post('/ejercicios-tacticos', datos)
-      setMensaje('Ejercicio guardado correctamente')
-      setForm({ ...FORM_VACIO, fecha: hoyISO() })
-      setArchivo(null)
-      setUrlVideo('')
-      setModoPizarra('dibujo')
-      setDibujo(ESCENA_VACIA)
-      setArchivoPizarra(null)
+      const { data } = await api.post('/ejercicios-tacticos', datos)
       onCreado()
+      // El resto de la carga (contenido estructurado, animación por
+      // escenas, etc.) se completa en la ficha completa del ejercicio.
+      navigate(`/entrenamientos/ejercicios-tacticos/${data.id}`)
     } catch (err) {
       setError(extraerError(err, 'No se pudo guardar el ejercicio'))
     } finally {
@@ -311,7 +214,6 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
       <h3>Nuevo ejercicio — {subcategoria || ETIQUETAS_CATEGORIA[categoria] || categoria}</h3>
 
       {error && <div className="alert alert-error">{error}</div>}
-      {mensaje && <div className="alert alert-success">{mensaje}</div>}
 
       <div className="entren-form-row">
         <div className="field">

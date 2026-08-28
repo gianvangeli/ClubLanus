@@ -7,8 +7,11 @@ const {
   listarEjerciciosTacticos,
   obtenerEjercicioTactico,
   actualizarEjercicioTactico,
+  duplicarEjercicioTactico,
   eliminarEjercicioTactico,
   obtenerArchivoVideo,
+  guardarAnimacionEjercicioTactico,
+  obtenerArchivoAnimacion,
   obtenerArchivoPizarra,
 } = require("../controllers/ejerciciosTacticosController");
 
@@ -25,6 +28,7 @@ router.get("/categorias", listarCategorias);
 router.get("/", listarEjerciciosTacticos);
 router.get("/:id", obtenerEjercicioTactico);
 router.get("/:id/archivo", obtenerArchivoVideo);
+router.get("/:id/animacion-archivo", obtenerArchivoAnimacion);
 router.get("/:id/pizarra-archivo", obtenerArchivoPizarra);
 
 router.post(
@@ -37,9 +41,17 @@ router.post(
 );
 router.put(
   "/:id",
-  uploadPizarra.fields([{ name: "pizarra_archivo", maxCount: 1 }]),
+  uploadPizarra.fields([
+    { name: "video", maxCount: 1 },
+    { name: "pizarra_archivo", maxCount: 1 },
+  ]),
   actualizarEjercicioTactico
 );
 router.delete("/:id", eliminarEjercicioTactico);
+router.post("/:id/duplicar", duplicarEjercicioTactico);
+
+// Animación generada por la pizarra táctica (sistema de escenas -> video,
+// grabado en el navegador). Reemplaza a la anterior en vez de acumular.
+router.post("/:id/animacion", uploadPizarra.single("animacion"), guardarAnimacionEjercicioTactico);
 
 module.exports = router;

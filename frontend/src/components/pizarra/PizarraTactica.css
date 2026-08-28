@@ -1,0 +1,60 @@
+.pizarra-tactica {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pizarra-cancha-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pizarra-stage-wrap {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  align-self: center;
+}
+
+.pizarra-editor-texto {
+  position: absolute;
+  z-index: 5;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid var(--granate-700);
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: var(--white);
+  color: var(--text);
+}
+
+.pizarra-editor-numero {
+  width: 32px;
+  text-align: center;
+  padding: 2px;
+}
+
+.pizarra-reabrir-panel {
+  align-self: flex-start;
+}
+
+.pizarra-tactica.panel-colapsado {
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .pizarra-tactica {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,110 @@
+.escenas-timeline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.escenas-lista {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.escena-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  background: var(--surface);
+}
+
+.escena-chip.activa {
+  border-color: var(--granate-700);
+  box-shadow: 0 0 0 2px var(--granate-100);
+}
+
+.escena-chip-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.escena-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--granate-700);
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 700;
+  flex: none;
+}
+
+.escena-nombre {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  width: 90px;
+}
+
+.escena-chip-acciones {
+  display: flex;
+  gap: 2px;
+}
+
+.escena-chip-acciones button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 2px 4px;
+}
+
+.escena-chip-acciones button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.escena-duracion {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.escena-duracion input {
+  width: 52px;
+  font-size: 11px;
+  padding: 1px 3px;
+}
+
+.escena-agregar {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--granate-700);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  align-self: center;
+}
+
+.escenas-convertir {
+  flex: none;
+}

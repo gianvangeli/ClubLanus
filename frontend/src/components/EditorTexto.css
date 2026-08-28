@@ -1,0 +1,59 @@
+.editor-texto {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.editor-texto-barra {
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.editor-texto-barra button {
+  border: none;
+  background: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.editor-texto-barra button:hover {
+  background: var(--granate-50);
+}
+
+.editor-texto-barra button.activo {
+  background: var(--granate-100);
+  color: var(--granate-700);
+}
+
+.editor-texto-contenido {
+  min-height: 90px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+}
+
+.editor-texto-contenido p {
+  margin: 0 0 8px;
+}
+
+.editor-texto-contenido ul,
+.editor-texto-contenido ol {
+  padding-left: 20px;
+  margin: 0 0 8px;
+}
+
+.editor-texto-contador {
+  display: block;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 2px 10px 6px;
+}

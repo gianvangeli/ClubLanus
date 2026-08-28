@@ -1,0 +1,68 @@
+.animacion-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(36, 12, 20, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.animacion-panel {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  width: min(520px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.animacion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.animacion-header h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.animacion-preview-wrap {
+  align-self: center;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.animacion-controles {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.animacion-convertir {
+  width: 100%;
+}
+
+.animacion-ok {
+  color: var(--success);
+  background: var(--success-bg);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  margin: 0;
+}
+
+.animacion-error {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+  margin: 0;
+}

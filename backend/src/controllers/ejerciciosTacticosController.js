@@ -48,7 +48,7 @@ const listarCategorias = (req, res) => {
 // sobrescriben entre sí.
 const crearEjercicioTactico = async (req, res) => {
   try {
-    const { categoria, titulo, fecha, descripcion, cantidad_jugadores, url_video, dibujo_json } = req.body;
+    const { categoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos, url_video, dibujo_json } = req.body;
     const creadoPor = req.usuario.id;
     const subcategoria = SUBCATEGORIAS[categoria]?.length > 0 ? req.body.subcategoria : null;
 
@@ -100,16 +100,19 @@ const crearEjercicioTactico = async (req, res) => {
 
     const [result] = await db.query(
       `INSERT INTO ejercicios_tacticos
-       (categoria, subcategoria, titulo, fecha, descripcion, cantidad_jugadores, video_tipo, video_url, video_nombre_original,
+       (categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos,
+        video_tipo, video_url, video_nombre_original,
         dibujo_json, pizarra_modo, pizarra_archivo_url, pizarra_archivo_tipo, pizarra_archivo_nombre_original, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         categoria,
         subcategoria,
         titulo,
         fecha || null,
         descripcion || null,
+        contenido_json ? (typeof contenido_json === "string" ? contenido_json : JSON.stringify(contenido_json)) : null,
         cantidad_jugadores || null,
+        duracion_minutos || null,
         videoTipo,
         videoUrl,
         videoNombre,
@@ -140,7 +143,7 @@ const listarEjerciciosTacticos = async (req, res) => {
     }
 
     const [ejercicios] = await db.query(
-      `SELECT id, titulo, fecha, cantidad_jugadores, creado_en
+      `SELECT id, titulo, fecha, cantidad_jugadores, duracion_minutos, creado_en
        FROM ejercicios_tacticos
        WHERE categoria = ? AND subcategoria <=> ?
        ORDER BY fecha DESC, id DESC`,
@@ -158,8 +161,8 @@ const obtenerEjercicioTactico = async (req, res) => {
     const { id } = req.params;
 
     const [ejercicios] = await db.query(
-      `SELECT id, categoria, subcategoria, titulo, fecha, descripcion, cantidad_jugadores,
-              video_tipo, video_url, video_nombre_original, dibujo_json,
+      `SELECT id, categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores,
+              duracion_minutos, video_tipo, video_url, video_nombre_original, animacion_video_url, dibujo_json,
               pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original, creado_por, creado_en
        FROM ejercicios_tacticos WHERE id = ?`,
       [id]
@@ -170,6 +173,8 @@ const obtenerEjercicioTactico = async (req, res) => {
 
     const ejercicio = ejercicios[0];
     ejercicio.dibujo_json = ejercicio.dibujo_json ? JSON.parse(ejercicio.dibujo_json) : null;
+    ejercicio.contenido_json =
+      typeof ejercicio.contenido_json === "string" ? JSON.parse(ejercicio.contenido_json) : ejercicio.contenido_json;
 
     res.json(ejercicio);
   } catch (error) {
@@ -182,10 +187,10 @@ const obtenerEjercicioTactico = async (req, res) => {
 const actualizarEjercicioTactico = async (req, res) => {
   try {
     const { id } = req.params;
-    const { titulo, fecha, descripcion, cantidad_jugadores, dibujo_json } = req.body;
+    const { titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos, dibujo_json } = req.body;
 
     const [ejercicios] = await db.query(
-      "SELECT pizarra_archivo_url FROM ejercicios_tacticos WHERE id = ?",
+      "SELECT pizarra_archivo_url, video_tipo, video_url FROM ejercicios_tacticos WHERE id = ?",
       [id]
     );
     if (ejercicios.length === 0) {
@@ -194,10 +199,43 @@ const actualizarEjercicioTactico = async (req, res) => {
 
     await db.query(
       `UPDATE ejercicios_tacticos
-       SET titulo = COALESCE(?, titulo), fecha = ?, descripcion = ?, cantidad_jugadores = ?
+       SET titulo = COALESCE(?, titulo), fecha = ?, descripcion = ?, contenido_json = ?,
+           cantidad_jugadores = ?, duracion_minutos = ?
        WHERE id = ?`,
-      [titulo || null, fecha || null, descripcion || null, cantidad_jugadores || null, id]
+      [
+        titulo || null,
+        fecha || null,
+        descripcion || null,
+        contenido_json !== undefined
+          ? typeof contenido_json === "string"
+            ? contenido_json
+            : JSON.stringify(contenido_json)
+          : null,
+        cantidad_jugadores || null,
+        duracion_minutos || null,
+        id,
+      ]
     );
+
+    // Video real: reemplaza al anterior si se sube uno nuevo (archivo o
+    // link), igual criterio mutuamente-excluyente-por-reemplazo que la
+    // pizarra.
+    const archivoVideo = (req.files?.video || [])[0];
+    const urlVideoNueva = req.body.url_video;
+    if (archivoVideo) {
+      if (ejercicios[0].video_tipo === "archivo" && ejercicios[0].video_url) eliminarArchivo(ejercicios[0].video_url);
+      const url = await guardarArchivoDesdeRuta(archivoVideo.path, "ejercicios-tacticos", archivoVideo.originalname);
+      await db.query(
+        "UPDATE ejercicios_tacticos SET video_tipo = 'archivo', video_url = ?, video_nombre_original = ? WHERE id = ?",
+        [url, archivoVideo.originalname, id]
+      );
+    } else if (urlVideoNueva !== undefined && urlVideoNueva.trim()) {
+      if (ejercicios[0].video_tipo === "archivo" && ejercicios[0].video_url) eliminarArchivo(ejercicios[0].video_url);
+      await db.query(
+        "UPDATE ejercicios_tacticos SET video_tipo = 'link', video_url = ?, video_nombre_original = NULL WHERE id = ?",
+        [urlVideoNueva.trim(), id]
+      );
+    }
 
     const archivoPizarra = (req.files?.pizarra_archivo || [])[0];
 
@@ -227,6 +265,59 @@ const actualizarEjercicioTactico = async (req, res) => {
     res.json({ message: "Ejercicio táctico actualizado correctamente" });
   } catch (error) {
     res.status(500).json({ message: "Error al actualizar el ejercicio táctico", error: error.message });
+  }
+};
+
+// Duplica un ejercicio táctico: copia la categorización, el contenido
+// estructurado y la pizarra dibujada (dibujo_json, si la tiene). No copia
+// video real / pizarra subida como archivo / animación generada — son
+// archivos físicos y, si se copiara solo la referencia, borrar el
+// ejercicio original (que sí borra el archivo) rompería la copia. El
+// usuario puede volver a cargarlos en la copia si corresponde.
+const duplicarEjercicioTactico = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const creadoPor = req.usuario.id;
+
+    const [ejercicios] = await db.query(
+      `SELECT categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores,
+              duracion_minutos, dibujo_json, pizarra_modo
+       FROM ejercicios_tacticos WHERE id = ?`,
+      [id]
+    );
+    if (ejercicios.length === 0) {
+      return res.status(404).json({ message: "Ejercicio táctico no encontrado" });
+    }
+    const origen = ejercicios[0];
+    const dibujoCopiado = origen.pizarra_modo === "dibujo" ? origen.dibujo_json : null;
+    // mysql2 devuelve la columna JSON `contenido_json` ya parseada como
+    // objeto (a diferencia de `dibujo_json`, que es LONGTEXT y llega como
+    // string) — hay que volver a serializarla para reinsertarla.
+    const contenidoCopiado = origen.contenido_json != null ? JSON.stringify(origen.contenido_json) : null;
+
+    const [result] = await db.query(
+      `INSERT INTO ejercicios_tacticos
+       (categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos,
+        dibujo_json, pizarra_modo, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        origen.categoria,
+        origen.subcategoria,
+        `${origen.titulo} (copia)`,
+        origen.fecha,
+        origen.descripcion,
+        contenidoCopiado,
+        origen.cantidad_jugadores,
+        origen.duracion_minutos,
+        dibujoCopiado,
+        dibujoCopiado ? "dibujo" : null,
+        creadoPor,
+      ]
+    );
+
+    res.status(201).json({ message: "Ejercicio duplicado correctamente", id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ message: "Error al duplicar el ejercicio táctico", error: error.message });
   }
 };
 
@@ -275,6 +366,49 @@ const obtenerArchivoVideo = async (req, res) => {
   }
 };
 
+// Guarda el video de animación generado por la pizarra táctica (grabado en
+// el navegador a partir de la secuencia de escenas). Regenerar reemplaza
+// al anterior en vez de acumular.
+const guardarAnimacionEjercicioTactico = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const archivo = req.file;
+    if (!archivo) {
+      return res.status(400).json({ message: "Falta el archivo de animación" });
+    }
+
+    const [ejercicios] = await db.query("SELECT animacion_video_url FROM ejercicios_tacticos WHERE id = ?", [id]);
+    if (ejercicios.length === 0) {
+      return res.status(404).json({ message: "Ejercicio táctico no encontrado" });
+    }
+
+    if (ejercicios[0].animacion_video_url) eliminarArchivo(ejercicios[0].animacion_video_url);
+
+    const url = await guardarArchivoDesdeRuta(archivo.path, "ejercicios-tacticos", archivo.originalname);
+    await db.query("UPDATE ejercicios_tacticos SET animacion_video_url = ? WHERE id = ?", [url, id]);
+
+    res.status(201).json({ message: "Animación guardada correctamente" });
+  } catch (error) {
+    res.status(500).json({ message: "Error al guardar la animación", error: error.message });
+  }
+};
+
+// Sirve el video de la animación generada.
+const obtenerArchivoAnimacion = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [ejercicios] = await db.query("SELECT animacion_video_url FROM ejercicios_tacticos WHERE id = ?", [id]);
+    if (ejercicios.length === 0 || !ejercicios[0].animacion_video_url) {
+      return res.status(404).json({ message: "Archivo no encontrado" });
+    }
+
+    await servirArchivo(req, res, ejercicios[0].animacion_video_url);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener el archivo", error: error.message });
+  }
+};
+
 // Sirve la pizarra táctica cuando se cargó como imagen/video en vez de dibujada.
 const obtenerArchivoPizarra = async (req, res) => {
   try {
@@ -300,7 +434,10 @@ module.exports = {
   listarEjerciciosTacticos,
   obtenerEjercicioTactico,
   actualizarEjercicioTactico,
+  duplicarEjercicioTactico,
   eliminarEjercicioTactico,
   obtenerArchivoVideo,
+  guardarAnimacionEjercicioTactico,
+  obtenerArchivoAnimacion,
   obtenerArchivoPizarra,
 };

@@ -31,6 +31,7 @@ import AdminBibliotecaDetalle from './pages/AdminBibliotecaDetalle'
 import Entrenamientos from './pages/Entrenamientos'
 import EntrenamientoDetalle from './pages/EntrenamientoDetalle'
 import EjercicioDetalle from './pages/EjercicioDetalle'
+import EjercicioTacticoDetalle from './pages/EjercicioTacticoDetalle'
 import ReflexionEntrenamiento from './pages/ReflexionEntrenamiento'
 import Calendario from './pages/Calendario'
 import MicrocicloDetalle from './pages/MicrocicloDetalle'
@@ -298,6 +299,14 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <EjercicioDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/entrenamientos/ejercicios-tacticos/:id"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <EjercicioTacticoDetalle />
                 </ProtectedRoute>
               }
             />
