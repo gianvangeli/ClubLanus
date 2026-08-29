@@ -11,7 +11,7 @@ import './AnimacionPanel.css'
  * (crear/duplicar/eliminar/reordenar) se manejan desde EscenasTimeline,
  * debajo de la cancha; este panel es solo reproducción + exportación.
  */
-export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId }) {
+export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, endpointBase }) {
   const alto = CAMPOS[campo.tipo]?.alto ?? CAMPOS.completa.alto
   const [escenaMostrada, setEscenaMostrada] = useState(escenas[0])
   const [reproduciendo, setReproduciendo] = useState(false)
@@ -51,6 +51,7 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId }
     stageRef,
     canvasCapturaRef,
     onFrame: setEscenaMostrada,
+    endpointBase,
   })
 
   const [resultado, setResultado] = useState(null)

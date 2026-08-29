@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Stage, Layer, Rect, Line, Circle, Ellipse, Arrow, Text, Group, Arc, Transformer } from 'react-konva'
+import { useEffect, useRef, useState } from 'react'
+import { Stage, Layer, Rect, Line, Circle, Ellipse, Arrow, Text, Group, Arc, Transformer, Image as ImagenKonva } from 'react-konva'
 import { puntosBarraBloqueo, puntosRombo } from '../../utils/canchaGeometria'
 import { DEFINICIONES_GRID } from './grillas/definicionesGrid'
 import { renderFiguraEquipamiento } from './equipamiento/iconos'
@@ -96,8 +96,30 @@ function GrillaOverlay({ grid, tipo, alto }) {
 
 const PATRONES_TRAZO = { punteada: [1, 6], discontinua: [12, 7] }
 const dashDeFlecha = (el) => {
+  // "Puntada" (spec 5.5, Estructura) es su propio patrón de dash — corto y
+  // parejo, distinto de "punteada"/"discontinua" (Estilo de trazo) — y pisa
+  // al estilo elegido si están combinados (una línea no puede tener dos
+  // patrones de dash a la vez).
+  if (el.estructura === 'puntada') return [2, 5]
   const estilo = el.estilo || (el.punteada ? 'punteada' : 'solido')
   return estilo === 'solido' ? undefined : PATRONES_TRAZO[estilo]
+}
+
+// "Doble" (spec 5.5, Estructura): dos trazos paralelos en vez de uno, como
+// pide la referencia visual ("doble línea, grosor grande"). Se aproxima
+// desplazando TODOS los puntos de la línea en perpendicular a la dirección
+// punta-a-punta — funciona bien para rectas y es una aproximación razonable
+// para curvas (el punto de control se desplaza igual que los extremos).
+const desplazarPuntosPerpendicular = (points, distancia) => {
+  const n = points.length
+  const dx = points[n - 2] - points[0]
+  const dy = points[n - 1] - points[1]
+  const largo = Math.hypot(dx, dy) || 1
+  const nx = (-dy / largo) * distancia
+  const ny = (dx / largo) * distancia
+  const out = []
+  for (let i = 0; i < n; i += 2) out.push(points[i] + nx, points[i + 1] + ny)
+  return out
 }
 
 const propsRelleno = (patron, color, patronesListos) => {
@@ -138,6 +160,34 @@ function FiguraForma({ tipo, color, rotacion }) {
   return renderFiguraEquipamiento(tipo, color, rotacion)
 }
 
+// "Subir imagen" (spec 5.1): imagen de referencia arrastrable/redimensionable
+// sobre la cancha (una captura, un logo, una formación de otra fuente). No
+// hay paquete `use-image` instalado, así que se carga a mano con
+// `window.Image` — el src ya viene como data URL (ver PizarraTactica,
+// agregarImagenSubida), no hace falta pedirle nada al backend.
+function ImagenElemento({ elemento, registrarNodo, ...propsKonva }) {
+  const [img, setImg] = useState(null)
+  useEffect(() => {
+    let cancelado = false
+    const imagen = new window.Image()
+    imagen.src = elemento.src
+    imagen.onload = () => !cancelado && setImg(imagen)
+    return () => { cancelado = true }
+  }, [elemento.src])
+  if (!img) return null
+  return (
+    <ImagenKonva
+      ref={(nodo) => nodo && registrarNodo(elemento.id, nodo)}
+      image={img}
+      x={elemento.x}
+      y={elemento.y}
+      width={elemento.width}
+      height={elemento.height}
+      {...propsKonva}
+    />
+  )
+}
+
 /**
  * Renderiza UNA escena (fotograma) de la pizarra táctica: la cancha, la
  * grilla opcional y todos los elementos (jugadores/figuras/flechas/
@@ -175,6 +225,7 @@ export default function CampoLienzo({
   onEditarNumero,
   onRotarFigura,
   onRedimensionarZona,
+  onRedimensionarImagen,
 }) {
   const alto = CAMPOS[campo.tipo]?.alto ?? CAMPOS.completa.alto
   const coloresCampo = COLORES_CAMPO[campo.color] || COLORES_CAMPO.blanco
@@ -193,8 +244,10 @@ export default function CampoLienzo({
   // única figura/zona seleccionada; con 0 o 2+ seleccionados, se oculta.
   const figuraNodosRef = useRef({})
   const zonaNodosRef = useRef({})
+  const imagenNodosRef = useRef({})
   const transformerFiguraRef = useRef(null)
   const transformerZonaRef = useRef(null)
+  const transformerImagenRef = useRef(null)
 
   const figuraSeleccionada =
     editable && herramienta === 'seleccionar' && seleccionados.length === 1 && seleccionados[0].lista === 'figuras'
@@ -206,6 +259,11 @@ export default function CampoLienzo({
       ? escena.zonas.find((z) => z.id === seleccionados[0].id)
       : null
   const zonaRedimensionableId = zonaSeleccionada && !zonaSeleccionada.bloqueado && ZONA_REDIMENSIONABLE.has(zonaSeleccionada.tipo) ? zonaSeleccionada.id : null
+  const imagenSeleccionada =
+    editable && herramienta === 'seleccionar' && seleccionados.length === 1 && seleccionados[0].lista === 'imagenes'
+      ? (escena.imagenes || []).find((im) => im.id === seleccionados[0].id)
+      : null
+  const imagenSeleccionadaId = imagenSeleccionada && !imagenSeleccionada.bloqueado ? imagenSeleccionada.id : null
 
   useEffect(() => {
     const tr = transformerFiguraRef.current
@@ -222,6 +280,28 @@ export default function CampoLienzo({
     tr.nodes(nodo ? [nodo] : [])
     tr.getLayer()?.batchDraw()
   }, [zonaRedimensionableId, escena.zonas])
+
+  useEffect(() => {
+    const tr = transformerImagenRef.current
+    if (!tr) return
+    const nodo = imagenSeleccionadaId ? imagenNodosRef.current[imagenSeleccionadaId] : null
+    tr.nodes(nodo ? [nodo] : [])
+    tr.getLayer()?.batchDraw()
+  }, [imagenSeleccionadaId, escena.imagenes])
+
+  const finalizarRedimensionImagen = (im) => (e) => {
+    const nodo = e.target
+    const escalaX = nodo.scaleX()
+    const escalaY = nodo.scaleY()
+    nodo.scaleX(1)
+    nodo.scaleY(1)
+    onRedimensionarImagen?.(im.id, {
+      x: nodo.x(),
+      y: nodo.y(),
+      width: Math.max(20, im.width * escalaX),
+      height: Math.max(20, im.height * escalaY),
+    })
+  }
 
   const finalizarRotacionFigura = (id) => (e) => {
     const nodo = e.target
@@ -285,6 +365,35 @@ export default function CampoLienzo({
           <Group listening={false} opacity={0.5}>
             <GrillaOverlay grid={campo.grid} tipo={campo.tipo} alto={alto} />
           </Group>
+        )}
+
+        {/* "Subir imagen" (spec 5.1): siempre debajo de jugadores/flechas/
+            zonas, para poder dibujar encima como referencia. */}
+        {(escena.imagenes || []).map((im) => (
+          <ImagenElemento
+            key={im.id}
+            elemento={im}
+            registrarNodo={(id, nodo) => { imagenNodosRef.current[id] = nodo }}
+            stroke={estaSeleccionado('imagenes', im.id) ? '#7a1230' : undefined}
+            strokeWidth={estaSeleccionado('imagenes', im.id) ? 3 : 0}
+            opacity={op(im)}
+            draggable={puedeArrastrar(im)}
+            onDragEnd={(e) => onMoverElemento?.('imagenes', im.id, e.target.x(), e.target.y())}
+            onClick={click('imagenes', im)}
+            onTransformEnd={finalizarRedimensionImagen(im)}
+          />
+        ))}
+
+        {editable && imagenSeleccionadaId && (
+          <Transformer
+            ref={transformerImagenRef}
+            rotateEnabled={false}
+            flipEnabled={false}
+            borderStroke="#7a1230"
+            anchorStroke="#7a1230"
+            anchorFill="#fff"
+            anchorSize={8}
+          />
         )}
 
         {escena.zonas.map((z) => {
@@ -433,7 +542,21 @@ export default function CampoLienzo({
             opacity: op(a),
             onClick: click('flechas', a),
           }
-          if (tipo === 'linea') return <Line key={a.id} {...comun} lineCap="round" />
+          if (tipo === 'linea') {
+            // Estructura "doble": dos rectas paralelas en vez de una, sin
+            // punta — no aplica a flecha/bloqueo (la punta/barra duplicada
+            // se ve mal), solo a la línea simple.
+            if (a.estructura === 'doble') {
+              const off = (a.grosor || 3) * 1.4 + 2.5
+              return (
+                <Group key={a.id} opacity={op(a)} onClick={click('flechas', a)}>
+                  <Line {...comun} opacity={1} points={desplazarPuntosPerpendicular(puntos, off)} lineCap="round" />
+                  <Line {...comun} opacity={1} points={desplazarPuntosPerpendicular(puntos, -off)} lineCap="round" />
+                </Group>
+              )
+            }
+            return <Line key={a.id} {...comun} lineCap="round" />
+          }
           if (tipo === 'bloqueo') {
             return (
               <Group key={a.id} opacity={op(a)} onClick={click('flechas', a)}>

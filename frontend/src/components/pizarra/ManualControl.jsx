@@ -23,7 +23,8 @@ export default function ManualControl(props) {
     formaZona, onCambiarFormaZona, punteadaZona, onCambiarPunteadaZona, patronRelleno, onCambiarPatronRelleno,
     puedeDeshacer, puedeRehacer, onDeshacer, onRehacer, onExportarImagen, onVaciarCancha,
     seleccionActiva, onEliminarSeleccion, onDuplicarSeleccion, onBloquearSeleccion,
-    onAbrirAnimacion,
+    onAbrirAnimacion, onAbrirJugadas,
+    panelLado, onCambiarLado, onSubirImagen, onGuardar,
   } = props
 
   const [popoverAbierto, setPopoverAbierto] = useState(null) // 'linea' | 'forma' | null
@@ -38,10 +39,26 @@ export default function ManualControl(props) {
       {/* 5.1 — Barra superior de acciones */}
       <div className="mc-barra-acciones">
         <button type="button" className="btn btn-ghost btn-icon" title="Colapsar panel" onClick={onColapsar}>⏵</button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-icon"
+          title={panelLado === 'izquierda' ? 'Mover panel a la derecha' : 'Mover panel a la izquierda'}
+          onClick={onCambiarLado}
+        >
+          ⇄
+        </button>
         <button type="button" className="btn btn-ghost btn-icon" title="Deshacer" onClick={onDeshacer} disabled={!puedeDeshacer}>↺</button>
         <button type="button" className="btn btn-ghost btn-icon" title="Rehacer" onClick={onRehacer} disabled={!puedeRehacer}>↻</button>
+        <label className="btn btn-ghost btn-icon" title="Subir imagen de referencia">
+          🖼
+          <input type="file" accept="image/*" onChange={onSubirImagen} hidden />
+        </label>
         <button type="button" className="btn btn-ghost btn-icon" title="Exportar imagen" onClick={onExportarImagen}>⬇</button>
         <button type="button" className="btn btn-ghost btn-icon" title="Vaciar cancha" onClick={onVaciarCancha}>🗑</button>
+        <button type="button" className="btn btn-ghost btn-icon" title="Jugadas guardadas" onClick={onAbrirJugadas}>📂</button>
+        {onGuardar && (
+          <button type="button" className="btn btn-primary btn-icon" title="Guardar" onClick={onGuardar}>💾</button>
+        )}
       </div>
 
       {seleccionActiva && (

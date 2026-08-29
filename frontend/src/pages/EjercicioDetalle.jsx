@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import EscudoClub from '../components/EscudoClub'
-import CanchaEditor, { ESCENA_VACIA } from '../components/CanchaEditor'
+import PizarraTactica from '../components/pizarra/PizarraTactica'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
 import './EjercicioDetalle.css'
@@ -23,7 +23,7 @@ export default function EjercicioDetalle() {
   const token = localStorage.getItem('token')
   const [ejercicio, setEjercicio] = useState(null)
   const [form, setForm] = useState(CAMPOS_VACIOS)
-  const [dibujo, setDibujo] = useState(ESCENA_VACIA)
+  const [dibujo, setDibujo] = useState(null)
   const [modoPizarra, setModoPizarra] = useState('dibujo')
   const [archivoPizarra, setArchivoPizarra] = useState(null)
   const [cargando, setCargando] = useState(true)
@@ -46,7 +46,7 @@ export default function EjercicioDetalle() {
           duracion: data.duracion || '',
           descripcion: data.descripcion || '',
         })
-        setDibujo(data.dibujo_json || ESCENA_VACIA)
+        setDibujo(data.dibujo_json || null)
         setModoPizarra(data.pizarra_modo || 'dibujo')
         setArchivoPizarra(null)
       })
@@ -67,7 +67,7 @@ export default function EjercicioDetalle() {
       Object.entries(form).forEach(([campo, valor]) => datos.append(campo, valor || ''))
       if (modoPizarra === 'archivo' && archivoPizarra) {
         datos.append('pizarra_archivo', archivoPizarra)
-      } else if (modoPizarra === 'dibujo') {
+      } else if (modoPizarra === 'dibujo' && dibujo) {
         datos.append('dibujo_json', JSON.stringify(dibujo))
       }
       await api.put(`/ejercicios/${ejercicioId}`, datos)
@@ -184,7 +184,7 @@ export default function EjercicioDetalle() {
             </div>
 
             {modoPizarra === 'dibujo' ? (
-              <CanchaEditor value={dibujo} onChange={setDibujo} editable />
+              <PizarraTactica value={dibujo} onChange={setDibujo} editable ejercicioId={ejercicioId} endpointAnimacion="ejercicios" onGuardar={guardar} />
             ) : (
               <div className="field">
                 <label>Imagen o video de la pizarra</label>
@@ -223,6 +223,13 @@ export default function EjercicioDetalle() {
             </div>
 
             <VideoRealEjercicio ejercicioId={ejercicioId} videos={ejercicio.videos || []} onCambio={cargar} />
+
+            {ejercicio.animacion_video_url && (
+              <div className="ej-campo ej-campo-grande">
+                <label>Animación táctica generada:</label>
+                <video className="video-player" controls preload="metadata" src={`${API_BASE}/api/ejercicios/${ejercicioId}/animacion-archivo?token=${token}`} />
+              </div>
+            )}
           </div>
         </div>
       </div>

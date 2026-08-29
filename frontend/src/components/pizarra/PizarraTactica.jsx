@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import CampoLienzo, { ANCHO } from './CampoLienzo'
 import ManualControl from './ManualControl'
 import EscenasTimeline from './EscenasTimeline'
 import AnimacionPanel from './AnimacionPanel'
 import { normalizarEscenaV2, nuevaEscenaVaciaV2 } from './normalizarEscenaV2'
 import { generarPatronRayas, puntosOndulados } from '../../utils/canchaGeometria'
+import JugadasPanel from './JugadasPanel'
 import './PizarraTactica.css'
 
 let idSeq = 1
@@ -27,14 +28,33 @@ const desplazarElemento = (el, dx, dy) =>
 /**
  * Pizarra táctica rediseñada: cancha (CampoLienzo) + Manual de Control
  * colapsable + timeline de escenas + generación de animación en video.
- * Reemplaza a CanchaEditor SOLO en EjercicioDetalle — PlanPartidoEditor y
- * EjerciciosTacticos siguen usando el CanchaEditor clásico sin cambios.
+ * Reemplaza a CanchaEditor en EjercicioDetalle (Agenda diaria) y
+ * EjercicioTacticoDetalle (Entrenamientos Desglosados) — PlanPartidoEditor y
+ * la lista de EjerciciosTacticos (formulario de alta rápida) siguen usando
+ * el CanchaEditor clásico sin cambios.
  *
  * `value`/`onChange` llevan el modelo v2 completo
  * ({version:2, campo, equipos, escenas}); el padre es responsable de
  * persistirlo tal cual en `dibujo_json`.
+ *
+ * `ejercicioId` + `endpointAnimacion` (por defecto "ejercicios-tacticos",
+ * ver useVideoRecorder) determinan a qué recurso de la API se sube el video
+ * de animación generado — pasar `endpointAnimacion="ejercicios"` desde
+ * EjercicioDetalle.
+ *
+ * `onGuardar` (opcional): si se pasa, aparece un botón "Guardar" en la
+ * barra de acciones de la pizarra (spec 5.1) — el componente no persiste
+ * nada por sí mismo, delega en el callback del padre (misma función que ya
+ * usa el botón "Guardar" de la página).
+ *
+ * Expone `exportarImagen` vía ref (forwardRef/useImperativeHandle) para que
+ * un botón fuera del componente (ej. el encabezado de la ficha, spec 8.1)
+ * pueda disparar la misma exportación que el ícono ⬇ interno.
  */
-export default function PizarraTactica({ value, onChange, editable = true, nombreArchivoExport, ejercicioId }) {
+const PizarraTactica = forwardRef(function PizarraTactica(
+  { value, onChange, editable = true, nombreArchivoExport, ejercicioId, endpointAnimacion, onGuardar },
+  refExterna
+) {
   const stageRef = useRef(null)
   const internalChangeRef = useRef(false)
   const cancelandoTextoRef = useRef(false)
@@ -76,7 +96,12 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
   }, [value])
 
   const [panelColapsado, setPanelColapsado] = useState(false)
+  // "Mover/reposicionar panel" (spec 5.1): el Manual de Control se ancla a
+  // la derecha por defecto (spec 4), pero se puede pasar a la izquierda —
+  // útil en pantallas angostas o según preferencia de quien dibuja.
+  const [panelLado, setPanelLado] = useState('derecha')
   const [panelAnimacionAbierto, setPanelAnimacionAbierto] = useState(false)
+  const [panelJugadasAbierto, setPanelJugadasAbierto] = useState(false)
   const [herramienta, setHerramienta] = useState('seleccionar')
   const [seleccionados, setSeleccionados] = useState([])
 
@@ -211,6 +236,7 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
   const moverElemento = (lista, id, x, y) => actualizarEscena({ [lista]: escena[lista].map((el) => (el.id === id ? { ...el, x, y } : el)) })
   const rotarFigura = (id, rotacion) => actualizarEscena({ figuras: escena.figuras.map((f) => (f.id === id ? { ...f, rotacion } : f)) })
   const redimensionarZona = (id, cambios) => actualizarEscena({ zonas: escena.zonas.map((z) => (z.id === id ? { ...z, ...cambios } : z)) })
+  const redimensionarImagen = (id, cambios) => actualizarEscena({ imagenes: (escena.imagenes || []).map((im) => (im.id === id ? { ...im, ...cambios } : im)) })
   const borrarElemento = (lista, id) => actualizarEscena({ [lista]: escena[lista].filter((el) => el.id !== id) })
   const toggleSeleccion = (lista, id) =>
     setSeleccionados((prev) =>
@@ -466,9 +492,18 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
     setEditorNumero({ id: j.id, x: j.x, y: j.y, valor: String(j.numero ?? '') })
   }
 
+  // Carga una jugada guardada (JugadasPanel) reemplazando el tablero
+  // completo — pasa por aplicarModelo para que quede en el historial de
+  // deshacer, igual que cualquier otro cambio.
+  const cargarJugada = (dibujoJson) => {
+    aplicarModelo(normalizarEscenaV2(dibujoJson))
+    setIndiceEscena(0)
+    setSeleccionados([])
+  }
+
   const vaciarCancha = () => {
     if (!window.confirm('¿Vaciar todo el dibujo de la escena actual?')) return
-    actualizarEscena({ jugadores: [], flechas: [], figuras: [], textos: [], trazos: [], zonas: [] })
+    actualizarEscena({ jugadores: [], flechas: [], figuras: [], textos: [], trazos: [], zonas: [], imagenes: [] })
     setSeleccionados([])
   }
 
@@ -479,6 +514,38 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
     link.download = nombreArchivoExport || 'pizarra-tactica.png'
     link.href = uri
     link.click()
+  }
+
+  useImperativeHandle(refExterna, () => ({ exportarImagen }))
+
+  // "Subir imagen" (spec 5.1): se agrega como un elemento más de la escena
+  // (centrada, tamaño inicial fijo), reutilizando el mismo mecanismo
+  // genérico de mover/seleccionar/redimensionar/borrar que jugadores,
+  // figuras y zonas. Se guarda como data URL directo en el dibujo_json — no
+  // hay endpoint propio de subida, es una imagen de referencia liviana, no
+  // un archivo del backend.
+  const agregarImagenSubida = (e) => {
+    const archivo = e.target.files?.[0]
+    e.target.value = ''
+    if (!archivo) return
+    const lector = new FileReader()
+    lector.onload = () => {
+      const anchoInicial = 140
+      actualizarEscena({
+        imagenes: [
+          ...(escena.imagenes || []),
+          {
+            id: nuevoId(),
+            src: lector.result,
+            x: ANCHO / 2 - anchoInicial / 2,
+            y: 40,
+            width: anchoInicial,
+            height: anchoInicial,
+          },
+        ],
+      })
+    }
+    lector.readAsDataURL(archivo)
   }
 
   // --- Gestión de escenas (fotogramas clave de la animación) ---
@@ -532,7 +599,7 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
     : null
 
   return (
-    <div className={`pizarra-tactica ${panelColapsado ? 'panel-colapsado' : ''}`}>
+    <div className={`pizarra-tactica ${panelColapsado ? 'panel-colapsado' : ''} ${panelLado === 'izquierda' ? 'panel-izquierda' : ''}`}>
       <div className="pizarra-cancha-col" ref={canchaColRef}>
         <div className="pizarra-stage-wrap">
           <CampoLienzo
@@ -557,6 +624,7 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
             onEditarNumero={onEditarNumero}
             onRotarFigura={rotarFigura}
             onRedimensionarZona={redimensionarZona}
+            onRedimensionarImagen={redimensionarImagen}
           />
           {editorTexto && (
             <input
@@ -662,6 +730,11 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
           onDuplicarSeleccion={duplicarSeleccion}
           onBloquearSeleccion={bloquearSeleccion}
           onAbrirAnimacion={() => setPanelAnimacionAbierto(true)}
+          onAbrirJugadas={() => setPanelJugadasAbierto(true)}
+          panelLado={panelLado}
+          onCambiarLado={() => setPanelLado((l) => (l === 'derecha' ? 'izquierda' : 'derecha'))}
+          onSubirImagen={agregarImagenSubida}
+          onGuardar={onGuardar}
         />
       )}
       {panelColapsado && (
@@ -677,8 +750,19 @@ export default function PizarraTactica({ value, onChange, editable = true, nombr
           onCerrar={() => setPanelAnimacionAbierto(false)}
           onCambiarDuracion={cambiarDuracionTransicion}
           ejercicioId={ejercicioId}
+          endpointBase={endpointAnimacion}
+        />
+      )}
+
+      {panelJugadasAbierto && (
+        <JugadasPanel
+          modeloActual={modelo}
+          onCargar={cargarJugada}
+          onCerrar={() => setPanelJugadasAbierto(false)}
         />
       )}
     </div>
   )
-}
+})
+
+export default PizarraTactica

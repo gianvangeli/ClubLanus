@@ -24,7 +24,7 @@ export const soportaGrabacion = () =>
  * `onFrame` en cada tick, y pase su `stageRef` acá para poder tomar cada
  * frame ya pintado.
  */
-export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, onFrame }) {
+export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, onFrame, endpointBase = 'ejercicios-tacticos' }) {
   const [grabando, setGrabando] = useState(false)
   const [progresoMs, setProgresoMs] = useState(0)
   const [subiendo, setSubiendo] = useState(false)
@@ -76,7 +76,7 @@ export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, 
           setSubiendo(true)
           const datos = new FormData()
           datos.append('animacion', archivo)
-          await api.post(`/ejercicios-tacticos/${ejercicioId}/animacion`, datos)
+          await api.post(`/${endpointBase}/${ejercicioId}/animacion`, datos)
           setSubiendo(false)
           resolve(archivo)
         } catch (err) {

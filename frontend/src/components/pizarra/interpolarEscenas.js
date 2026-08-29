@@ -73,6 +73,7 @@ export function escenaInterpolada(escenas, tGlobalMs) {
         textos: interpolarListaEstatica(anterior.textos, siguiente.textos, t),
         trazos: interpolarListaEstatica(anterior.trazos, siguiente.trazos, t),
         zonas: interpolarListaEstatica(anterior.zonas, siguiente.zonas, t),
+        imagenes: interpolarListaEstatica(anterior.imagenes, siguiente.imagenes, t),
       }
     }
     acumulado += duracion

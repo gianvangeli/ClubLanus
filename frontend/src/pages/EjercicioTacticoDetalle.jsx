@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import EscudoClub from '../components/EscudoClub'
@@ -44,6 +44,7 @@ export default function EjercicioTacticoDetalle() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
+  const pizarraRef = useRef(null)
 
   const cargar = () => {
     setCargando(true)
@@ -168,6 +169,11 @@ export default function EjercicioTacticoDetalle() {
             <span className="ej-contador">{LIMITE_TITULO - titulo.length} caracteres restantes</span>
           </div>
           <div className="ej-header-acciones">
+            {modoPizarra === 'dibujo' && (
+              <button className="btn btn-ghost btn-sm" onClick={() => pizarraRef.current?.exportarImagen()} title="Exportar la pizarra como imagen">
+                Exportar
+              </button>
+            )}
             <button className="btn btn-ghost btn-sm" onClick={duplicar} disabled={duplicando}>
               {duplicando ? <span className="spinner" /> : 'Duplicar'}
             </button>
@@ -235,7 +241,7 @@ export default function EjercicioTacticoDetalle() {
             </div>
 
             {modoPizarra === 'dibujo' ? (
-              <PizarraTactica value={dibujo} onChange={setDibujo} editable ejercicioId={id} />
+              <PizarraTactica ref={pizarraRef} value={dibujo} onChange={setDibujo} editable ejercicioId={id} onGuardar={guardar} />
             ) : (
               <div className="field">
                 <label>Imagen o video de la pizarra</label>

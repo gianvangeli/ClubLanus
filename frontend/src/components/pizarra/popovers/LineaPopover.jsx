@@ -64,6 +64,15 @@ export default function LineaPopover({
         <div className="pizarra-popover-fila">
           <button type="button" className={`btn btn-sm ${estructuraLinea === 'normal' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => onCambiarEstructuraLinea('normal')}>Normal</button>
           <button type="button" className={`btn btn-sm ${estructuraLinea === 'puntada' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => onCambiarEstructuraLinea('puntada')}>Puntada</button>
+          <button
+            type="button"
+            className={`btn btn-sm ${estructuraLinea === 'doble' ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => onCambiarEstructuraLinea('doble')}
+            disabled={tipoLinea !== 'linea'}
+            title={tipoLinea !== 'linea' ? 'Solo disponible para "Sin punta"' : undefined}
+          >
+            Doble
+          </button>
         </div>
       </div>
     </div>

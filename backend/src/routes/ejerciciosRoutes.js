@@ -13,6 +13,8 @@ const {
   eliminarVideoEjercicio,
   obtenerArchivoVideoEjercicio,
   obtenerArchivoPizarra,
+  guardarAnimacionEjercicio,
+  obtenerArchivoAnimacion,
 } = require("../controllers/ejerciciosController");
 
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
@@ -38,6 +40,11 @@ router.put(
 );
 router.delete("/:id", eliminarEjercicio);
 router.get("/:id/pizarra-archivo", obtenerArchivoPizarra);
+
+// Animación generada por la pizarra táctica (sistema de escenas -> video,
+// grabado en el navegador). Reemplaza a la anterior en vez de acumular.
+router.get("/:id/animacion-archivo", obtenerArchivoAnimacion);
+router.post("/:id/animacion", uploadPizarra.single("animacion"), guardarAnimacionEjercicio);
 
 // Video real de la ejecución del ejercicio (para comparar con la animación
 // de la pizarra)

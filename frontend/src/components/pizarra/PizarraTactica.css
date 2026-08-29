@@ -53,6 +53,12 @@
   gap: 8px;
 }
 
+/* "Mover/reposicionar panel" (spec 5.1): el Manual de Control pasa de la
+   derecha (default) a la izquierda de la cancha. */
+.pizarra-tactica.panel-izquierda {
+  flex-direction: row-reverse;
+}
+
 @media (max-width: 900px) {
   .pizarra-tactica {
     flex-direction: column;

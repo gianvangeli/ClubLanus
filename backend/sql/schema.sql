@@ -143,6 +143,7 @@ CREATE TABLE `ejercicios` (
   `pizarra_archivo_url` varchar(500) DEFAULT NULL,
   `pizarra_archivo_tipo` enum('imagen','video') DEFAULT NULL,
   `pizarra_archivo_nombre_original` varchar(255) DEFAULT NULL,
+  `animacion_video_url` varchar(500) DEFAULT NULL,
   `creado_por` int DEFAULT NULL,
   `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -661,6 +662,20 @@ CREATE TABLE `chat_ia_mensajes` (
   KEY `creado_por` (`creado_por`),
   CONSTRAINT `chat_ia_mensajes_ibfk_1` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE,
   CONSTRAINT `chat_ia_mensajes_ibfk_2` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `pizarra_jugadas`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pizarra_jugadas` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `titulo` varchar(150) NOT NULL,
+  `dibujo_json` longtext NOT NULL,
+  `creado_por` int DEFAULT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `pizarra_jugadas_creado_por_fk` (`creado_por`),
+  CONSTRAINT `pizarra_jugadas_creado_por_fk` FOREIGN KEY (`creado_por`) REFERENCES `usuarios` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `pizarras_tacticas`;

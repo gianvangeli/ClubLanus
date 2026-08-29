@@ -62,7 +62,7 @@ const obtenerEjercicio = async (req, res) => {
     const [ejercicios] = await db.query(
       `SELECT id, entrenamiento_id, numero, dia, tipo_trabajo, espacio, objetivo, n_jugadores, duracion,
               descripcion, dibujo_json, pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original,
-              creado_por, creado_en
+              animacion_video_url, creado_por, creado_en
        FROM ejercicios WHERE id = ?`,
       [id]
     );
@@ -332,6 +332,49 @@ const obtenerArchivoVideoEjercicio = async (req, res) => {
   }
 };
 
+// Guarda el video de animación generado por la pizarra táctica (grabado en
+// el navegador a partir de la secuencia de escenas). Regenerar reemplaza al
+// anterior en vez de acumular — mismo criterio que en ejercicios_tacticos.
+const guardarAnimacionEjercicio = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const archivo = req.file;
+    if (!archivo) {
+      return res.status(400).json({ message: "Falta el archivo de animación" });
+    }
+
+    const [ejercicios] = await db.query("SELECT animacion_video_url FROM ejercicios WHERE id = ?", [id]);
+    if (ejercicios.length === 0) {
+      return res.status(404).json({ message: "Ejercicio no encontrado" });
+    }
+
+    if (ejercicios[0].animacion_video_url) eliminarArchivo(ejercicios[0].animacion_video_url);
+
+    const url = await guardarArchivoDesdeRuta(archivo.path, "ejercicios", archivo.originalname);
+    await db.query("UPDATE ejercicios SET animacion_video_url = ? WHERE id = ?", [url, id]);
+
+    res.status(201).json({ message: "Animación guardada correctamente" });
+  } catch (error) {
+    res.status(500).json({ message: "Error al guardar la animación", error: error.message });
+  }
+};
+
+// Sirve el video de la animación generada.
+const obtenerArchivoAnimacion = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [ejercicios] = await db.query("SELECT animacion_video_url FROM ejercicios WHERE id = ?", [id]);
+    if (ejercicios.length === 0 || !ejercicios[0].animacion_video_url) {
+      return res.status(404).json({ message: "Archivo no encontrado" });
+    }
+
+    await servirArchivo(req, res, ejercicios[0].animacion_video_url);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener el archivo", error: error.message });
+  }
+};
+
 // Sirve la pizarra táctica cuando se cargó como imagen/video en vez de dibujada.
 const obtenerArchivoPizarra = async (req, res) => {
   try {
@@ -360,4 +403,6 @@ module.exports = {
   eliminarVideoEjercicio,
   obtenerArchivoVideoEjercicio,
   obtenerArchivoPizarra,
+  guardarAnimacionEjercicio,
+  obtenerArchivoAnimacion,
 };

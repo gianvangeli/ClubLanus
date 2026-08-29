@@ -28,6 +28,7 @@ const escenaVaciaV2 = () => ({
   textos: [],
   trazos: [],
   zonas: [],
+  imagenes: [],
 })
 
 const normalizarUnaEscena = (v, nombre) => {
@@ -42,6 +43,9 @@ const normalizarUnaEscena = (v, nombre) => {
     textos: base.textos,
     trazos: base.trazos,
     zonas: base.zonas,
+    // "Subir imagen" (spec 5.1) es exclusivo del modelo v2 — el CanchaEditor
+    // clásico (normalizarEscena) no lo conoce, así que se lee directo de v.
+    imagenes: v?.imagenes || [],
   }
 }
 
