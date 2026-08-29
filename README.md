@@ -4,10 +4,10 @@ Aplicación web para la gestión del plantel de jugadores: fichas de jugador, bi
 
 ## Demo en producción
 
-- **App**: https://lanus-frontend-app.onrender.com
+- **App**: https://club-lanus.vercel.app
 - **Backend (API)**: https://lanus-backend.onrender.com
 
-Está en el plan gratuito de Render, así que si nadie la usó en un rato "se duerme" y la primera carga tarda entre 30 y 60 segundos en volver a levantar. Después de esa primera carga anda normal.
+El backend está en el plan gratuito de Render, así que si nadie lo usó en un rato "se duerme" y la primera carga tarda entre 30 y 60 segundos en volver a levantar. Después de esa primera carga anda normal.
 
 ## Funcionalidades
 
@@ -43,14 +43,14 @@ Está en el plan gratuito de Render, así que si nadie la usó en un rato "se du
 | Backend | Node.js + Express, JWT para auth, Multer para uploads |
 | Base de datos | MySQL (Aiven, plan gratuito) |
 | Archivos (videos, PDFs, dibujos) | Backblaze B2 (S3-compatible) en producción, disco local en desarrollo |
-| Hosting | Render (backend y frontend como Web Services separados, plan gratuito) |
+| Hosting | Vercel (frontend, plan gratuito) + Render (backend como Web Service, plan gratuito) |
 
 ### Por qué esta combinación
 Todo el stack se eligió para no pagar nada ni pedir tarjeta/verificación de identidad:
 - **Render** free tier no ofrece disco persistente (cualquier archivo escrito en disco se pierde en cada reinicio), por eso los archivos subidos se guardan en **Backblaze B2** en vez del filesystem del servidor.
 - El backend detecta solo si hay que usar B2 o disco local: si están configuradas las variables `B2_KEY_ID`, `B2_APP_KEY` y `B2_BUCKET` usa B2 (producción); si no, usa disco (desarrollo). Ver `backend/src/config/storage.js`.
 - **Aiven** ofrece MySQL gratis de por vida (1GB) sin tarjeta, usado como base de datos de producción. La conexión requiere SSL con el certificado propio de Aiven (`DB_CA_CERT`), ver `backend/src/config/db.js`.
-- El frontend en Render se sirve como **Web Service** (con el paquete `serve -s`) y no como "Static Site": el rewrite de rutas de los sitios estáticos de Render (necesario para que funcionen las rutas de React Router al recargar la página) tenía un bug que devolvía respuestas vacías, así que se optó por este método, más simple y confiable.
+- El frontend se despliega en **Vercel** (build estático de Vite) en vez de Render: el rewrite de rutas configurado en `frontend/vercel.json` resuelve las rutas de React Router al recargar la página, y Vercel redespliega automáticamente en cada push sin la fricción de acceso al repo que da Render (ver más abajo).
 
 ## Estructura del repositorio
 
@@ -102,12 +102,13 @@ Ver `backend/.env.example` para la lista completa. Las más importantes:
 
 ## Variables de entorno (frontend)
 
-- `VITE_API_URL`: URL completa del backend desplegado (ej. `https://lanus-backend.onrender.com`). En desarrollo se deja vacía porque se usa el proxy de Vite.
+- `VITE_API_URL`: URL completa del backend desplegado (ej. `https://lanus-backend.onrender.com`). En desarrollo se deja vacía porque se usa el proxy de Vite. En Vercel se carga como variable de entorno del proyecto (build time).
 
 ## Despliegue (resumen)
 
 1. **Aiven**: crear un servicio MySQL free plan, aplicar `backend/sql/schema.sql` para crear las tablas.
 2. **Backblaze B2**: crear un bucket privado y una Application Key con acceso a ese bucket.
-3. **Render**: crear un Web Service para `backend/` (root directory `backend`, build `npm install`, start `node src/app.js`) y otro para `frontend/` (root directory `frontend`, build `npm install && npm run build`, start `npm start`), cargando las variables de entorno de los dos pasos anteriores en cada uno.
+3. **Render**: crear un Web Service para `backend/` (root directory `backend`, build `npm install`, start `node src/app.js`), cargando las variables de entorno de los dos pasos anteriores.
+4. **Vercel**: importar el repo, con root directory `frontend` (build `npm run build`, output `dist`), cargando `VITE_API_URL` apuntando al backend de Render. El rewrite de SPA queda resuelto por `frontend/vercel.json`.
 
-Como Render no tiene el acceso completo a este repositorio configurado (aparece el aviso "It looks like we don't have access to your repo" en los logs de build), los despliegues automáticos por push no están garantizados: después de cada `git push` puede hacer falta un **Manual Deploy → Deploy latest commit** en cada servicio desde el dashboard de Render.
+Render no tiene el acceso completo a este repositorio configurado (aparece el aviso "It looks like we don't have access to your repo" en los logs de build), así que los despliegues automáticos por push del **backend** no están garantizados: después de cada `git push` puede hacer falta un **Manual Deploy → Deploy latest commit** desde el dashboard de Render. Vercel sí redespliega el frontend automáticamente en cada push a `master`.
