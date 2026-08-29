@@ -61,14 +61,27 @@
   font-family: inherit;
 }
 
-.mc-bloque-preparador_fisico {
-  background: #fef3e2;
-  border-color: #f0b562;
+/* Mismos 4 colores que el calendario mensual del jugador (MiCalendario.css:
+   cal-general/cal-preparador_fisico/cal-cancha/cal-viaje) y que el puntito
+   de TIPOS_ACTIVIDAD más abajo, en versión clara para tarjeta. */
+.mc-bloque-tipo-general {
+  background: #fdeaea;
+  border-color: #dc4545;
 }
 
-.mc-bloque-cuerpo_tecnico {
-  background: #eaf1fb;
-  border-color: #6b9fdb;
+.mc-bloque-tipo-preparador_fisico {
+  background: #e7eefd;
+  border-color: #2f6fed;
+}
+
+.mc-bloque-tipo-cancha {
+  background: #e6f5eb;
+  border-color: #16a34a;
+}
+
+.mc-bloque-tipo-viaje {
+  background: #fdf0dc;
+  border-color: #d97706;
 }
 
 .mc-bloque-horario {

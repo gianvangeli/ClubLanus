@@ -6,16 +6,14 @@ import CanchaMiniatura from '../components/CanchaMiniatura'
 import EscudoClub from '../components/EscudoClub'
 import './MicrocicloDetalle.css'
 
-const CATEGORIAS = [
-  { valor: 'preparador_fisico', etiqueta: 'Preparador físico' },
-  { valor: 'cuerpo_tecnico', etiqueta: 'Cuerpo técnico' },
-]
-
-// Determina el color con el que el jugador ve cada bloque en su calendario
-// mensual (ver MiCalendario.jsx): general=rojo, preparador_fisico=azul,
-// cancha=verde, viaje=amarillo. La vieja "categoria" (cuerpo_tecnico /
-// preparador_fisico) se sigue derivando sola en el backend a partir de
-// esto, para no tocar el coloreado de esta pantalla semanal.
+// Mismos 4 colores en toda la app (ver MiCalendario.css): general=rojo,
+// preparador_fisico=azul, cancha=verde, viaje=amarillo — tanto acá (tarjeta
+// del bloque en la semana) como en el calendario mensual del jugador. La
+// vieja "categoria" (cuerpo_tecnico/preparador_fisico, solo 2 valores) se
+// sigue derivando sola en el backend por compatibilidad, pero ya no se usa
+// para mostrar nada: con ella, Cancha/Viaje/General quedaban indistinguibles
+// entre sí (los 3 caen en "cuerpo_tecnico") y Preparador físico (con o sin
+// espacio "Gimnasio") se veía siempre igual, nunca en azul.
 const TIPOS_ACTIVIDAD = [
   { valor: 'general', etiqueta: 'General', clase: 'mc-tipo-general' },
   { valor: 'preparador_fisico', etiqueta: 'Preparador físico', clase: 'mc-tipo-preparador_fisico' },
@@ -30,7 +28,7 @@ const ESPACIOS_TRABAJO = [
   { valor: 'gimnasio', etiqueta: 'Gimnasio' },
 ]
 
-const etiquetaCategoria = (valor) => CATEGORIAS.find((c) => c.valor === valor)?.etiqueta || valor
+const etiquetaTipoActividad = (valor) => TIPOS_ACTIVIDAD.find((t) => t.valor === valor)?.etiqueta || valor
 
 const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
@@ -160,7 +158,7 @@ export default function MicrocicloDetalle() {
                   <button
                     key={b.id}
                     type="button"
-                    className={`mc-bloque mc-bloque-${b.categoria}`}
+                    className={`mc-bloque mc-bloque-tipo-${b.tipo_actividad || 'general'}`}
                     onClick={() => setBloqueEditando({ fecha, bloque: b })}
                   >
                     <div className="mc-bloque-horario">
@@ -168,7 +166,7 @@ export default function MicrocicloDetalle() {
                         {b.hora_inicio?.slice(0, 5)}
                         {b.hora_fin ? ` - ${b.hora_fin.slice(0, 5)}` : ''}
                       </span>
-                      <span className="mc-bloque-tag">{etiquetaCategoria(b.categoria)}</span>
+                      <span className="mc-bloque-tag">{etiquetaTipoActividad(b.tipo_actividad)}</span>
                     </div>
                     {b.titulo && <strong className="mc-bloque-titulo">{b.titulo}</strong>}
                     {b.objetivo && <span className="mc-bloque-detalle">{b.objetivo}</span>}
