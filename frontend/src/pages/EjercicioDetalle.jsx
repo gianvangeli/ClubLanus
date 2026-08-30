@@ -165,6 +165,21 @@ export default function EjercicioDetalle() {
         </div>
 
         <div className="ej-cuerpo">
+          <div className="ej-texto-col">
+            <div className="ej-campo ej-campo-grande">
+              <label>Descripción del ejercicio:</label>
+              <textarea rows={10} value={form.descripcion} onChange={onChange('descripcion')} />
+            </div>
+
+            <VideoRealEjercicio ejercicioId={ejercicioId} videos={ejercicio.videos || []} onCambio={cargar} />
+
+            {ejercicio.animacion_video_url && (
+              <div className="ej-campo ej-campo-grande">
+                <label>Animación táctica generada:</label>
+                <video className="video-player" controls preload="metadata" src={`${API_BASE}/api/ejercicios/${ejercicioId}/animacion-archivo?token=${token}`} />
+              </div>
+            )}
+          </div>
           <div className="ej-cancha-col">
             <div className="modo-toggle" style={{ marginBottom: 10 }}>
               <button
@@ -213,21 +228,6 @@ export default function EjercicioDetalle() {
                 ) : (
                   <span className="texto-muted">Todavía no se subió ningún archivo de pizarra.</span>
                 )}
-              </div>
-            )}
-          </div>
-          <div className="ej-texto-col">
-            <div className="ej-campo ej-campo-grande">
-              <label>Descripción del ejercicio:</label>
-              <textarea rows={10} value={form.descripcion} onChange={onChange('descripcion')} />
-            </div>
-
-            <VideoRealEjercicio ejercicioId={ejercicioId} videos={ejercicio.videos || []} onCambio={cargar} />
-
-            {ejercicio.animacion_video_url && (
-              <div className="ej-campo ej-campo-grande">
-                <label>Animación táctica generada:</label>
-                <video className="video-player" controls preload="metadata" src={`${API_BASE}/api/ejercicios/${ejercicioId}/animacion-archivo?token=${token}`} />
               </div>
             )}
           </div>
