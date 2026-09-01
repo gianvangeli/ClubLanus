@@ -51,7 +51,13 @@ export default function ImportarGpsPanel({ fechaInicial, partidoInicial, onImpor
         }))
       )
     } catch (err) {
-      setError(extraerError(err, 'No se pudo analizar el PDF'))
+      // El backend manda además el detalle técnico de la IA (ej. "cortó la
+      // respuesta por ser muy larga", "bloqueó el archivo") en data.error;
+      // sin mostrarlo acá el cuerpo técnico solo veía un mensaje genérico y
+      // no había forma de saber si conviene reintentar o achicar el PDF.
+      const detalle = err?.response?.data?.error
+      const mensaje = extraerError(err, 'No se pudo analizar el PDF')
+      setError(detalle && detalle !== mensaje ? `${mensaje}: ${detalle}` : mensaje)
     } finally {
       setAnalizando(false)
     }

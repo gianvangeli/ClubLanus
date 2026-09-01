@@ -26,8 +26,22 @@ const llamarGemini = async (body, mensajeErrorGenerico) => {
     throw new Error(datos?.error?.message || mensajeErrorGenerico);
   }
 
-  const texto = datos?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+  const candidato = datos?.candidates?.[0];
+  const texto = candidato?.content?.parts?.map((p) => p.text).join("") || "";
+
   if (!texto) {
+    // finishReason distingue por qué no hay texto: MAX_TOKENS (se cortó por
+    // el límite de salida, típico con PDFs de plantel completo con muchos
+    // jugadores/indicadores) vs SAFETY/PROHIBITED_CONTENT (Gemini bloqueó el
+    // archivo) vs otra causa. Sin esto, todo se veía igual ("no devolvió
+    // resultado") y no había forma de saber cuál era desde los logs.
+    console.error("Gemini no devolvió texto.", { finishReason: candidato?.finishReason, promptFeedback: datos?.promptFeedback });
+    if (candidato?.finishReason === "MAX_TOKENS") {
+      throw new Error("La IA cortó la respuesta por ser muy larga (demasiados jugadores/indicadores en el PDF). Probá con un PDF más chico o menos jugadores por importación.");
+    }
+    if (candidato?.finishReason === "SAFETY" || candidato?.finishReason === "PROHIBITED_CONTENT") {
+      throw new Error("Gemini bloqueó el archivo (filtro de contenido). Probá con otro PDF.");
+    }
     throw new Error("La IA no devolvió ningún resultado");
   }
 
@@ -62,6 +76,7 @@ const generarJSON = async (prompt, archivo) => {
   try {
     return JSON.parse(texto);
   } catch {
+    console.error("Gemini devolvió JSON inválido.", { largo: texto.length, inicio: texto.slice(0, 200), fin: texto.slice(-200) });
     throw new Error("La IA no devolvió un JSON válido");
   }
 };

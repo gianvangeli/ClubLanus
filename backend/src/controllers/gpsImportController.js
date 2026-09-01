@@ -94,6 +94,7 @@ const previsualizarImportacionGps = async (req, res) => {
 
     res.json({ filas });
   } catch (error) {
+    console.error("Error al previsualizar importación GPS:", error);
     res.status(500).json({
       message: "Error al analizar el PDF con IA",
       error: error.message,
