@@ -87,6 +87,20 @@
   margin-bottom: 8px;
 }
 
+.pf-pico-categorias {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pf-pico-categoria h5 {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
 .pf-pico-indicadores {
   display: flex;
   flex-wrap: wrap;
@@ -180,14 +194,29 @@
   color: var(--text-muted);
 }
 
+.pf-resumen-categorias {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 18px;
+}
+
+.pf-resumen-categoria-titulo {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--granate-700);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
 .pf-resumen-graficos {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  margin-top: 16px;
 }
 
-.pf-resumen-grafico-item h4 {
+.pf-resumen-grafico-item h5 {
   font-size: 12.5px;
   text-transform: uppercase;
   letter-spacing: 0.4px;

@@ -38,6 +38,24 @@ const PLANTILLA_INDICADORES = [
   },
 ]
 
+const ORDEN_CATEGORIAS = PLANTILLA_INDICADORES.map((c) => c.categoria)
+
+// Agrupa los indicadores de una evaluación por categoría, respetando el
+// orden de PLANTILLA_INDICADORES y dejando al final las categorías
+// personalizadas (ej. "Otros" de indicadores cargados a mano).
+const agruparPorCategoria = (indicadores) => {
+  const grupos = new Map()
+  indicadores.forEach((ind) => {
+    if (!grupos.has(ind.categoria)) grupos.set(ind.categoria, [])
+    grupos.get(ind.categoria).push(ind)
+  })
+  const categorias = [
+    ...ORDEN_CATEGORIAS.filter((c) => grupos.has(c)),
+    ...Array.from(grupos.keys()).filter((c) => !ORDEN_CATEGORIAS.includes(c)),
+  ]
+  return categorias.map((categoria) => ({ categoria, items: grupos.get(categoria) }))
+}
+
 export default function JugadorPreparacionFisica() {
   const { id } = useParams()
   const [jugador, setJugador] = useState(null)
@@ -548,11 +566,18 @@ function PicosRendimiento({ jugadorId }) {
                   Eliminar
                 </button>
               </div>
-              <div className="pf-pico-indicadores">
-                {p.indicadores.map((ind, i) => (
-                  <span key={i} className="pf-indicador-chip">
-                    {ind.indicador}: <strong>{ind.valor}</strong>
-                  </span>
+              <div className="pf-pico-categorias">
+                {agruparPorCategoria(p.indicadores).map(({ categoria, items }) => (
+                  <div key={categoria} className="pf-pico-categoria">
+                    <h5>{categoria}</h5>
+                    <div className="pf-pico-indicadores">
+                      {items.map((ind, i) => (
+                        <span key={i} className="pf-indicador-chip">
+                          {ind.indicador}: <strong>{ind.valor}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
@@ -610,17 +635,26 @@ function ResumenFisicoAutomatico({ jugadorId }) {
     return { ...ind, deltaPct }
   })
 
+  // Hasta 2 indicadores clave por categoría (no todos: con 4 categorías x
+  // hasta 4 indicadores cada una sería demasiado ruido para un resumen
+  // "de un vistazo"). Se descartan los que todavía no tienen al menos 2
+  // evaluaciones cargadas (no se puede trazar una tendencia con 1 punto).
   const picosAsc = [...picos].reverse()
-  const graficos = PLANTILLA_INDICADORES.map(({ categoria, indicadores: nombres }) => {
-    const indicador = nombres[0]
-    const puntos = picosAsc
-      .map((p) => ({
-        fecha: p.fecha,
-        valor: p.indicadores.find((i) => i.categoria === categoria && i.indicador === indicador)?.valor,
-      }))
-      .filter((p) => typeof p.valor === 'number')
-    return { categoria, indicador, puntos }
-  }).filter((g) => g.puntos.length >= 2)
+  const graficosPorCategoria = PLANTILLA_INDICADORES.map(({ categoria, indicadores: nombres }) => ({
+    categoria,
+    items: nombres
+      .slice(0, 2)
+      .map((indicador) => {
+        const puntos = picosAsc
+          .map((p) => ({
+            fecha: p.fecha,
+            valor: p.indicadores.find((i) => i.categoria === categoria && i.indicador === indicador)?.valor,
+          }))
+          .filter((p) => typeof p.valor === 'number')
+        return { indicador, puntos }
+      })
+      .filter((g) => g.puntos.length >= 2),
+  })).filter((g) => g.items.length > 0)
 
   return (
     <div className="card seccion" style={{ marginBottom: 16 }}>
@@ -647,12 +681,19 @@ function ResumenFisicoAutomatico({ jugadorId }) {
         ))}
       </div>
 
-      {graficos.length > 0 && (
-        <div className="pf-resumen-graficos">
-          {graficos.map((g) => (
-            <div key={g.categoria} className="pf-resumen-grafico-item">
-              <h4>{g.indicador}</h4>
-              <GraficoTendencia puntos={g.puntos} etiqueta={g.indicador} />
+      {graficosPorCategoria.length > 0 && (
+        <div className="pf-resumen-categorias">
+          {graficosPorCategoria.map(({ categoria, items }) => (
+            <div key={categoria} className="pf-resumen-categoria">
+              <h4 className="pf-resumen-categoria-titulo">{categoria}</h4>
+              <div className="pf-resumen-graficos">
+                {items.map((g) => (
+                  <div key={g.indicador} className="pf-resumen-grafico-item">
+                    <h5>{g.indicador}</h5>
+                    <GraficoTendencia puntos={g.puntos} etiqueta={g.indicador} />
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
