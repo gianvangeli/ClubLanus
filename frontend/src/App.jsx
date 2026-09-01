@@ -28,6 +28,8 @@ import PsicologoInicio from './pages/PsicologoInicio'
 import PsicologoJugador from './pages/PsicologoJugador'
 import AdminBiblioteca from './pages/AdminBiblioteca'
 import AdminBibliotecaDetalle from './pages/AdminBibliotecaDetalle'
+import EstadisticasPartido from './pages/EstadisticasPartido'
+import EstadisticasPartidoDetalle from './pages/EstadisticasPartidoDetalle'
 import Entrenamientos from './pages/Entrenamientos'
 import EntrenamientoDetalle from './pages/EntrenamientoDetalle'
 import EjercicioDetalle from './pages/EjercicioDetalle'
@@ -258,6 +260,22 @@ export default function App() {
               element={
                 <ProtectedRoute roles={CUERPO_TECNICO}>
                   <AdminBibliotecaDetalle />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/estadisticas-partido"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <EstadisticasPartido />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/estadisticas-partido/:id"
+              element={
+                <ProtectedRoute roles={CUERPO_TECNICO}>
+                  <EstadisticasPartidoDetalle />
                 </ProtectedRoute>
               }
             />

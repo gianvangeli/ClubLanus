@@ -1,0 +1,78 @@
+.ep-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0 24px;
+}
+
+@media (max-width: 700px) {
+  .ep-form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ep-bloque {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.ep-bloque-titulo {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--granate-700);
+  margin-bottom: 12px;
+}
+
+.ep-tabla-equipo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ep-fila-equipo {
+  display: grid;
+  grid-template-columns: 1fr 100px 100px;
+  align-items: center;
+  gap: 10px;
+}
+
+.ep-fila-equipo-nombre {
+  font-size: 13.5px;
+}
+
+.ep-fila-equipo input {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  text-align: right;
+  width: 100%;
+}
+
+.ep-filas {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ep-fila {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--granate-50);
+}
+
+.ep-fila-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.ep-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}

@@ -871,6 +871,44 @@ CREATE TABLE `jugador_videos` (
   CONSTRAINT `jugador_videos_ibfk_2` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+DROP TABLE IF EXISTS `estadisticas_partido`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `estadisticas_partido` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `fecha` date NOT NULL,
+  `rival` varchar(200) NOT NULL,
+  `condicion` enum('local','visitante') DEFAULT NULL,
+  `resultado` varchar(20) DEFAULT NULL,
+  `competencia` varchar(200) DEFAULT NULL,
+  `equipo_indicadores` text NOT NULL,
+  `archivo` varchar(500) DEFAULT NULL,
+  `nombre_archivo` varchar(255) DEFAULT NULL,
+  `registrado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `registrado_por` (`registrado_por`),
+  CONSTRAINT `estadisticas_partido_ibfk_1` FOREIGN KEY (`registrado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+DROP TABLE IF EXISTS `estadisticas_partido_jugadores`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `estadisticas_partido_jugadores` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `partido_id` int NOT NULL,
+  `jugador_id` int NOT NULL,
+  `indicadores` text NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `partido_id` (`partido_id`),
+  KEY `jugador_id` (`jugador_id`),
+  CONSTRAINT `estadisticas_partido_jugadores_ibfk_1` FOREIGN KEY (`partido_id`) REFERENCES `estadisticas_partido` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `estadisticas_partido_jugadores_ibfk_2` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

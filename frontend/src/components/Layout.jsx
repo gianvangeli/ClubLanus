@@ -39,6 +39,9 @@ export default function Layout() {
               <NavLink to="/admin/biblioteca" className="navbar-link">
                 Biblioteca
               </NavLink>
+              <NavLink to="/admin/estadisticas-partido" className="navbar-link">
+                Estadísticas
+              </NavLink>
               <NavLink to="/entrenamientos" className="navbar-link">
                 Entrenamientos
               </NavLink>

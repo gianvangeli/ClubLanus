@@ -15,6 +15,7 @@ const objetivosNutricionalesRoutes = require("./routes/objetivosNutricionalesRou
 const generalRoutes = require("./routes/generalRoutes");
 const calendarioRoutes = require("./routes/calendarioRoutes");
 const notificacionesRoutes = require("./routes/notificacionesRoutes");
+const estadisticasPartidoRoutes = require("./routes/estadisticasPartidoRoutes");
 const app = express();
 
 app.use(cors());
@@ -32,6 +33,7 @@ app.use("/api/objetivos-nutricionales", objetivosNutricionalesRoutes);
 app.use("/api/general", generalRoutes);
 app.use("/api/calendario", calendarioRoutes);
 app.use("/api/notificaciones", notificacionesRoutes);
+app.use("/api/estadisticas-partido", estadisticasPartidoRoutes);
 
 app.get("/", (req, res) => {
   res.json({ message: "Backend funcionando correctamente" });
