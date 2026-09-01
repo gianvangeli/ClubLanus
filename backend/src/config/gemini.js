@@ -6,6 +6,15 @@
 // actualiza solo, sin que el código quede apuntando a algo dado de baja.
 const MODELO = "gemini-flash-latest";
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Reintentos con backoff solo para errores transitorios de Google (503
+// "modelo sobrecargado" / 429 rate limit) — son errores de capacidad del
+// lado de Google, no del PDF ni de la app, y el propio mensaje de error
+// sugiere reintentar más tarde. El resto de los errores (API key inválida,
+// contenido bloqueado, etc.) no se reintentan porque no se van a resolver solos.
+const REINTENTOS_ESPERA_MS = [3000, 8000, 15000];
+
 const llamarGemini = async (body, mensajeErrorGenerico) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -14,16 +23,24 @@ const llamarGemini = async (body, mensajeErrorGenerico) => {
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent?key=${apiKey}`;
 
-  const respuesta = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  let datos;
+  for (let intento = 0; ; intento++) {
+    const respuesta = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
-  const datos = await respuesta.json();
+    datos = await respuesta.json();
 
-  if (!respuesta.ok) {
-    throw new Error(datos?.error?.message || mensajeErrorGenerico);
+    if (respuesta.ok) break;
+
+    const esTransitorio = respuesta.status === 503 || respuesta.status === 429;
+    if (!esTransitorio || intento >= REINTENTOS_ESPERA_MS.length) {
+      throw new Error(datos?.error?.message || mensajeErrorGenerico);
+    }
+    console.error(`Gemini ${respuesta.status} (transitorio), reintentando en ${REINTENTOS_ESPERA_MS[intento]}ms...`, datos?.error?.message);
+    await sleep(REINTENTOS_ESPERA_MS[intento]);
   }
 
   const candidato = datos?.candidates?.[0];
