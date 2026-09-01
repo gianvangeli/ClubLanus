@@ -636,9 +636,11 @@ function ResumenFisicoAutomatico({ jugadorId }) {
   })
 
   // Hasta 2 indicadores clave por categoría (no todos: con 4 categorías x
-  // hasta 4 indicadores cada una sería demasiado ruido para un resumen
-  // "de un vistazo"). Se descartan los que todavía no tienen al menos 2
-  // evaluaciones cargadas (no se puede trazar una tendencia con 1 punto).
+  // hasta 4 indicadores cada una sería demasiado ruido para un resumen "de
+  // un vistazo"). No se descartan los que todavía no llegan a 2 evaluaciones:
+  // se muestran igual (GraficoTendencia ya avisa "cargá al menos 2..."), así
+  // queda claro por qué no hay tendencia en vez de que la sección desaparezca
+  // sin explicación con una sola carga.
   const picosAsc = [...picos].reverse()
   const graficosPorCategoria = PLANTILLA_INDICADORES.map(({ categoria, indicadores: nombres }) => ({
     categoria,
@@ -653,7 +655,7 @@ function ResumenFisicoAutomatico({ jugadorId }) {
           .filter((p) => typeof p.valor === 'number')
         return { indicador, puntos }
       })
-      .filter((g) => g.puntos.length >= 2),
+      .filter((g) => g.puntos.length > 0),
   })).filter((g) => g.items.length > 0)
 
   return (
