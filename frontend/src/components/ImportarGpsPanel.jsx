@@ -149,10 +149,22 @@ export default function ImportarGpsPanel({ fechaInicial, partidoInicial, onImpor
             </button>
           </div>
 
-          <p className="texto-muted" style={{ marginBottom: 12 }}>
-            Revisá que cada fila esté asignada al jugador correcto. Las filas sin jugador asignado no se pueden
-            importar.
-          </p>
+          {filas.length === 0 ? (
+            // Si el PDF no tiene datos que matcheen los indicadores de GPS
+            // esperados (ej. es un informe táctico/de resultado en vez del
+            // reporte de tracking físico), la IA devuelve 0 filas — sin este
+            // aviso la pantalla quedaba vacía sin explicar por qué.
+            <div className="alert alert-error">
+              La IA no detectó datos de GPS en este PDF (ningún jugador ni indicador de volumen/intensidad/velocidad).
+              Revisá que sea el reporte de tracking físico correcto y no otro tipo de informe (ej. de resultado o
+              táctico).
+            </div>
+          ) : (
+            <p className="texto-muted" style={{ marginBottom: 12 }}>
+              Revisá que cada fila esté asignada al jugador correcto. Las filas sin jugador asignado no se pueden
+              importar.
+            </p>
+          )}
 
           <div className="gps-filas">
             {filas.map((f, i) => (
