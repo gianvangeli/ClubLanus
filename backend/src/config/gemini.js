@@ -9,11 +9,15 @@ const MODELO = "gemini-flash-latest";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Reintentos con backoff solo para errores transitorios de Google (503
-// "modelo sobrecargado" / 429 rate limit) — son errores de capacidad del
-// lado de Google, no del PDF ni de la app, y el propio mensaje de error
-// sugiere reintentar más tarde. El resto de los errores (API key inválida,
-// contenido bloqueado, etc.) no se reintentan porque no se van a resolver solos.
-const REINTENTOS_ESPERA_MS = [3000, 8000, 15000];
+// "modelo sobrecargado" / 429 rate limit, o que directamente no responda a
+// tiempo) — son errores de capacidad del lado de Google, no del PDF ni de
+// la app, y el propio mensaje de error sugiere reintentar más tarde. El
+// resto de los errores (API key inválida, contenido bloqueado, etc.) no se
+// reintentan porque no se van a resolver solos. Un solo intento no puede
+// tardar más de TIMEOUT_MS: sin este límite, un intento colgado dejaba la
+// carga esperando varios minutos sin ningún feedback ni reintento.
+const REINTENTOS_ESPERA_MS = [3000, 10000];
+const TIMEOUT_MS = 60_000;
 
 const llamarGemini = async (body, mensajeErrorGenerico) => {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -25,21 +29,34 @@ const llamarGemini = async (body, mensajeErrorGenerico) => {
 
   let datos;
   for (let intento = 0; ; intento++) {
-    const respuesta = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-    datos = await respuesta.json();
+    let respuesta;
+    let seColgo = false;
+    try {
+      respuesta = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      datos = await respuesta.json();
+    } catch (err) {
+      if (err.name !== "AbortError") throw err;
+      seColgo = true;
+      datos = { error: { message: "La IA no respondió a tiempo" } };
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
-    if (respuesta.ok) break;
+    if (respuesta?.ok) break;
 
-    const esTransitorio = respuesta.status === 503 || respuesta.status === 429;
+    const esTransitorio = seColgo || respuesta?.status === 503 || respuesta?.status === 429;
     if (!esTransitorio || intento >= REINTENTOS_ESPERA_MS.length) {
       throw new Error(datos?.error?.message || mensajeErrorGenerico);
     }
-    console.error(`Gemini ${respuesta.status} (transitorio), reintentando en ${REINTENTOS_ESPERA_MS[intento]}ms...`, datos?.error?.message);
+    console.error(`Gemini ${seColgo ? "timeout" : respuesta.status} (transitorio), reintentando en ${REINTENTOS_ESPERA_MS[intento]}ms...`, datos?.error?.message);
     await sleep(REINTENTOS_ESPERA_MS[intento]);
   }
 

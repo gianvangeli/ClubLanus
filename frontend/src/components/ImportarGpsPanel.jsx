@@ -131,7 +131,12 @@ export default function ImportarGpsPanel({ fechaInicial, partidoInicial, onImpor
           <button className="btn btn-primary btn-sm" type="submit" disabled={analizando}>
             {analizando ? <span className="spinner" /> : 'Analizar con IA'}
           </button>
-          {analizando && <p className="texto-muted">Leyendo el PDF con IA, puede tardar unos segundos...</p>}
+          {analizando && (
+            <p className="texto-muted">
+              Leyendo el PDF con IA, puede tardar unos minutos (reintenta solo si el modelo está saturado). No cierres
+              esta pantalla.
+            </p>
+          )}
         </form>
       )}
 
