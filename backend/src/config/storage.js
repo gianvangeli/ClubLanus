@@ -118,6 +118,25 @@ const servirArchivo = async (req, res, key) => {
   res.redirect(302, url);
 };
 
+// Lee de vuelta un archivo ya guardado (por key/ruta, tal cual se guardó
+// con guardarArchivo/guardarArchivoDesdeRuta) como stream, sin bufferearlo
+// entero en memoria — mismo motivo que guardarArchivoDesdeRuta: un video de
+// varios cientos de MB en memoria puede colgar el proceso en Render. Se usa
+// para reenviar un video ya subido a un servicio externo (ej. la Files API
+// de Gemini).
+const obtenerFlujoArchivo = async (key) => {
+  if (!modoNube) {
+    const rutaArchivo = path.join(__dirname, "..", "..", key);
+    return { stream: fs.createReadStream(rutaArchivo), sizeBytes: fs.statSync(rutaArchivo).size };
+  }
+
+  const { GetObjectCommand } = require("@aws-sdk/client-s3");
+  const respuesta = await getClienteS3().send(
+    new GetObjectCommand({ Bucket: process.env.B2_BUCKET, Key: key })
+  );
+  return { stream: respuesta.Body, sizeBytes: respuesta.ContentLength };
+};
+
 // Borra el archivo. No hace falta esperarlo (fire and forget), igual que
 // antes con fs.unlink.
 const eliminarArchivo = (key) => {
@@ -132,4 +151,11 @@ const eliminarArchivo = (key) => {
     .catch(() => {});
 };
 
-module.exports = { guardarArchivo, guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo, modoNube };
+module.exports = {
+  guardarArchivo,
+  guardarArchivoDesdeRuta,
+  servirArchivo,
+  obtenerFlujoArchivo,
+  eliminarArchivo,
+  modoNube,
+};

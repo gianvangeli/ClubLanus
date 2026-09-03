@@ -327,7 +327,7 @@ function SeccionVideos({ bibliotecaId, videos, onVideoAgregado }) {
       <div className="video-existentes">
         {videos.length === 0 && <p className="texto-muted">Todavía no hay videos en esta publicación.</p>}
         {videos.map((v) => (
-          <VideoExistente key={v.id} video={v} />
+          <VideoConDiagnostico key={v.id} video={v} />
         ))}
       </div>
 
@@ -416,6 +416,106 @@ function VideoExistente({ video }) {
     <button type="button" className="video-existente video-existente-boton" onClick={abrirArchivo}>
       {contenido}
     </button>
+  )
+}
+
+// Envuelve VideoExistente con el toggle de diagnóstico táctico por IA
+// (colapsado por defecto), mismo patrón que "Ver seguimiento" en
+// EntrenamientosExtra (JugadorPreparacionFisica.jsx).
+function VideoConDiagnostico({ video }) {
+  const [abierto, setAbierto] = useState(false)
+
+  return (
+    <div className="video-item-wrap">
+      <VideoExistente video={video} />
+      <button type="button" className="btn btn-ghost btn-sm video-ia-toggle" onClick={() => setAbierto(!abierto)}>
+        {abierto ? 'Ocultar diagnóstico IA' : 'Diagnóstico táctico con IA'}
+      </button>
+      {abierto && <DiagnosticoVideoIA videoId={video.id} />}
+    </div>
+  )
+}
+
+// Diagnóstico táctico automático generado por IA a partir del video: lee el
+// historial (se pueden generar varias veces, se acumulan) y permite pedir
+// uno nuevo. No hay progreso real (no hay job en background): solo un
+// spinner y un aviso de que puede tardar varios minutos con un partido
+// completo, mismo criterio ya usado en ImportarGpsPanel/
+// ImportarEstadisticasPartidoPanel.
+function DiagnosticoVideoIA({ videoId }) {
+  const [diagnosticos, setDiagnosticos] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [generando, setGenerando] = useState(false)
+  const [error, setError] = useState('')
+
+  const cargar = () => {
+    setCargando(true)
+    api
+      .get(`/biblioteca/videos/${videoId}/diagnostico-ia`)
+      .then(({ data }) => setDiagnosticos(data))
+      .catch((err) => setError(extraerError(err, 'No se pudo cargar el historial')))
+      .finally(() => setCargando(false))
+  }
+
+  useEffect(cargar, [videoId])
+
+  const generar = async () => {
+    if (
+      !window.confirm(
+        'Analizar este video con IA puede tardar varios minutos si es un partido completo, y consume la cuota diaria de IA de la app. ¿Confirmás?'
+      )
+    ) {
+      return
+    }
+    setError('')
+    setGenerando(true)
+    try {
+      await api.post(`/biblioteca/videos/${videoId}/diagnostico-ia`)
+      cargar()
+    } catch (err) {
+      const detalle = err?.response?.data?.error
+      const mensaje = extraerError(err, 'No se pudo generar el diagnóstico')
+      setError(detalle && detalle !== mensaje ? `${mensaje}: ${detalle}` : mensaje)
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  return (
+    <div className="video-ia-panel">
+      {error && <div className="alert alert-error">{error}</div>}
+
+      <button className="btn btn-primary btn-sm" onClick={generar} disabled={generando}>
+        {generando ? <span className="spinner" /> : '+ Generar diagnóstico'}
+      </button>
+      {generando && (
+        <p className="texto-muted">
+          Analizando el video con IA. Con un partido completo puede tardar varios minutos — no cierres esta
+          pantalla.
+        </p>
+      )}
+
+      {cargando && (
+        <div className="empty-state">
+          <span className="spinner spinner-dark" />
+        </div>
+      )}
+
+      {!cargando && diagnosticos.length === 0 && (
+        <p className="texto-muted">Todavía no se generó ningún diagnóstico para este video.</p>
+      )}
+
+      {!cargando && diagnosticos.length > 0 && (
+        <div className="video-ia-lista">
+          {diagnosticos.map((d) => (
+            <div key={d.id} className="video-ia-item">
+              <strong>{formatFechaHora(d.creado_en)}</strong>
+              <p className="video-ia-texto">{d.contenido}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 

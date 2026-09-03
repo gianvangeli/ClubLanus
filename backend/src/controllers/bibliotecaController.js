@@ -1,6 +1,13 @@
 const db = require("../config/db");
-const { guardarArchivo, guardarArchivoDesdeRuta, servirArchivo, eliminarArchivo } = require("../config/storage");
+const {
+  guardarArchivo,
+  guardarArchivoDesdeRuta,
+  servirArchivo,
+  obtenerFlujoArchivo,
+  eliminarArchivo,
+} = require("../config/storage");
 const { crearNotificacion, notificarTodosLosJugadores } = require("../config/notificaciones");
+const { subirArchivoGeminiDesdeStream, generarDesdeVideo } = require("../config/gemini");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -471,6 +478,111 @@ const obtenerArchivoVideo = async (req, res) => {
   }
 };
 
+const MIME_POR_EXTENSION = {
+  mp4: "video/mp4",
+  mpeg: "video/mpeg",
+  mpg: "video/mpeg",
+  mov: "video/quicktime",
+  avi: "video/x-msvideo",
+  flv: "video/x-flv",
+  webm: "video/webm",
+  wmv: "video/x-ms-wmv",
+  "3gp": "video/3gpp",
+};
+
+const REGEX_YOUTUBE = /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)/i;
+
+// Arma el prompt para el diagnóstico táctico. Mismo criterio que el resto
+// de los prompts de IA de la app: texto plano sin markdown (consistente con
+// diagnosticos_ia/analisis_futbolistico), en español, y con las métricas
+// cuantitativas explícitamente marcadas como estimación de la IA (no son
+// datos de tracking profesional como los del informe de Wyscout importado
+// en "Estadísticas de partido").
+const armarPromptDiagnosticoVideo = () =>
+  [
+    "Sos un analista táctico de fútbol del Club Atlético Lanús. Te paso un video de un partido o entrenamiento del club.",
+    "Generá un diagnóstico táctico completo, organizado en las siguientes secciones (usá el nombre de cada sección como título, en mayúsculas, sin markdown, sin asteriscos ni numeración con símbolos):",
+    "",
+    "CONTEXTO: qué tipo de contenido es (partido oficial, amistoso, entrenamiento), qué equipos se enfrentan si se identifican, y en qué fase del juego se centra el análisis.",
+    "FORTALEZAS: qué funcionó bien tácticamente para Lanús (estructura, circulación, presión, transiciones, definición).",
+    "DEBILIDADES: qué se puede mejorar (errores posicionales, pérdidas de balón, desorganización defensiva, falta de profundidad, etc.).",
+    "MOMENTOS CLAVE: jugadas puntuales relevantes (goles, ocasiones claras, errores graves), con el minuto aproximado si se puede estimar.",
+    "SUGERENCIAS: recomendaciones tácticas concretas para el cuerpo técnico de cara a los próximos partidos.",
+    "MÉTRICAS ESTIMADAS: un puñado de números aproximados (posesión %, cantidad de pases, duelos ganados/perdidos, remates) que puedas inferir mirando el video.",
+    "",
+    "Reglas estrictas:",
+    "1. Las métricas de la sección MÉTRICAS ESTIMADAS son SIEMPRE una aproximación visual tuya, nunca datos de tracking profesional: aclaralo explícitamente en esa sección.",
+    "2. Si el contenido del video no parece ser fútbol, o no corresponde a Lanús, decilo con claridad en la sección CONTEXTO en vez de inventar un análisis.",
+    "3. Responder en español, en texto plano (sin markdown: nada de **, ##, guiones ni backticks), organizado por las secciones pedidas.",
+  ].join("\n");
+
+// Analiza con IA un video ya cargado en Biblioteca y genera un diagnóstico
+// táctico (texto libre + métricas estimadas). No hay job en background: es
+// una única request síncrona con un timeout largo (ver TIMEOUT_VIDEO_MS),
+// mismo criterio que el resto de las importaciones con IA de la app, pero
+// con más margen porque un partido completo tarda bastante más que un PDF.
+const TIMEOUT_VIDEO_MS = 15 * 60 * 1000;
+
+const generarDiagnosticoVideoIA = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const generadoPor = req.usuario.id;
+
+    const [videos] = await db.query("SELECT id, tipo, url_video FROM videos WHERE id = ?", [videoId]);
+    if (videos.length === 0) {
+      return res.status(404).json({ message: "Video no encontrado" });
+    }
+    const video = videos[0];
+
+    let fileUri;
+    let mimeType = null;
+
+    if (video.tipo === "link") {
+      if (!REGEX_YOUTUBE.test(video.url_video)) {
+        return res.status(400).json({
+          message: "Por ahora solo se puede generar el diagnóstico para videos subidos como archivo o links de YouTube",
+        });
+      }
+      fileUri = video.url_video;
+    } else {
+      const extension = video.url_video.split(".").pop().toLowerCase();
+      mimeType = MIME_POR_EXTENSION[extension] || "video/mp4";
+      const { stream, sizeBytes } = await obtenerFlujoArchivo(video.url_video);
+      const subido = await subirArchivoGeminiDesdeStream(stream, sizeBytes, mimeType);
+      fileUri = subido.fileUri;
+    }
+
+    const prompt = armarPromptDiagnosticoVideo();
+    const contenido = await generarDesdeVideo(prompt, { fileUri, mimeType }, TIMEOUT_VIDEO_MS);
+
+    const [resultado] = await db.query(
+      "INSERT INTO video_analisis_ia (video_id, contenido, generado_por) VALUES (?, ?, ?)",
+      [videoId, contenido, generadoPor]
+    );
+
+    res.status(201).json({ id: resultado.insertId, video_id: Number(videoId), contenido, creado_en: new Date() });
+  } catch (error) {
+    console.error("Error al generar diagnóstico de video con IA:", error);
+    res.status(500).json({
+      message: "Error al analizar el video con IA",
+      error: error.message,
+    });
+  }
+};
+
+const listarDiagnosticosVideoIA = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const [diagnosticos] = await db.query(
+      "SELECT id, contenido, creado_en FROM video_analisis_ia WHERE video_id = ? ORDER BY creado_en DESC, id DESC",
+      [videoId]
+    );
+    res.json(diagnosticos);
+  } catch (error) {
+    res.status(500).json({ message: "Error al listar los diagnósticos", error: error.message });
+  }
+};
+
 // Sube el PDF de análisis armado por el analista de video, como alternativa
 // a armar el plan cuadro por cuadro en la app (mutuamente excluyentes,
 // mismo criterio que dietas_jugador: subir uno borra el otro).
@@ -742,6 +854,8 @@ module.exports = {
     actualizarProgreso,
     obtenerReporteVisualizaciones,
     obtenerArchivoVideo,
+    generarDiagnosticoVideoIA,
+    listarDiagnosticosVideoIA,
     subirAnalisisPdf,
     obtenerArchivoAnalisisPdf,
     listarBibliotecaStaff,

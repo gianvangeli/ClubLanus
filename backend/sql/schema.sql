@@ -909,6 +909,23 @@ CREATE TABLE `estadisticas_partido_jugadores` (
   CONSTRAINT `estadisticas_partido_jugadores_ibfk_2` FOREIGN KEY (`jugador_id`) REFERENCES `jugadores` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+DROP TABLE IF EXISTS `video_analisis_ia`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `video_analisis_ia` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `video_id` int NOT NULL,
+  `contenido` text NOT NULL,
+  `generado_por` int NOT NULL,
+  `creado_en` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `video_id` (`video_id`),
+  KEY `generado_por` (`generado_por`),
+  CONSTRAINT `video_analisis_ia_ibfk_1` FOREIGN KEY (`video_id`) REFERENCES `videos` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `video_analisis_ia_ibfk_2` FOREIGN KEY (`generado_por`) REFERENCES `usuarios` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

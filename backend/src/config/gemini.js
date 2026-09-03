@@ -19,7 +19,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const REINTENTOS_ESPERA_MS = [3000, 10000];
 const TIMEOUT_MS = 60_000;
 
-const llamarGemini = async (body, mensajeErrorGenerico) => {
+const llamarGemini = async (body, mensajeErrorGenerico, { timeoutMs = TIMEOUT_MS } = {}) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error("Falta configurar GEMINI_API_KEY en el servidor");
@@ -30,7 +30,7 @@ const llamarGemini = async (body, mensajeErrorGenerico) => {
   let datos;
   for (let intento = 0; ; intento++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     let respuesta;
     let seColgo = false;
@@ -156,4 +156,100 @@ const generarConversacion = async (systemInstruction, historial) => {
   }
 };
 
-module.exports = { generarTexto, generarJSON, generarJSONDesdeTexto, generarConversacion };
+// Sube un archivo grande (video) a la Files API de Gemini vía el protocolo
+// resumable, y espera a que pase de PROCESSING a ACTIVE antes de poder
+// usarlo en generateContent. A diferencia de generarJSON (que manda el
+// archivo entero en base64 dentro del body, límite práctico ~20MB), esto
+// no tiene ese límite: el archivo queda alojado del lado de Gemini y se
+// referencia por URI, necesario para videos de varios cientos de MB.
+const subirArchivoGeminiDesdeStream = async (stream, sizeBytes, mimeType) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Falta configurar GEMINI_API_KEY en el servidor");
+  }
+
+  const startResp = await fetch("https://generativelanguage.googleapis.com/upload/v1beta/files", {
+    method: "POST",
+    headers: {
+      "x-goog-api-key": apiKey,
+      "X-Goog-Upload-Protocol": "resumable",
+      "X-Goog-Upload-Command": "start",
+      "X-Goog-Upload-Header-Content-Length": String(sizeBytes),
+      "X-Goog-Upload-Header-Content-Type": mimeType,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ file: { display_name: "video-analisis" } }),
+  });
+
+  if (!startResp.ok) {
+    throw new Error(`Error al iniciar la subida del video a la IA (${startResp.status})`);
+  }
+
+  const uploadUrl = startResp.headers.get("x-goog-upload-url");
+  if (!uploadUrl) {
+    throw new Error("La IA no devolvió una URL de subida para el video");
+  }
+
+  // duplex: "half" es obligatorio en fetch/undici de Node cuando el body es
+  // un stream (sin esto tira "RequestInit: duplex option is required").
+  const uploadResp = await fetch(uploadUrl, {
+    method: "POST",
+    headers: {
+      "Content-Length": String(sizeBytes),
+      "X-Goog-Upload-Offset": "0",
+      "X-Goog-Upload-Command": "upload, finalize",
+    },
+    body: stream,
+    duplex: "half",
+  });
+
+  const uploadData = await uploadResp.json();
+  if (!uploadResp.ok) {
+    throw new Error(uploadData?.error?.message || "Error al subir el video a la IA");
+  }
+
+  let file = uploadData.file;
+  const intentosMax = 40;
+  for (let intento = 0; file.state === "PROCESSING" && intento < intentosMax; intento++) {
+    await sleep(3000);
+    const checkResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/${file.name}`, {
+      headers: { "x-goog-api-key": apiKey },
+    });
+    file = await checkResp.json();
+  }
+
+  if (file.state !== "ACTIVE") {
+    throw new Error("La IA no terminó de procesar el video a tiempo. Probá de nuevo en unos minutos.");
+  }
+
+  return { fileUri: file.uri };
+};
+
+// Genera texto libre a partir de un video ya referenciado (por Files API de
+// Gemini, o directamente una URL de YouTube). timeoutMs se pasa explícito
+// porque el análisis de un partido completo tarda mucho más que los 60s
+// por defecto de llamarGemini.
+const generarDesdeVideo = (prompt, { fileUri, mimeType }, timeoutMs) =>
+  llamarGemini(
+    {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { file_data: mimeType ? { mime_type: mimeType, file_uri: fileUri } : { file_uri: fileUri } },
+          ],
+        },
+      ],
+    },
+    "Error al analizar el video con IA",
+    { timeoutMs }
+  );
+
+module.exports = {
+  generarTexto,
+  generarJSON,
+  generarJSONDesdeTexto,
+  generarConversacion,
+  subirArchivoGeminiDesdeStream,
+  generarDesdeVideo,
+};

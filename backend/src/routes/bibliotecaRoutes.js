@@ -11,6 +11,8 @@ const {
   actualizarProgreso,
   obtenerReporteVisualizaciones,
   obtenerArchivoVideo,
+  generarDiagnosticoVideoIA,
+  listarDiagnosticosVideoIA,
   subirAnalisisPdf,
   obtenerArchivoAnalisisPdf,
   listarBibliotecaStaff,
@@ -62,6 +64,22 @@ router.get(
   "/videos/:videoId/archivo",
   verificarToken,
   obtenerArchivoVideo
+);
+
+//Generar un diagnóstico táctico por IA a partir de un video ya cargado
+router.post(
+  "/videos/:videoId/diagnostico-ia",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  generarDiagnosticoVideoIA
+);
+
+//Historial de diagnósticos generados para un video
+router.get(
+  "/videos/:videoId/diagnostico-ia",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  listarDiagnosticosVideoIA
 );
 
 //Agregar un video a una publicacion (archivo subido o link externo)
