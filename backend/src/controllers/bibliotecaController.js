@@ -7,7 +7,7 @@ const {
   eliminarArchivo,
 } = require("../config/storage");
 const { crearNotificacion, notificarTodosLosJugadores } = require("../config/notificaciones");
-const { subirArchivoGeminiDesdeStream, generarDesdeVideo } = require("../config/gemini");
+const { subirArchivoGeminiDesdeStream, generarDesdeVideo, generarJSONDesdeVideo } = require("../config/gemini");
 
 const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 
@@ -523,6 +523,24 @@ const armarPromptDiagnosticoVideo = () =>
 // con más margen porque un partido completo tarda bastante más que un PDF.
 const TIMEOUT_VIDEO_MS = 15 * 60 * 1000;
 
+// Resuelve el video ya cargado a un { fileUri, mimeType } usable en
+// generateContent: si es un link de YouTube, Gemini lo referencia directo
+// (sin pasar por la Files API); si es un archivo subido, hay que
+// reenviarlo a la Files API de Gemini primero (ver subirArchivoGeminiDesdeStream).
+// Devuelve null si el video no se puede analizar (link no soportado).
+const resolverFileUriDeVideo = async (video) => {
+  if (video.tipo === "link") {
+    if (!REGEX_YOUTUBE.test(video.url_video)) return null;
+    return { fileUri: video.url_video, mimeType: null };
+  }
+
+  const extension = video.url_video.split(".").pop().toLowerCase();
+  const mimeType = MIME_POR_EXTENSION[extension] || "video/mp4";
+  const { stream, sizeBytes } = await obtenerFlujoArchivo(video.url_video);
+  const { fileUri } = await subirArchivoGeminiDesdeStream(stream, sizeBytes, mimeType);
+  return { fileUri, mimeType };
+};
+
 const generarDiagnosticoVideoIA = async (req, res) => {
   try {
     const { videoId } = req.params;
@@ -534,23 +552,13 @@ const generarDiagnosticoVideoIA = async (req, res) => {
     }
     const video = videos[0];
 
-    let fileUri;
-    let mimeType = null;
-
-    if (video.tipo === "link") {
-      if (!REGEX_YOUTUBE.test(video.url_video)) {
-        return res.status(400).json({
-          message: "Por ahora solo se puede generar el diagnóstico para videos subidos como archivo o links de YouTube",
-        });
-      }
-      fileUri = video.url_video;
-    } else {
-      const extension = video.url_video.split(".").pop().toLowerCase();
-      mimeType = MIME_POR_EXTENSION[extension] || "video/mp4";
-      const { stream, sizeBytes } = await obtenerFlujoArchivo(video.url_video);
-      const subido = await subirArchivoGeminiDesdeStream(stream, sizeBytes, mimeType);
-      fileUri = subido.fileUri;
+    const resuelto = await resolverFileUriDeVideo(video);
+    if (!resuelto) {
+      return res.status(400).json({
+        message: "Por ahora solo se puede generar el diagnóstico para videos subidos como archivo o links de YouTube",
+      });
     }
+    const { fileUri, mimeType } = resuelto;
 
     const prompt = armarPromptDiagnosticoVideo();
     const contenido = await generarDesdeVideo(prompt, { fileUri, mimeType }, TIMEOUT_VIDEO_MS);
@@ -580,6 +588,123 @@ const listarDiagnosticosVideoIA = async (req, res) => {
     res.json(diagnosticos);
   } catch (error) {
     res.status(500).json({ message: "Error al listar los diagnósticos", error: error.message });
+  }
+};
+
+// Vocabulario de estadísticas de EQUIPO estimables desde video. Mucho más
+// chico que el de "Estadísticas de partido" (PDF de Wyscout, ~50 métricas
+// de un sistema de tracking real): acá se pide solo lo que la IA puede
+// razonablemente estimar mirando un video a ojo — nada de xG, PPDA ni
+// desgloses por jugador.
+const CATEGORIAS_EQUIPO_VIDEO = [
+  {
+    categoria: "General",
+    indicadores: ["Goles", "Tarjetas amarillas", "Tarjetas rojas", "Córneres", "Saques laterales"],
+  },
+  {
+    categoria: "Tiros",
+    indicadores: ["Tiros totales", "Tiros al arco"],
+  },
+  {
+    categoria: "Pases",
+    indicadores: [
+      "Pases hacia adelante completos",
+      "Pases hacia adelante incompletos",
+      "Pases hacia el costado completos",
+      "Pases hacia el costado incompletos",
+      "Centros",
+    ],
+  },
+  { categoria: "Posesión", indicadores: ["Posesión del balón (%)"] },
+  { categoria: "Duelos", indicadores: ["Entradas (a ras de suelo)"] },
+];
+
+const armarPromptEstadisticasVideo = () => {
+  const vocabulario = CATEGORIAS_EQUIPO_VIDEO.map(
+    ({ categoria, indicadores }) => `- ${categoria}: ${indicadores.join(", ")}`
+  ).join("\n");
+
+  return [
+    "Sos un analista táctico de fútbol del Club Atlético Lanús. Te paso un video de un partido del club.",
+    "Mirá el video y estimá, para cada uno de los dos equipos (Lanús y el rival), los siguientes indicadores:",
+    vocabulario,
+    "",
+    "Reglas estrictas:",
+    "1. Respondé SOLO JSON válido, sin texto adicional ni fences de markdown, con este schema exacto:",
+    '   { "equipo": [ { "categoria": string, "indicador": string, "valor_lanus": number|null, "valor_rival": number|null } ] }',
+    "2. Usá exactamente las categorías e indicadores de la lista de arriba, uno por fila. Si no podés estimar un valor para alguno de los dos equipos, usá null en ese lado (no inventes).",
+    "3. Determiná cuál de los dos equipos del video es el Club Atlético Lanús (indumentaria granate) — ese va en valor_lanus, el otro en valor_rival.",
+    "4. Estos valores son SIEMPRE una estimación visual aproximada, no datos de tracking profesional: hacé tu mejor estimación igual, no dejes todo en null salvo que el video no permita ver nada del partido.",
+    "5. Números con punto decimal.",
+  ].join("\n");
+};
+
+// Analiza con IA un video ya cargado en Biblioteca y genera estadísticas de
+// EQUIPO estimadas (sin desglose por jugador: identificar qué jugador hizo
+// qué acción desde video no es confiable). Se guarda directo en
+// estadisticas_partido con origen='video' (sin preview editable previo,
+// a diferencia del import por PDF: son pocas métricas y ya vienen
+// marcadas como estimación — si están mal, alcanza con borrar el partido).
+const generarEstadisticasVideoIA = async (req, res) => {
+  try {
+    const { videoId } = req.params;
+    const { fecha, rival, condicion, resultado, competencia } = req.body;
+    const registradoPor = req.usuario.id;
+
+    if (!fecha || !rival) {
+      return res.status(400).json({ message: "Fecha y rival son obligatorios" });
+    }
+    if (condicion && !["local", "visitante"].includes(condicion)) {
+      return res.status(400).json({ message: "Condición inválida" });
+    }
+
+    const [videos] = await db.query("SELECT id, tipo, url_video FROM videos WHERE id = ?", [videoId]);
+    if (videos.length === 0) {
+      return res.status(404).json({ message: "Video no encontrado" });
+    }
+    const video = videos[0];
+
+    const resuelto = await resolverFileUriDeVideo(video);
+    if (!resuelto) {
+      return res.status(400).json({
+        message: "Por ahora solo se pueden generar estadísticas para videos subidos como archivo o links de YouTube",
+      });
+    }
+    const { fileUri, mimeType } = resuelto;
+
+    const prompt = armarPromptEstadisticasVideo();
+    const resultadoIA = await generarJSONDesdeVideo(prompt, { fileUri, mimeType }, TIMEOUT_VIDEO_MS);
+
+    if (!resultadoIA || !Array.isArray(resultadoIA.equipo)) {
+      return res.status(502).json({ message: "La IA no devolvió el formato esperado. Probá de nuevo." });
+    }
+
+    const equipo = resultadoIA.equipo
+      .filter((i) => i && i.indicador && (typeof i.valor_lanus === "number" || typeof i.valor_rival === "number"))
+      .map((i) => ({
+        categoria: i.categoria || "Otros",
+        indicador: String(i.indicador),
+        valor_lanus: typeof i.valor_lanus === "number" && !Number.isNaN(i.valor_lanus) ? i.valor_lanus : null,
+        valor_rival: typeof i.valor_rival === "number" && !Number.isNaN(i.valor_rival) ? i.valor_rival : null,
+      }));
+
+    if (equipo.length === 0) {
+      return res.status(502).json({ message: "La IA no pudo estimar ninguna estadística de este video" });
+    }
+
+    const [resultadoInsert] = await db.query(
+      `INSERT INTO estadisticas_partido (fecha, rival, condicion, resultado, competencia, origen, equipo_indicadores, registrado_por)
+       VALUES (?, ?, ?, ?, ?, 'video', ?, ?)`,
+      [fecha, rival, condicion || null, resultado || null, competencia || null, JSON.stringify(equipo), registradoPor]
+    );
+
+    res.status(201).json({ partido_id: resultadoInsert.insertId });
+  } catch (error) {
+    console.error("Error al generar estadísticas de video con IA:", error);
+    res.status(500).json({
+      message: "Error al analizar el video con IA",
+      error: error.message,
+    });
   }
 };
 
@@ -856,6 +981,7 @@ module.exports = {
     obtenerArchivoVideo,
     generarDiagnosticoVideoIA,
     listarDiagnosticosVideoIA,
+    generarEstadisticasVideoIA,
     subirAnalisisPdf,
     obtenerArchivoAnalisisPdf,
     listarBibliotecaStaff,

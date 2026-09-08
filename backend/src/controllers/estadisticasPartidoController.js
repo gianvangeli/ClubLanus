@@ -332,7 +332,7 @@ const confirmarEstadisticasPartido = async (req, res) => {
 const listarEstadisticasPartido = async (req, res) => {
   try {
     const [partidos] = await db.query(
-      `SELECT id, fecha, rival, condicion, resultado, competencia, nombre_archivo, creado_en
+      `SELECT id, fecha, rival, condicion, resultado, competencia, origen, nombre_archivo, creado_en
        FROM estadisticas_partido ORDER BY fecha DESC, id DESC`
     );
     res.json(partidos);
@@ -367,6 +367,7 @@ const obtenerEstadisticasPartido = async (req, res) => {
       condicion: partido.condicion,
       resultado: partido.resultado,
       competencia: partido.competencia,
+      origen: partido.origen,
       tiene_archivo: Boolean(partido.archivo),
       equipo: JSON.parse(partido.equipo_indicadores),
       jugadores: filasJugadores.map((f) => ({

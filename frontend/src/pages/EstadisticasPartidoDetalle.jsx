@@ -94,6 +94,12 @@ export default function EstadisticasPartidoDetalle() {
 
       <div className="card seccion" style={{ marginBottom: 16 }}>
         <h3>Estadísticas de equipo</h3>
+        {partido.origen === 'video' && (
+          <div className="alert alert-warning" style={{ marginBottom: 14 }}>
+            Estos datos son una estimación de IA a partir de un video, no de un sistema de tracking profesional —
+            tratalos como aproximados.
+          </div>
+        )}
         {agruparPorCategoria(partido.equipo).map(({ categoria, items }) => (
           <div key={categoria} className="pf-categoria">
             <h4>{categoria}</h4>

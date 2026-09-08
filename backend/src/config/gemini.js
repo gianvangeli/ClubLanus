@@ -275,6 +275,34 @@ const generarDesdeVideo = (prompt, { fileUri, mimeType }, timeoutMs) =>
     { timeoutMs }
   );
 
+// Igual que generarDesdeVideo, pero le pide a Gemini que responda en JSON
+// puro — usado para extraer datos estructurados (ej. estadísticas de
+// equipo estimadas) en vez de un diagnóstico en texto libre.
+const generarJSONDesdeVideo = async (prompt, { fileUri, mimeType }, timeoutMs) => {
+  const texto = await llamarGemini(
+    {
+      contents: [
+        {
+          parts: [
+            { text: prompt },
+            { file_data: mimeType ? { mime_type: mimeType, file_uri: fileUri } : { file_uri: fileUri } },
+          ],
+        },
+      ],
+      generationConfig: { responseMimeType: "application/json" },
+    },
+    "Error al analizar el video con IA",
+    { timeoutMs }
+  );
+
+  try {
+    return JSON.parse(texto);
+  } catch {
+    console.error("Gemini devolvió JSON inválido (video).", { largo: texto.length, inicio: texto.slice(0, 200), fin: texto.slice(-200) });
+    throw new Error("La IA no devolvió un JSON válido");
+  }
+};
+
 module.exports = {
   generarTexto,
   generarJSON,
@@ -282,4 +310,5 @@ module.exports = {
   generarConversacion,
   subirArchivoGeminiDesdeStream,
   generarDesdeVideo,
+  generarJSONDesdeVideo,
 };

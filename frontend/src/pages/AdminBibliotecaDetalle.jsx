@@ -424,14 +424,25 @@ function VideoExistente({ video }) {
 // EntrenamientosExtra (JugadorPreparacionFisica.jsx).
 function VideoConDiagnostico({ video }) {
   const [abierto, setAbierto] = useState(false)
+  const [abiertoStats, setAbiertoStats] = useState(false)
 
   return (
     <div className="video-item-wrap">
       <VideoExistente video={video} />
-      <button type="button" className="btn btn-ghost btn-sm video-ia-toggle" onClick={() => setAbierto(!abierto)}>
-        {abierto ? 'Ocultar diagnóstico IA' : 'Diagnóstico táctico con IA'}
-      </button>
+      <div className="video-ia-toggles">
+        <button type="button" className="btn btn-ghost btn-sm video-ia-toggle" onClick={() => setAbierto(!abierto)}>
+          {abierto ? 'Ocultar diagnóstico IA' : 'Diagnóstico táctico con IA'}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm video-ia-toggle"
+          onClick={() => setAbiertoStats(!abiertoStats)}
+        >
+          {abiertoStats ? 'Ocultar estadísticas IA' : 'Estadísticas de equipo con IA'}
+        </button>
+      </div>
       {abierto && <DiagnosticoVideoIA videoId={video.id} />}
+      {abiertoStats && <EstadisticasVideoIA videoId={video.id} />}
     </div>
   )
 }
@@ -515,6 +526,112 @@ function DiagnosticoVideoIA({ videoId }) {
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// Genera estadísticas de EQUIPO estimadas (sin desglose por jugador) a
+// partir del video, y las guarda en "Estadísticas de partido" (con
+// origen='video', ver EstadisticasPartidoDetalle.jsx). A diferencia del
+// diagnóstico en texto, acá hace falta que el cuerpo técnico tipee los
+// datos del partido (fecha/rival/etc.) porque no hay preview editable
+// previo — se guarda directo tras confirmar.
+function EstadisticasVideoIA({ videoId }) {
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10))
+  const [rival, setRival] = useState('')
+  const [condicion, setCondicion] = useState('local')
+  const [resultado, setResultado] = useState('')
+  const [competencia, setCompetencia] = useState('')
+  const [generando, setGenerando] = useState(false)
+  const [error, setError] = useState('')
+  const [partidoId, setPartidoId] = useState(null)
+
+  const generar = async (e) => {
+    e.preventDefault()
+    if (!fecha || !rival.trim()) {
+      setError('Fecha y rival son obligatorios')
+      return
+    }
+    if (
+      !window.confirm(
+        'Analizar este video con IA puede tardar varios minutos si es un partido completo, y consume la cuota diaria de IA de la app. Los números son una estimación, no datos de tracking real. ¿Confirmás?'
+      )
+    ) {
+      return
+    }
+    setError('')
+    setPartidoId(null)
+    setGenerando(true)
+    try {
+      const { data } = await api.post(`/biblioteca/videos/${videoId}/estadisticas-ia`, {
+        fecha,
+        rival,
+        condicion,
+        resultado,
+        competencia,
+      })
+      setPartidoId(data.partido_id)
+    } catch (err) {
+      const detalle = err?.response?.data?.error
+      const mensaje = extraerError(err, 'No se pudieron generar las estadísticas')
+      setError(detalle && detalle !== mensaje ? `${mensaje}: ${detalle}` : mensaje)
+    } finally {
+      setGenerando(false)
+    }
+  }
+
+  return (
+    <div className="video-ia-panel">
+      {error && <div className="alert alert-error">{error}</div>}
+      {partidoId && (
+        <div className="alert alert-success">
+          Estadísticas guardadas.{' '}
+          <Link to={`/admin/estadisticas-partido/${partidoId}`}>Ver partido →</Link>
+        </div>
+      )}
+
+      <form className="form-edicion" onSubmit={generar}>
+        <div className="ep-form-row">
+          <div className="field">
+            <label>Fecha</label>
+            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label>Rival</label>
+            <input value={rival} onChange={(e) => setRival(e.target.value)} placeholder="Ej: Colón" required />
+          </div>
+          <div className="field">
+            <label>Condición</label>
+            <select value={condicion} onChange={(e) => setCondicion(e.target.value)}>
+              <option value="local">Local</option>
+              <option value="visitante">Visitante</option>
+            </select>
+          </div>
+        </div>
+        <div className="ep-form-row">
+          <div className="field">
+            <label>Resultado (opcional)</label>
+            <input value={resultado} onChange={(e) => setResultado(e.target.value)} placeholder="Ej: 2-0" />
+          </div>
+          <div className="field" style={{ flex: 1 }}>
+            <label>Competencia (opcional)</label>
+            <input
+              value={competencia}
+              onChange={(e) => setCompetencia(e.target.value)}
+              placeholder="Ej: Torneo Proyección"
+            />
+          </div>
+        </div>
+        <button className="btn btn-primary btn-sm" type="submit" disabled={generando}>
+          {generando ? <span className="spinner" /> : '+ Generar estadísticas'}
+        </button>
+        {generando && (
+          <p className="texto-muted">
+            Analizando el video con IA. Con un partido completo puede tardar varios minutos — no cierres esta
+            pantalla.
+          </p>
+        )}
+      </form>
     </div>
   )
 }

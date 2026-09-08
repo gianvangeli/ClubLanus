@@ -72,8 +72,32 @@
   gap: 8px;
 }
 
+.video-ia-toggles {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .video-ia-toggle {
   align-self: flex-start;
+}
+
+.video-ia-panel .form-edicion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-ia-panel .ep-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0 24px;
+}
+
+@media (max-width: 700px) {
+  .video-ia-panel .ep-form-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .video-ia-panel {

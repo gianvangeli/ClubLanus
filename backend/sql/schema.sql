@@ -882,6 +882,7 @@ CREATE TABLE `estadisticas_partido` (
   `condicion` enum('local','visitante') DEFAULT NULL,
   `resultado` varchar(20) DEFAULT NULL,
   `competencia` varchar(200) DEFAULT NULL,
+  `origen` enum('pdf','video') NOT NULL DEFAULT 'pdf',
   `equipo_indicadores` text NOT NULL,
   `archivo` varchar(500) DEFAULT NULL,
   `nombre_archivo` varchar(255) DEFAULT NULL,

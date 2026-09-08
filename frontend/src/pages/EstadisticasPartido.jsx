@@ -73,6 +73,9 @@ export default function EstadisticasPartido() {
                 </p>
               </div>
               <div className="ep-partido-row-meta">
+                <span className="badge" title={p.origen === 'video' ? 'Estimado por IA a partir de un video' : 'Importado de un informe PDF'}>
+                  {p.origen === 'video' ? '🎥 IA (video)' : '📄 PDF'}
+                </span>
                 {p.condicion && <span className="badge">{p.condicion === 'local' ? 'Local' : 'Visitante'}</span>}
                 {p.resultado && <span className="badge badge-success">{p.resultado}</span>}
               </div>

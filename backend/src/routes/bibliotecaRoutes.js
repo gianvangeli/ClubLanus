@@ -13,6 +13,7 @@ const {
   obtenerArchivoVideo,
   generarDiagnosticoVideoIA,
   listarDiagnosticosVideoIA,
+  generarEstadisticasVideoIA,
   subirAnalisisPdf,
   obtenerArchivoAnalisisPdf,
   listarBibliotecaStaff,
@@ -80,6 +81,15 @@ router.get(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   listarDiagnosticosVideoIA
+);
+
+//Generar estadísticas de equipo estimadas por IA a partir de un video (se
+//guardan en "Estadísticas de partido" con origen='video')
+router.post(
+  "/videos/:videoId/estadisticas-ia",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  generarEstadisticasVideoIA
 );
 
 //Agregar un video a una publicacion (archivo subido o link externo)
