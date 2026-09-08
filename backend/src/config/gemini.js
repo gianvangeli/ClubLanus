@@ -6,6 +6,25 @@
 // actualiza solo, sin que el código quede apuntando a algo dado de baja.
 const MODELO = "gemini-flash-latest";
 
+// Importante: acá se usa el fetch que exporta el paquete "undici" en vez
+// del fetch global de Node. El fetch global también está implementado con
+// undici por dentro, pero con una versión propia empaquetada en el core de
+// Node — pasarle un Agent de un "undici" externo (otra versión) revienta
+// con "invalid onRequestStart method" porque las dos versiones no
+// comparten la misma forma interna de dispatcher. Usando fetch + Agent del
+// mismo paquete evitamos el choque de versiones.
+const { fetch, Agent } = require("undici");
+
+// El fetch global de Node tiene por defecto un headersTimeout/bodyTimeout
+// de 5 minutos: para un PDF no se nota, pero para un partido completo
+// Gemini puede tardar más que eso en mandar la respuesta, y la conexión se
+// corta sola con un genérico "fetch failed" — ANTES de que nuestro propio
+// AbortController (TIMEOUT_MS/timeoutMs) llegue a activarse. Este agente,
+// con timeouts bien por encima de cualquier timeoutMs que usemos, asegura
+// que el que corte la espera seamos siempre nosotros (con un mensaje
+// entendible), no un límite interno de Node.
+const agenteHttp = new Agent({ headersTimeout: 20 * 60 * 1000, bodyTimeout: 20 * 60 * 1000 });
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Reintentos con backoff solo para errores transitorios de Google (503
@@ -40,12 +59,20 @@ const llamarGemini = async (body, mensajeErrorGenerico, { timeoutMs = TIMEOUT_MS
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
         signal: controller.signal,
+        dispatcher: agenteHttp,
       });
       datos = await respuesta.json();
     } catch (err) {
-      if (err.name !== "AbortError") throw err;
+      // Cualquier falla de red acá (no solo el AbortError de nuestro propio
+      // timeout, también un "fetch failed" por conexión cortada) se trata
+      // como transitoria: un corte de conexión en medio de un video largo
+      // no significa que reintentar vaya a fallar de nuevo.
       seColgo = true;
-      datos = { error: { message: "La IA no respondió a tiempo" } };
+      datos = {
+        error: {
+          message: err.name === "AbortError" ? "La IA no respondió a tiempo" : `Error de red al contactar la IA (${err.message})`,
+        },
+      };
     } finally {
       clearTimeout(timeoutId);
     }
@@ -179,6 +206,7 @@ const subirArchivoGeminiDesdeStream = async (stream, sizeBytes, mimeType) => {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ file: { display_name: "video-analisis" } }),
+    dispatcher: agenteHttp,
   });
 
   if (!startResp.ok) {
@@ -201,6 +229,7 @@ const subirArchivoGeminiDesdeStream = async (stream, sizeBytes, mimeType) => {
     },
     body: stream,
     duplex: "half",
+    dispatcher: agenteHttp,
   });
 
   const uploadData = await uploadResp.json();
@@ -214,6 +243,7 @@ const subirArchivoGeminiDesdeStream = async (stream, sizeBytes, mimeType) => {
     await sleep(3000);
     const checkResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/${file.name}`, {
       headers: { "x-goog-api-key": apiKey },
+      dispatcher: agenteHttp,
     });
     file = await checkResp.json();
   }
