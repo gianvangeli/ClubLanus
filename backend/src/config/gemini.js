@@ -252,25 +252,39 @@ const subirArchivoGeminiDesdeStream = async (stream, sizeBytes, mimeType) => {
     throw new Error("La IA no terminó de procesar el video a tiempo. Probá de nuevo en unos minutos.");
   }
 
-  return { fileUri: file.uri };
+  // videoMetadata.videoDuration viene como "5410.5s" (formato Duration de
+  // protobuf) una vez que el archivo terminó de procesarse. Se usa para
+  // poder analizar el partido en dos pasadas (primer/segundo tiempo) en vez
+  // de una sola sobre el video entero — ver armarVentanasDeAnalisis.
+  const duracionTexto = file.videoMetadata?.videoDuration;
+  const duracionSegundos = duracionTexto ? parseFloat(duracionTexto.replace("s", "")) : null;
+
+  return { fileUri: file.uri, duracionSegundos: Number.isFinite(duracionSegundos) ? duracionSegundos : null };
+};
+
+// Arma la parte { file_data, video_metadata? } común a generarDesdeVideo y
+// generarJSONDesdeVideo. `ventana` es opcional: { startOffset, endOffset }
+// en segundos, para acotar el análisis a un tramo del video ya subido (sin
+// volver a subirlo) en vez de mandar el partido entero de una sola vez.
+const armarPartesDeVideo = (prompt, { fileUri, mimeType }, ventana) => {
+  const fileData = mimeType ? { mime_type: mimeType, file_uri: fileUri } : { file_uri: fileUri };
+  const parteArchivo = { file_data: fileData };
+  if (ventana) {
+    parteArchivo.video_metadata = {
+      start_offset: `${Math.floor(ventana.startOffset)}s`,
+      end_offset: `${Math.ceil(ventana.endOffset)}s`,
+    };
+  }
+  return [{ text: prompt }, parteArchivo];
 };
 
 // Genera texto libre a partir de un video ya referenciado (por Files API de
 // Gemini, o directamente una URL de YouTube). timeoutMs se pasa explícito
 // porque el análisis de un partido completo tarda mucho más que los 60s
 // por defecto de llamarGemini.
-const generarDesdeVideo = (prompt, { fileUri, mimeType }, timeoutMs) =>
+const generarDesdeVideo = (prompt, video, timeoutMs, ventana) =>
   llamarGemini(
-    {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            { file_data: mimeType ? { mime_type: mimeType, file_uri: fileUri } : { file_uri: fileUri } },
-          ],
-        },
-      ],
-    },
+    { contents: [{ parts: armarPartesDeVideo(prompt, video, ventana) }] },
     "Error al analizar el video con IA",
     { timeoutMs }
   );
@@ -278,17 +292,10 @@ const generarDesdeVideo = (prompt, { fileUri, mimeType }, timeoutMs) =>
 // Igual que generarDesdeVideo, pero le pide a Gemini que responda en JSON
 // puro — usado para extraer datos estructurados (ej. estadísticas de
 // equipo estimadas) en vez de un diagnóstico en texto libre.
-const generarJSONDesdeVideo = async (prompt, { fileUri, mimeType }, timeoutMs) => {
+const generarJSONDesdeVideo = async (prompt, video, timeoutMs, ventana) => {
   const texto = await llamarGemini(
     {
-      contents: [
-        {
-          parts: [
-            { text: prompt },
-            { file_data: mimeType ? { mime_type: mimeType, file_uri: fileUri } : { file_uri: fileUri } },
-          ],
-        },
-      ],
+      contents: [{ parts: armarPartesDeVideo(prompt, video, ventana) }],
       generationConfig: { responseMimeType: "application/json" },
     },
     "Error al analizar el video con IA",

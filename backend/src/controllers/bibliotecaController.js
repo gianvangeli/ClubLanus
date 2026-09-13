@@ -523,22 +523,25 @@ const armarPromptDiagnosticoVideo = () =>
 // con más margen porque un partido completo tarda bastante más que un PDF.
 const TIMEOUT_VIDEO_MS = 15 * 60 * 1000;
 
-// Resuelve el video ya cargado a un { fileUri, mimeType } usable en
-// generateContent: si es un link de YouTube, Gemini lo referencia directo
-// (sin pasar por la Files API); si es un archivo subido, hay que
-// reenviarlo a la Files API de Gemini primero (ver subirArchivoGeminiDesdeStream).
+// Resuelve el video ya cargado a un { fileUri, mimeType, duracionSegundos }
+// usable en generateContent: si es un link de YouTube, Gemini lo referencia
+// directo (sin pasar por la Files API, así que no hay duración disponible);
+// si es un archivo subido, hay que reenviarlo a la Files API de Gemini
+// primero (ver subirArchivoGeminiDesdeStream), que sí informa la duración
+// una vez procesado — se usa para poder analizar el partido en dos pasadas
+// (primer/segundo tiempo, ver analizarEstadisticasEnDosTiempos).
 // Devuelve null si el video no se puede analizar (link no soportado).
 const resolverFileUriDeVideo = async (video) => {
   if (video.tipo === "link") {
     if (!REGEX_YOUTUBE.test(video.url_video)) return null;
-    return { fileUri: video.url_video, mimeType: null };
+    return { fileUri: video.url_video, mimeType: null, duracionSegundos: null };
   }
 
   const extension = video.url_video.split(".").pop().toLowerCase();
   const mimeType = MIME_POR_EXTENSION[extension] || "video/mp4";
   const { stream, sizeBytes } = await obtenerFlujoArchivo(video.url_video);
-  const { fileUri } = await subirArchivoGeminiDesdeStream(stream, sizeBytes, mimeType);
-  return { fileUri, mimeType };
+  const { fileUri, duracionSegundos } = await subirArchivoGeminiDesdeStream(stream, sizeBytes, mimeType);
+  return { fileUri, mimeType, duracionSegundos };
 };
 
 const generarDiagnosticoVideoIA = async (req, res) => {
@@ -619,14 +622,36 @@ const CATEGORIAS_EQUIPO_VIDEO = [
   { categoria: "Duelos", indicadores: ["Entradas (a ras de suelo)"] },
 ];
 
-const armarPromptEstadisticasVideo = () => {
+// Recibe el contexto del partido que el cuerpo técnico ya tipeó a mano
+// (rival, resultado, competencia) para que la IA no tenga que adivinarlo
+// mirando el video a ciegas. Sin esto, la IA no solo estimaba mal las
+// métricas: identificaba mal cuántos goles hubo y de quién, porque no
+// tenía ningún dato confirmado contra el cual chequear lo que iba viendo
+// en un partido completo de ~90 minutos.
+const armarPromptEstadisticasVideo = ({ rival, resultado, competencia, condicion } = {}) => {
   const vocabulario = CATEGORIAS_EQUIPO_VIDEO.map(
     ({ categoria, indicadores }) => `- ${categoria}: ${indicadores.join(", ")}`
   ).join("\n");
 
+  const datosConfirmados = [
+    rival ? `Rival: ${rival}` : null,
+    resultado ? `Resultado final confirmado: ${resultado} (Lanús - rival)` : null,
+    competencia ? `Competencia: ${competencia}` : null,
+    condicion ? `Lanús jugó de ${condicion}` : null,
+  ].filter(Boolean);
+
   return [
     "Sos un analista táctico de fútbol del Club Atlético Lanús. Te paso un video de un partido del club.",
-    "Mirá el video y estimá, para cada uno de los dos equipos (Lanús y el rival), los siguientes indicadores:",
+    datosConfirmados.length > 0
+      ? [
+          "Estos datos del partido ya están confirmados por el cuerpo técnico, son un HECHO, no los reinterpretes ni los contradigas:",
+          ...datosConfirmados.map((d) => `- ${d}`),
+          resultado
+            ? "Usá el resultado confirmado como ancla: recorré el video buscando específicamente las jugadas de gol que expliquen ese marcador exacto (cuántos goles hizo cada equipo y en qué momento aproximado), en vez de estimar un resultado propio."
+            : null,
+        ].filter(Boolean).join("\n")
+      : null,
+    "Mirá el video completo (no solo el inicio) y estimá, para cada uno de los dos equipos (Lanús y el rival), los siguientes indicadores:",
     vocabulario,
     "",
     "Reglas estrictas:",
@@ -636,8 +661,102 @@ const armarPromptEstadisticasVideo = () => {
     "3. Determiná cuál de los dos equipos del video es el Club Atlético Lanús (indumentaria granate) — ese va en valor_lanus, el otro en valor_rival.",
     "4. Estos valores son SIEMPRE una estimación visual aproximada, no datos de tracking profesional: hacé tu mejor estimación igual, no dejes todo en null salvo que el video no permita ver nada del partido.",
     "5. Números con punto decimal.",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 };
+
+// El resultado final (ej. "3-1") lo tipea el cuerpo técnico a mano, no la
+// IA: es un dato real y confiable, a diferencia del indicador "Goles" que
+// la IA infiere mirando el video (mucho menos preciso para un evento
+// puntual — un gol puede pasar en un segundo y quedar fuera del muestreo
+// de frames). Se usa para pisar ese indicador con el marcador real en vez
+// de confiar en la estimación visual. Asume que el resultado siempre se
+// tipea en orden "Lanús - Rival" (mismo criterio que el placeholder del
+// formulario, "Ej: 2-0"), sin importar si Lanús jugó de local o visitante.
+const parsearGolesDeResultado = (resultado) => {
+  if (!resultado) return null;
+  const match = String(resultado).match(/(\d+)\D+(\d+)/);
+  if (!match) return null;
+  return { lanus: Number(match[1]), rival: Number(match[2]) };
+};
+
+// Valida y limpia la respuesta cruda de la IA a la forma que se guarda en
+// estadisticas_partido. Devuelve null si no vino en el formato esperado.
+const normalizarEquipoIA = (resultadoIA) => {
+  if (!resultadoIA || !Array.isArray(resultadoIA.equipo)) return null;
+  return resultadoIA.equipo
+    .filter((i) => i && i.indicador && (typeof i.valor_lanus === "number" || typeof i.valor_rival === "number"))
+    .map((i) => ({
+      categoria: i.categoria || "Otros",
+      indicador: String(i.indicador),
+      valor_lanus: typeof i.valor_lanus === "number" && !Number.isNaN(i.valor_lanus) ? i.valor_lanus : null,
+      valor_rival: typeof i.valor_rival === "number" && !Number.isNaN(i.valor_rival) ? i.valor_rival : null,
+    }));
+};
+
+// Combina el valor de un mismo indicador leído en las dos pasadas (primer y
+// segundo tiempo). La posesión es un porcentaje del partido completo: se
+// promedia. El resto son conteos de cada mitad: se suman.
+const combinarValorIndicador = (indicador, a, b) => {
+  if (a == null) return b;
+  if (b == null) return a;
+  return indicador === "Posesión del balón (%)" ? Math.round(((a + b) / 2) * 10) / 10 : a + b;
+};
+
+const combinarEquiposDeAmbosTiempos = (equipoPrimerTiempo, equipoSegundoTiempo) => {
+  const porClave = new Map();
+  for (const fila of [...equipoPrimerTiempo, ...equipoSegundoTiempo]) {
+    const clave = `${fila.categoria}|${fila.indicador}`;
+    const existente = porClave.get(clave);
+    if (!existente) {
+      porClave.set(clave, { ...fila });
+      continue;
+    }
+    existente.valor_lanus = combinarValorIndicador(fila.indicador, existente.valor_lanus, fila.valor_lanus);
+    existente.valor_rival = combinarValorIndicador(fila.indicador, existente.valor_rival, fila.valor_rival);
+  }
+  return Array.from(porClave.values());
+};
+
+// Analiza el video en dos pasadas (primer y segundo tiempo) en vez de una
+// sola sobre el partido entero: mirar ~90 minutos de una sola vez hace que
+// a la IA se le escapen eventos puntuales como goles (bug real detectado:
+// contó 1-0 un partido que terminó 3-1). Cada pasada usa video_metadata
+// para acotar el análisis a esa mitad del MISMO archivo ya subido — no se
+// vuelve a subir el video, solo se le indica a Gemini qué tramo mirar.
+// Si el parámetro video_metadata falla (hay reportes de error 500 de la
+// propia API de Google con este parámetro en algunos casos), se lanza el
+// error y el llamador cae de nuevo al análisis de partido completo.
+const analizarEstadisticasEnDosTiempos = async (prompt, video, duracionSegundos, timeoutMs) => {
+  const mitad = duracionSegundos / 2;
+  const minutoMitad = Math.round(mitad / 60);
+
+  const [resultado1, resultado2] = await Promise.all([
+    generarJSONDesdeVideo(
+      `${prompt}\n\nIMPORTANTE: el tramo de video que te llega ahora es SOLO el primer tiempo del partido (del minuto 0 al ${minutoMitad} aproximadamente). Analizá únicamente lo que ves en este tramo, no asumas nada de lo que pasa después.`,
+      video,
+      timeoutMs,
+      { startOffset: 0, endOffset: mitad }
+    ),
+    generarJSONDesdeVideo(
+      `${prompt}\n\nIMPORTANTE: el tramo de video que te llega ahora es SOLO el segundo tiempo del partido (del minuto ${minutoMitad} en adelante, aproximadamente). Analizá únicamente lo que ves en este tramo, no asumas nada de lo que pasa antes.`,
+      video,
+      timeoutMs,
+      { startOffset: mitad, endOffset: duracionSegundos }
+    ),
+  ]);
+
+  const equipo1 = normalizarEquipoIA(resultado1);
+  const equipo2 = normalizarEquipoIA(resultado2);
+  if (!equipo1 || !equipo2) {
+    throw new Error("La IA no devolvió el formato esperado en el análisis por tiempos");
+  }
+
+  return combinarEquiposDeAmbosTiempos(equipo1, equipo2);
+};
+
+// Por debajo de este umbral, analizar el video en dos pasadas no aporta
+// (poco contenido por tramo) y solo duplica el costo/tiempo de la llamada.
+const UMBRAL_DOS_TIEMPOS_SEGUNDOS = 20 * 60;
 
 // Analiza con IA un video ya cargado en Biblioteca y genera estadísticas de
 // EQUIPO estimadas (sin desglose por jugador: identificar qué jugador hizo
@@ -670,26 +789,40 @@ const generarEstadisticasVideoIA = async (req, res) => {
         message: "Por ahora solo se pueden generar estadísticas para videos subidos como archivo o links de YouTube",
       });
     }
-    const { fileUri, mimeType } = resuelto;
+    const { fileUri, mimeType, duracionSegundos } = resuelto;
 
-    const prompt = armarPromptEstadisticasVideo();
-    const resultadoIA = await generarJSONDesdeVideo(prompt, { fileUri, mimeType }, TIMEOUT_VIDEO_MS);
+    const prompt = armarPromptEstadisticasVideo({ rival, resultado, competencia, condicion });
 
-    if (!resultadoIA || !Array.isArray(resultadoIA.equipo)) {
-      return res.status(502).json({ message: "La IA no devolvió el formato esperado. Probá de nuevo." });
+    let equipo = null;
+    if (duracionSegundos && duracionSegundos > UMBRAL_DOS_TIEMPOS_SEGUNDOS) {
+      try {
+        equipo = await analizarEstadisticasEnDosTiempos(prompt, { fileUri, mimeType }, duracionSegundos, TIMEOUT_VIDEO_MS);
+      } catch (err) {
+        console.error("Falló el análisis por tiempos, se reintenta con el partido completo en una sola pasada:", err.message);
+      }
     }
 
-    const equipo = resultadoIA.equipo
-      .filter((i) => i && i.indicador && (typeof i.valor_lanus === "number" || typeof i.valor_rival === "number"))
-      .map((i) => ({
-        categoria: i.categoria || "Otros",
-        indicador: String(i.indicador),
-        valor_lanus: typeof i.valor_lanus === "number" && !Number.isNaN(i.valor_lanus) ? i.valor_lanus : null,
-        valor_rival: typeof i.valor_rival === "number" && !Number.isNaN(i.valor_rival) ? i.valor_rival : null,
-      }));
+    if (!equipo) {
+      const resultadoIA = await generarJSONDesdeVideo(prompt, { fileUri, mimeType }, TIMEOUT_VIDEO_MS);
+      equipo = normalizarEquipoIA(resultadoIA);
+      if (!equipo) {
+        return res.status(502).json({ message: "La IA no devolvió el formato esperado. Probá de nuevo." });
+      }
+    }
 
     if (equipo.length === 0) {
       return res.status(502).json({ message: "La IA no pudo estimar ninguna estadística de este video" });
+    }
+
+    const golesReales = parsearGolesDeResultado(resultado);
+    if (golesReales) {
+      const filaGoles = { categoria: "General", indicador: "Goles", valor_lanus: golesReales.lanus, valor_rival: golesReales.rival };
+      const indiceGoles = equipo.findIndex((i) => i.categoria === "General" && i.indicador === "Goles");
+      if (indiceGoles >= 0) {
+        equipo[indiceGoles] = filaGoles;
+      } else {
+        equipo.unshift(filaGoles);
+      }
     }
 
     const [resultadoInsert] = await db.query(
