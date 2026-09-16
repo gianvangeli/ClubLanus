@@ -163,7 +163,7 @@ const obtenerEjercicioTactico = async (req, res) => {
     const [ejercicios] = await db.query(
       `SELECT id, categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores,
               duracion_minutos, video_tipo, video_url, video_nombre_original, animacion_video_url, dibujo_json,
-              pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original, creado_por, creado_en
+              dibujo_thumbnail, pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original, creado_por, creado_en
        FROM ejercicios_tacticos WHERE id = ?`,
       [id]
     );
@@ -187,7 +187,7 @@ const obtenerEjercicioTactico = async (req, res) => {
 const actualizarEjercicioTactico = async (req, res) => {
   try {
     const { id } = req.params;
-    const { titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos, dibujo_json } = req.body;
+    const { titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos, dibujo_json, dibujo_thumbnail } = req.body;
 
     const [ejercicios] = await db.query(
       "SELECT pizarra_archivo_url, video_tipo, video_url FROM ejercicios_tacticos WHERE id = ?",
@@ -247,18 +247,21 @@ const actualizarEjercicioTactico = async (req, res) => {
       await db.query(
         `UPDATE ejercicios_tacticos
          SET pizarra_modo = 'archivo', pizarra_archivo_url = ?, pizarra_archivo_tipo = ?,
-             pizarra_archivo_nombre_original = ?, dibujo_json = NULL
+             pizarra_archivo_nombre_original = ?, dibujo_json = NULL, dibujo_thumbnail = NULL
          WHERE id = ?`,
         [url, tipoDeArchivoPizarra(archivoPizarra.mimetype), archivoPizarra.originalname, id]
       );
     } else if (dibujo_json !== undefined) {
       if (ejercicios[0].pizarra_archivo_url) eliminarArchivo(ejercicios[0].pizarra_archivo_url);
+      const asignacionThumbnail = dibujo_thumbnail !== undefined ? ", dibujo_thumbnail = ?" : "";
+      const valoresPizarra = [JSON.stringify(dibujo_json)];
+      if (dibujo_thumbnail !== undefined) valoresPizarra.push(dibujo_thumbnail);
       await db.query(
         `UPDATE ejercicios_tacticos
          SET pizarra_modo = 'dibujo', dibujo_json = ?, pizarra_archivo_url = NULL,
-             pizarra_archivo_tipo = NULL, pizarra_archivo_nombre_original = NULL
+             pizarra_archivo_tipo = NULL, pizarra_archivo_nombre_original = NULL${asignacionThumbnail}
          WHERE id = ?`,
-        [JSON.stringify(dibujo_json), id]
+        [...valoresPizarra, id]
       );
     }
 
@@ -281,7 +284,7 @@ const duplicarEjercicioTactico = async (req, res) => {
 
     const [ejercicios] = await db.query(
       `SELECT categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores,
-              duracion_minutos, dibujo_json, pizarra_modo
+              duracion_minutos, dibujo_json, dibujo_thumbnail, pizarra_modo
        FROM ejercicios_tacticos WHERE id = ?`,
       [id]
     );
@@ -290,6 +293,7 @@ const duplicarEjercicioTactico = async (req, res) => {
     }
     const origen = ejercicios[0];
     const dibujoCopiado = origen.pizarra_modo === "dibujo" ? origen.dibujo_json : null;
+    const miniaturaCopiada = origen.pizarra_modo === "dibujo" ? origen.dibujo_thumbnail : null;
     // mysql2 devuelve la columna JSON `contenido_json` ya parseada como
     // objeto (a diferencia de `dibujo_json`, que es LONGTEXT y llega como
     // string) — hay que volver a serializarla para reinsertarla.
@@ -298,8 +302,8 @@ const duplicarEjercicioTactico = async (req, res) => {
     const [result] = await db.query(
       `INSERT INTO ejercicios_tacticos
        (categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos,
-        dibujo_json, pizarra_modo, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        dibujo_json, dibujo_thumbnail, pizarra_modo, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         origen.categoria,
         origen.subcategoria,
@@ -310,6 +314,7 @@ const duplicarEjercicioTactico = async (req, res) => {
         origen.cantidad_jugadores,
         origen.duracion_minutos,
         dibujoCopiado,
+        miniaturaCopiada,
         dibujoCopiado ? "dibujo" : null,
         creadoPor,
       ]

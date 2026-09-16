@@ -40,7 +40,10 @@ const storage = multer.diskStorage({
 const uploadPizarra = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 * 1024 }, // 2GB por archivo
+  // fieldSize por encima del default (1MB) porque dibujo_json/dibujo_thumbnail
+  // viajan como campos de texto (data URLs de imágenes embebidas), no como
+  // archivos.
+  limits: { fileSize: 2 * 1024 * 1024 * 1024, fieldSize: 5 * 1024 * 1024 },
 });
 
 const tipoDeArchivoPizarra = (mimetype) => (mimetype.startsWith("image/") ? "imagen" : "video");

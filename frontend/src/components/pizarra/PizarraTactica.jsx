@@ -516,7 +516,16 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     link.click()
   }
 
-  useImperativeHandle(refExterna, () => ({ exportarImagen }))
+  // Miniatura liviana (PNG chico) para mostrar el tablero guardado sin
+  // tener que montar Konva — usada por PizarraTacticaEmbebida al guardar.
+  const obtenerMiniatura = () => {
+    if (!stageRef.current) return null
+    const anchoDestino = 320
+    const pixelRatio = anchoDestino / stageRef.current.width()
+    return stageRef.current.toDataURL({ pixelRatio })
+  }
+
+  useImperativeHandle(refExterna, () => ({ exportarImagen, obtenerMiniatura }))
 
   // "Subir imagen" (spec 5.1): se agrega como un elemento más de la escena
   // (centrada, tamaño inicial fijo), reutilizando el mismo mecanismo

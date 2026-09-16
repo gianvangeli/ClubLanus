@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import EscudoClub from '../components/EscudoClub'
-import PizarraTactica from '../components/pizarra/PizarraTactica'
+import PizarraTacticaEmbebida from '../components/pizarra/PizarraTacticaEmbebida'
 import EditorTexto from '../components/EditorTexto'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
@@ -84,6 +84,8 @@ export default function EjercicioTacticoDetalle() {
         datos.append('pizarra_archivo', archivoPizarra)
       } else if (modoPizarra === 'dibujo' && dibujo) {
         datos.append('dibujo_json', JSON.stringify(dibujo))
+        const miniatura = pizarraRef.current?.obtenerMiniatura()
+        if (miniatura) datos.append('dibujo_thumbnail', miniatura)
       }
       await api.put(`/ejercicios-tacticos/${id}`, datos)
       setMensaje('Guardado correctamente')
@@ -241,7 +243,14 @@ export default function EjercicioTacticoDetalle() {
             </div>
 
             {modoPizarra === 'dibujo' ? (
-              <PizarraTactica ref={pizarraRef} value={dibujo} onChange={setDibujo} editable ejercicioId={id} onGuardar={guardar} />
+              <PizarraTacticaEmbebida
+                ref={pizarraRef}
+                value={dibujo}
+                onChange={setDibujo}
+                miniatura={ejercicio.dibujo_thumbnail}
+                ejercicioId={id}
+                onGuardar={guardar}
+              />
             ) : (
               <div className="field">
                 <label>Imagen o video de la pizarra</label>

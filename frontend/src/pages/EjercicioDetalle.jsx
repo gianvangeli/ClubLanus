@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import EscudoClub from '../components/EscudoClub'
-import PizarraTactica from '../components/pizarra/PizarraTactica'
+import PizarraTacticaEmbebida from '../components/pizarra/PizarraTacticaEmbebida'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
 import './EjercicioDetalle.css'
@@ -30,6 +30,7 @@ export default function EjercicioDetalle() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
+  const pizarraRef = useRef(null)
 
   const cargar = () => {
     setCargando(true)
@@ -69,6 +70,8 @@ export default function EjercicioDetalle() {
         datos.append('pizarra_archivo', archivoPizarra)
       } else if (modoPizarra === 'dibujo' && dibujo) {
         datos.append('dibujo_json', JSON.stringify(dibujo))
+        const miniatura = pizarraRef.current?.obtenerMiniatura()
+        if (miniatura) datos.append('dibujo_thumbnail', miniatura)
       }
       await api.put(`/ejercicios/${ejercicioId}`, datos)
       setMensaje('Guardado correctamente')
@@ -199,7 +202,15 @@ export default function EjercicioDetalle() {
             </div>
 
             {modoPizarra === 'dibujo' ? (
-              <PizarraTactica value={dibujo} onChange={setDibujo} editable ejercicioId={ejercicioId} endpointAnimacion="ejercicios" onGuardar={guardar} />
+              <PizarraTacticaEmbebida
+                ref={pizarraRef}
+                value={dibujo}
+                onChange={setDibujo}
+                miniatura={ejercicio.dibujo_thumbnail}
+                ejercicioId={ejercicioId}
+                endpointAnimacion="ejercicios"
+                onGuardar={guardar}
+              />
             ) : (
               <div className="field">
                 <label>Imagen o video de la pizarra</label>

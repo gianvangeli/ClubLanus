@@ -1,0 +1,76 @@
+.pizarra-embebida {
+  width: 100%;
+}
+
+.pizarra-miniatura {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 220px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.pizarra-miniatura img {
+  display: block;
+  width: 100%;
+  height: 220px;
+  object-fit: contain;
+  background: #eef0f2;
+}
+
+.pizarra-miniatura-vacia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 220px;
+  color: var(--text-muted, #6b7280);
+}
+
+.pizarra-miniatura-icono {
+  font-size: 28px;
+}
+
+.pizarra-miniatura-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 10, 14, 0.55);
+  color: #fff;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pizarra-miniatura:hover .pizarra-miniatura-overlay,
+.pizarra-miniatura:focus-visible .pizarra-miniatura-overlay {
+  opacity: 1;
+}
+
+.pizarra-embebida-abierta {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: auto;
+  background: #14161a;
+}
+
+.pizarra-embebida-cerrar {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 61;
+  background: var(--surface);
+}

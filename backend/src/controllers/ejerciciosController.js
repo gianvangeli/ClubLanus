@@ -61,7 +61,7 @@ const obtenerEjercicio = async (req, res) => {
     const { id } = req.params;
     const [ejercicios] = await db.query(
       `SELECT id, entrenamiento_id, numero, dia, tipo_trabajo, espacio, objetivo, n_jugadores, duracion,
-              descripcion, dibujo_json, pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original,
+              descripcion, dibujo_json, dibujo_thumbnail, pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original,
               animacion_video_url, creado_por, creado_en
        FROM ejercicios WHERE id = ?`,
       [id]
@@ -96,6 +96,7 @@ const actualizarEjercicio = async (req, res) => {
   try {
     const { id } = req.params;
     const dibujoJson = req.body.dibujo_json;
+    const dibujoThumbnail = req.body.dibujo_thumbnail;
 
     const [ejercicios] = await db.query(
       "SELECT pizarra_archivo_url FROM ejercicios WHERE id = ?",
@@ -120,18 +121,21 @@ const actualizarEjercicio = async (req, res) => {
       await db.query(
         `UPDATE ejercicios
          SET pizarra_modo = 'archivo', pizarra_archivo_url = ?, pizarra_archivo_tipo = ?,
-             pizarra_archivo_nombre_original = ?, dibujo_json = NULL
+             pizarra_archivo_nombre_original = ?, dibujo_json = NULL, dibujo_thumbnail = NULL
          WHERE id = ?`,
         [url, tipoDeArchivoPizarra(archivoPizarra.mimetype), archivoPizarra.originalname, id]
       );
     } else if (dibujoJson !== undefined) {
       if (ejercicios[0].pizarra_archivo_url) eliminarArchivo(ejercicios[0].pizarra_archivo_url);
+      const asignacionThumbnail = dibujoThumbnail !== undefined ? ", dibujo_thumbnail = ?" : "";
+      const valoresPizarra = [typeof dibujoJson === "string" ? dibujoJson : JSON.stringify(dibujoJson)];
+      if (dibujoThumbnail !== undefined) valoresPizarra.push(dibujoThumbnail);
       await db.query(
         `UPDATE ejercicios
          SET pizarra_modo = 'dibujo', dibujo_json = ?, pizarra_archivo_url = NULL,
-             pizarra_archivo_tipo = NULL, pizarra_archivo_nombre_original = NULL
+             pizarra_archivo_tipo = NULL, pizarra_archivo_nombre_original = NULL${asignacionThumbnail}
          WHERE id = ?`,
-        [typeof dibujoJson === "string" ? dibujoJson : JSON.stringify(dibujoJson), id]
+        [...valoresPizarra, id]
       );
     }
 
@@ -211,8 +215,8 @@ const reutilizarEjercicio = async (req, res) => {
 
     const [result] = await db.query(
       `INSERT INTO ejercicios
-         (entrenamiento_id, numero, dia, tipo_trabajo, espacio, objetivo, n_jugadores, duracion, descripcion, dibujo_json, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (entrenamiento_id, numero, dia, tipo_trabajo, espacio, objetivo, n_jugadores, duracion, descripcion, dibujo_json, dibujo_thumbnail, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         entrenamientoId,
         siguiente,
@@ -224,6 +228,7 @@ const reutilizarEjercicio = async (req, res) => {
         origen.duracion,
         origen.descripcion,
         origen.dibujo_json,
+        origen.dibujo_thumbnail,
         creadoPor,
       ]
     );
