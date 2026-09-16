@@ -2,13 +2,14 @@
   /* La pizarra ahora solo se monta dentro del wrapper de pantalla completa
      (PizarraTacticaEmbebida) — usa todo el alto/ancho que ese overlay le
      da, para que la cancha pueda crecer hasta llenar la pantalla en vez de
-     quedarse en su tamaño nativo con espacio vacío alrededor. */
+     quedarse en su tamaño nativo con espacio vacío alrededor. Sin tarjeta
+     blanca de fondo: transparente, para que se vea directamente sobre el
+     fondo oscuro del overlay (look "app profesional" en vez de formulario).
+     El timeline de escenas y los popovers ya llevan su propia tarjeta
+     clara (`.escena-chip`, `.pizarra-popover`), así que siguen legibles. */
   display: flex;
   align-items: stretch;
   gap: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
   padding: 20px;
   position: relative;
   min-width: 0;
@@ -62,7 +63,13 @@
 }
 
 .pizarra-reabrir-panel {
+  /* .btn-ghost está pensado para fondo claro (texto granate) — acá vive
+     directo sobre el fondo oscuro del overlay de pantalla completa, así
+     que necesita su propio contraste. */
   align-self: flex-start;
+  background: var(--granate-900) !important;
+  color: var(--granate-100) !important;
+  border-color: var(--granate-800) !important;
 }
 
 .pizarra-tactica.panel-colapsado {
@@ -75,7 +82,11 @@
   flex-direction: row-reverse;
 }
 
-@media (max-width: 900px) {
+/* Umbral bajo a propósito: el Manual de Control ahora es una barra de solo
+   56px, así que entra al lado de la cancha en casi cualquier pantalla de
+   escritorio (incluso con zoom del SO). Apilar en columna queda solo para
+   celulares/tablets angostos de verdad. */
+@media (max-width: 560px) {
   .pizarra-tactica {
     flex-direction: column;
   }
