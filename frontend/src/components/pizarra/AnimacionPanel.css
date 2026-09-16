@@ -13,18 +13,19 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
   padding: 20px;
-  width: min(520px, 92vw);
+  width: min(620px, 92vw);
   max-height: 90vh;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .animacion-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .animacion-header h3 {
@@ -32,8 +33,28 @@
   font-family: var(--font-heading);
 }
 
+.animacion-header-botones {
+  display: flex;
+  gap: 8px;
+}
+
+.animacion-cuerpo {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.animacion-cover {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
 .animacion-preview-wrap {
   align-self: center;
+  width: 100%;
   border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
@@ -45,8 +66,49 @@
   justify-content: center;
 }
 
-.animacion-convertir {
-  width: 100%;
+.animacion-opciones {
+  flex: 1 1 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 200px;
+}
+
+.animacion-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.animacion-campo label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.animacion-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.animacion-chip {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.animacion-chip.activo {
+  background: var(--granate-700);
+  border-color: var(--granate-700);
+  color: #fff;
 }
 
 .animacion-ok {

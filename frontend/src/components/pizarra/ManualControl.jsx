@@ -1,15 +1,43 @@
 import { useState } from 'react'
-import { EQUIPAMIENTO } from './equipamiento/iconos'
-import { DEFINICIONES_GRID } from './grillas/definicionesGrid'
+import {
+  MousePointer2, Move, UserRound, ArrowUpRight, Shapes, Package2, Type, Pencil,
+  Lock, LockKeyhole, Eraser, LayoutGrid, Undo2, Redo2, ImagePlus, Download,
+  Trash2, FolderOpen, Save, Copy, Clapperboard, ChevronsLeft, ArrowLeftRight,
+} from 'lucide-react'
 import LineaPopover from './popovers/LineaPopover'
 import FormaPopover from './popovers/FormaPopover'
+import JugadorPopover from './popovers/JugadorPopover'
+import EquipamientoPopover from './popovers/EquipamientoPopover'
+import CanchaPopover from './popovers/CanchaPopover'
 import './ManualControl.css'
 
+// Herramientas principales de la barra, en orden. `popover` (si tiene)
+// indica qué caja flotante abrir al seleccionarla — mismo mecanismo que ya
+// existía para Línea/Formas, ahora extendido a Jugador/Equipamiento.
+const HERRAMIENTAS = [
+  { valor: 'seleccionar', Icono: MousePointer2, titulo: 'Seleccionar' },
+  { valor: 'mover', Icono: Move, titulo: 'Mover' },
+  { valor: 'jugador', Icono: UserRound, titulo: 'Jugador', popover: 'jugador' },
+  { valor: 'linea', Icono: ArrowUpRight, titulo: 'Línea', popover: 'linea' },
+  { valor: 'zona', Icono: Shapes, titulo: 'Formas', popover: 'forma' },
+  { valor: 'figura', Icono: Package2, titulo: 'Equipamiento', popover: 'equipamiento' },
+  { valor: 'texto', Icono: Type, titulo: 'Texto' },
+  { valor: 'lapiz', Icono: Pencil, titulo: 'Lápiz' },
+  { valor: 'candado', Icono: Lock, titulo: 'Candado' },
+  { valor: 'borrar', Icono: Eraser, titulo: 'Borrar' },
+]
+
+const POPOVER_POR_HERRAMIENTA = HERRAMIENTAS.reduce((acc, h) => {
+  if (h.popover) acc[h.valor] = h.popover
+  return acc
+}, {})
+
 /**
- * Panel derecho de la pizarra ("Manual de Control"), de arriba hacia
- * abajo: barra de acciones, Select Grid, Generic Player, Add Equipment,
- * Add Object (con popovers de Línea/Formas), y el botón fijo "Editar
- * animación" al pie — espejo de la sección 5 de la spec.
+ * "Manual de Control" de la pizarra: barra vertical angosta de solo
+ * íconos (herramientas arriba, acciones abajo). Todo lo que no entra en un
+ * ícono (colores, selects, opciones combinables) vive en un popover
+ * flotante anclado al ícono correspondiente — mismo patrón ya probado con
+ * Línea/Formas, ahora también para Jugador/Equipamiento/Cancha.
  */
 export default function ManualControl(props) {
   const {
@@ -27,144 +55,54 @@ export default function ManualControl(props) {
     panelLado, onCambiarLado, onSubirImagen, onGuardar,
   } = props
 
-  const [popoverAbierto, setPopoverAbierto] = useState(null) // 'linea' | 'forma' | null
+  const [popoverAbierto, setPopoverAbierto] = useState(null)
 
   const elegirHerramienta = (h) => {
     onCambiarHerramienta(h)
-    setPopoverAbierto(h === 'linea' || h === 'zona' ? (h === 'linea' ? 'linea' : 'forma') : null)
+    setPopoverAbierto(POPOVER_POR_HERRAMIENTA[h] || null)
   }
+
+  const toggleCancha = () => setPopoverAbierto((p) => (p === 'cancha' ? null : 'cancha'))
+  const cerrarPopover = () => setPopoverAbierto(null)
 
   return (
     <aside className="manual-control">
-      {/* 5.1 — Barra superior de acciones */}
-      <div className="mc-barra-acciones">
-        <button type="button" className="btn btn-ghost btn-icon" title="Colapsar panel" onClick={onColapsar}>⏵</button>
+      <div className="mc-grupo">
+        <button type="button" className="mc-icono" title="Colapsar panel" onClick={onColapsar}>
+          <ChevronsLeft size={18} />
+        </button>
         <button
           type="button"
-          className="btn btn-ghost btn-icon"
+          className="mc-icono"
           title={panelLado === 'izquierda' ? 'Mover panel a la derecha' : 'Mover panel a la izquierda'}
           onClick={onCambiarLado}
         >
-          ⇄
+          <ArrowLeftRight size={18} />
         </button>
-        <button type="button" className="btn btn-ghost btn-icon" title="Deshacer" onClick={onDeshacer} disabled={!puedeDeshacer}>↺</button>
-        <button type="button" className="btn btn-ghost btn-icon" title="Rehacer" onClick={onRehacer} disabled={!puedeRehacer}>↻</button>
-        <label className="btn btn-ghost btn-icon" title="Subir imagen de referencia">
-          🖼
-          <input type="file" accept="image/*" onChange={onSubirImagen} hidden />
-        </label>
-        <button type="button" className="btn btn-ghost btn-icon" title="Exportar imagen" onClick={onExportarImagen}>⬇</button>
-        <button type="button" className="btn btn-ghost btn-icon" title="Vaciar cancha" onClick={onVaciarCancha}>🗑</button>
-        <button type="button" className="btn btn-ghost btn-icon" title="Jugadas guardadas" onClick={onAbrirJugadas}>📂</button>
-        {onGuardar && (
-          <button type="button" className="btn btn-primary btn-icon" title="Guardar" onClick={onGuardar}>💾</button>
-        )}
       </div>
 
-      {seleccionActiva && (
-        <div className="mc-barra-seleccion">
-          <button type="button" className="btn btn-sm btn-ghost" onClick={onDuplicarSeleccion}>Duplicar</button>
-          <button type="button" className="btn btn-sm btn-ghost" onClick={onBloquearSeleccion}>Bloquear/Desbloquear</button>
-          <button type="button" className="btn btn-sm btn-danger" onClick={onEliminarSeleccion}>Eliminar</button>
-        </div>
-      )}
-
-      {/* Cancha/color + Select Grid: una fila horizontal por concepto, sin
-          partir el panel en columnas angostas (con selects nativos, dos
-          columnas de menos de 200px hacía que el texto de las opciones
-          desbordara su caja y se superpusiera con la de al lado). */}
-      <div className="mc-seccion">
-        <div className="mc-fila-campo">
-          <select value={campo.tipo} onChange={(e) => onCambiarCampo({ tipo: e.target.value })}>
-            <option value="completa">Cancha entera</option>
-            <option value="media">Mitad de cancha</option>
-          </select>
-          <select value={campo.color} onChange={(e) => onCambiarCampo({ color: e.target.value })}>
-            <option value="blanco">Blanco</option>
-            <option value="verde">Verde</option>
-          </select>
-        </div>
-        <label className="mc-check">
-          <input type="checkbox" checked={campo.lineas} onChange={(e) => onCambiarCampo({ lineas: e.target.checked })} /> Líneas de cancha
-        </label>
-      </div>
-
-      {/* 5.2 — Select Grid */}
-      <div className="mc-seccion">
-        <div className="mc-fila-campo">
-          <span className="mc-titulo-seccion mc-titulo-inline">SELECT GRID</span>
-          <select value={campo.grid || 'ninguno'} onChange={(e) => onCambiarCampo({ grid: e.target.value })}>
-            <option value="ninguno">Sin esquema</option>
-            {DEFINICIONES_GRID.map((g) => (
-              <option key={g.valor} value={g.valor}>{g.etiqueta}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* 5.3 — Generic Player */}
-      <div className="mc-seccion">
-        <div className="mc-titulo-fila">
-          <span className="mc-titulo-seccion">GENERIC PLAYER</span>
-          <label className="mc-check mc-check-chico">
-            <input type="checkbox" checked={mostrarNumeroJugador} onChange={(e) => onCambiarMostrarNumeroJugador(e.target.checked)} /> Con número
-          </label>
-        </div>
-        <div className="mc-grilla-jugadores">
-          {coloresJugador.map((c) => (
+      <div className="mc-grupo">
+        {HERRAMIENTAS.map(({ valor, Icono, titulo, popover }) => (
+          <div key={valor} className="mc-icono-anchor">
             <button
-              key={c}
               type="button"
-              className={`mc-swatch-jugador ${herramienta === 'jugador' && colorJugador === c ? 'activo' : ''}`}
-              style={{ background: c }}
-              title="Agregar jugador — click en la cancha para colocarlo"
-              onClick={() => {
-                onCambiarColorJugador(c)
-                elegirHerramienta('jugador')
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* 5.4 — Add Equipment */}
-      <div className="mc-seccion">
-        <span className="mc-titulo-seccion">ADD EQUIPMENT</span>
-        <div className="mc-grilla-equipamiento">
-          {EQUIPAMIENTO.map((eq) => (
-            <button
-              key={eq.valor}
-              type="button"
-              className={`btn btn-sm mc-icono-equipo ${herramienta === 'figura' && figuraEquipamiento === eq.valor ? 'btn-primary' : 'btn-ghost'}`}
-              title={eq.etiqueta + (eq.rotable ? ' (rotable)' : '')}
-              onClick={() => {
-                onCambiarFiguraEquipamiento(eq.valor)
-                elegirHerramienta('figura')
-              }}
+              className={`mc-icono ${herramienta === valor ? 'activo' : ''}`}
+              title={titulo}
+              onClick={() => elegirHerramienta(valor)}
             >
-              {eq.etiqueta}
+              <Icono size={18} />
             </button>
-          ))}
-        </div>
-        <div className="mc-paleta">
-          {paletaDibujo.map((c) => (
-            <button key={c} type="button" className={`mc-swatch ${colorDibujo === c ? 'activo' : ''}`} style={{ background: c }} onClick={() => onCambiarColorDibujo(c)} />
-          ))}
-        </div>
-      </div>
-
-      {/* 5.5 — Add Object: Texto, Líneas (popover), Formas (popover) */}
-      <div className="mc-seccion">
-        <span className="mc-titulo-seccion">ADD OBJECT</span>
-        <div className="mc-fila-object">
-          <button type="button" className={`btn btn-sm ${herramienta === 'texto' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('texto')}>
-            Tt Texto
-          </button>
-          <div className="mc-object-popover-anchor">
-            <button type="button" className={`btn btn-sm ${herramienta === 'linea' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('linea')}>
-              ↗ Línea
-            </button>
-            {popoverAbierto === 'linea' && (
+            {popover === 'jugador' && popoverAbierto === 'jugador' && (
+              <JugadorPopover
+                coloresJugador={coloresJugador}
+                colorJugador={colorJugador}
+                onCambiarColorJugador={onCambiarColorJugador}
+                mostrarNumeroJugador={mostrarNumeroJugador}
+                onCambiarMostrarNumeroJugador={onCambiarMostrarNumeroJugador}
+                onCerrar={cerrarPopover}
+              />
+            )}
+            {popover === 'linea' && popoverAbierto === 'linea' && (
               <LineaPopover
                 tipoLinea={tipoLinea} onCambiarTipoLinea={onCambiarTipoLinea}
                 curva={curva} onCambiarCurva={onCambiarCurva}
@@ -172,40 +110,88 @@ export default function ManualControl(props) {
                 estructuraLinea={estructuraLinea} onCambiarEstructuraLinea={onCambiarEstructuraLinea}
                 grosorDibujo={grosorDibujo} onCambiarGrosorDibujo={onCambiarGrosorDibujo}
                 tamanos={tamanos}
-                onCerrar={() => setPopoverAbierto(null)}
+                onCerrar={cerrarPopover}
               />
             )}
-          </div>
-          <div className="mc-object-popover-anchor">
-            <button type="button" className={`btn btn-sm ${herramienta === 'zona' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('zona')}>
-              ▢ Formas
-            </button>
-            {popoverAbierto === 'forma' && (
+            {popover === 'forma' && popoverAbierto === 'forma' && (
               <FormaPopover
                 formaZona={formaZona} onCambiarFormaZona={onCambiarFormaZona}
                 punteadaZona={punteadaZona} onCambiarPunteadaZona={onCambiarPunteadaZona}
                 patronRelleno={patronRelleno} onCambiarPatronRelleno={onCambiarPatronRelleno}
                 grosorDibujo={grosorDibujo} onCambiarGrosorDibujo={onCambiarGrosorDibujo}
                 tamanos={tamanos}
-                onCerrar={() => setPopoverAbierto(null)}
+                onCerrar={cerrarPopover}
+              />
+            )}
+            {popover === 'equipamiento' && popoverAbierto === 'equipamiento' && (
+              <EquipamientoPopover
+                figuraEquipamiento={figuraEquipamiento}
+                onCambiarFiguraEquipamiento={onCambiarFiguraEquipamiento}
+                colorDibujo={colorDibujo}
+                onCambiarColorDibujo={onCambiarColorDibujo}
+                paletaDibujo={paletaDibujo}
+                onCerrar={cerrarPopover}
               />
             )}
           </div>
-          <button type="button" className={`btn btn-sm ${herramienta === 'lapiz' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('lapiz')}>
-            ✎ Lápiz
+        ))}
+      </div>
+
+      <div className="mc-grupo">
+        <div className="mc-icono-anchor">
+          <button type="button" className={`mc-icono ${popoverAbierto === 'cancha' ? 'activo' : ''}`} title="Cancha" onClick={toggleCancha}>
+            <LayoutGrid size={18} />
           </button>
-        </div>
-        <div className="mc-fila-object" style={{ marginTop: 6 }}>
-          <button type="button" className={`btn btn-sm ${herramienta === 'seleccionar' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('seleccionar')}>Seleccionar</button>
-          <button type="button" className={`btn btn-sm ${herramienta === 'mover' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('mover')}>Mover</button>
-          <button type="button" className={`btn btn-sm ${herramienta === 'candado' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('candado')}>Candado</button>
-          <button type="button" className={`btn btn-sm ${herramienta === 'borrar' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => elegirHerramienta('borrar')}>Borrar</button>
+          {popoverAbierto === 'cancha' && <CanchaPopover campo={campo} onCambiarCampo={onCambiarCampo} onCerrar={cerrarPopover} />}
         </div>
       </div>
 
-      <button type="button" className="btn btn-primary mc-boton-animacion" onClick={onAbrirAnimacion}>
-        Editar animación
-      </button>
+      {seleccionActiva && (
+        <div className="mc-grupo">
+          <button type="button" className="mc-icono" title="Duplicar" onClick={onDuplicarSeleccion}>
+            <Copy size={18} />
+          </button>
+          <button type="button" className="mc-icono" title="Bloquear/Desbloquear" onClick={onBloquearSeleccion}>
+            <LockKeyhole size={18} />
+          </button>
+          <button type="button" className="mc-icono mc-icono-peligro" title="Eliminar" onClick={onEliminarSeleccion}>
+            <Trash2 size={18} />
+          </button>
+        </div>
+      )}
+
+      <div className="mc-grupo mc-grupo-separado">
+        <button type="button" className="mc-icono" title="Deshacer" onClick={onDeshacer} disabled={!puedeDeshacer}>
+          <Undo2 size={18} />
+        </button>
+        <button type="button" className="mc-icono" title="Rehacer" onClick={onRehacer} disabled={!puedeRehacer}>
+          <Redo2 size={18} />
+        </button>
+        <label className="mc-icono" title="Subir imagen de referencia">
+          <ImagePlus size={18} />
+          <input type="file" accept="image/*" onChange={onSubirImagen} hidden />
+        </label>
+        <button type="button" className="mc-icono" title="Exportar imagen" onClick={onExportarImagen}>
+          <Download size={18} />
+        </button>
+        <button type="button" className="mc-icono" title="Vaciar cancha" onClick={onVaciarCancha}>
+          <Trash2 size={18} />
+        </button>
+        <button type="button" className="mc-icono" title="Jugadas guardadas" onClick={onAbrirJugadas}>
+          <FolderOpen size={18} />
+        </button>
+      </div>
+
+      <div className="mc-grupo mc-pie">
+        <button type="button" className="mc-icono" title="Editar animación" onClick={onAbrirAnimacion}>
+          <Clapperboard size={18} />
+        </button>
+        {onGuardar && (
+          <button type="button" className="mc-icono mc-icono-destacado" title="Guardar" onClick={onGuardar}>
+            <Save size={18} />
+          </button>
+        )}
+      </div>
     </aside>
   )
 }

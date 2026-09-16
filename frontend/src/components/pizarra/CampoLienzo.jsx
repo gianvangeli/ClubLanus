@@ -131,25 +131,26 @@ const propsRelleno = (patron, color, patronesListos) => {
   return {}
 }
 
-// Ficha "Generic Player": círculo de color con número opcional, sin el
-// concepto viejo de "equipo A/B con pechera" — cada ficha lleva su propio
-// color y su propio toggle de número.
+// Ficha "Generic Player": silueta de jugador (cabeza + camiseta) con
+// número opcional, sin el concepto viejo de "equipo A/B con pechera" — cada
+// ficha lleva su propio color y su propio toggle de número.
 function TokenJugador({ color, numero, mostrarNumero }) {
   return (
     <>
-      <Circle radius={13} fill={color} stroke="#fff" strokeWidth={2} />
+      <Circle y={-8} radius={4.5} fill={color} stroke="#fff" strokeWidth={1.5} />
+      <Rect x={-8} y={-3} width={16} height={15} cornerRadius={6} fill={color} stroke="#fff" strokeWidth={1.5} />
       {mostrarNumero && (
         <Text
           text={String(numero ?? '')}
-          fontSize={11}
+          fontSize={10}
           fontStyle="bold"
           fill="#fff"
-          width={26}
-          height={26}
+          x={-8}
+          y={-3}
+          width={16}
+          height={15}
           align="center"
           verticalAlign="middle"
-          offsetX={13}
-          offsetY={13}
         />
       )}
     </>
@@ -207,6 +208,7 @@ export default function CampoLienzo({
   herramienta = 'seleccionar',
   seleccionados = [],
   patronesListos = {},
+  patronCesped = null,
   dibujoEnCurso, // { tipo:'flecha'|'zona'|'poligono'|'trazo', ...preview }
   handleCurva,
   escala = 1, // factor de escala visual (la cancha se dibuja siempre en el
@@ -355,7 +357,17 @@ export default function CampoLienzo({
       onDblTap={onStageDblClick}
     >
       <Layer>
-        <Rect name="fondo" x={0} y={0} width={ANCHO} height={alto} fill={coloresCampo.fondo} />
+        <Rect
+          name="fondo"
+          x={0}
+          y={0}
+          width={ANCHO}
+          height={alto}
+          fill={coloresCampo.fondo}
+          {...(campo.color === 'verde' && patronCesped
+            ? { fillPatternImage: patronCesped, fillPatternRepeat: 'repeat' }
+            : {})}
+        />
         {campo.lineas && (
           <Group listening={false}>
             <LineasCampo tipo={campo.tipo} alto={alto} color={coloresCampo.linea} />

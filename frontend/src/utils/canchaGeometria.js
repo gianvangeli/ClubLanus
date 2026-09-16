@@ -100,6 +100,31 @@ export const generarPatronRayas = (color, onListo) => {
   return img
 }
 
+// Genera (una sola vez, cacheada a nivel módulo) una imagen con franjas
+// horizontales alternadas tipo "corte de césped de estadio", para el fondo
+// de la cancha en la variante "verde" — misma técnica que
+// `generarPatronRayas` (canvas offscreen -> data URL -> Image), pero sin
+// depender de un color elegido por el usuario, así que se genera una sola
+// vez para toda la sesión.
+let patronCespedCache = null
+export const generarPatronCesped = (colorClaro, colorOscuro, onListo) => {
+  if (patronCespedCache) return patronCespedCache
+  const anchoFranja = 46
+  const canvas = document.createElement('canvas')
+  canvas.width = 40
+  canvas.height = anchoFranja * 2
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = colorClaro
+  ctx.fillRect(0, 0, canvas.width, anchoFranja)
+  ctx.fillStyle = colorOscuro
+  ctx.fillRect(0, anchoFranja, canvas.width, anchoFranja)
+  const img = new window.Image()
+  img.onload = () => onListo(img)
+  img.src = canvas.toDataURL()
+  patronCespedCache = img
+  return img
+}
+
 // Puntos del rombo inscripto en el rectángulo (x,y,width,height) de una
 // zona/forma.
 export const puntosRombo = (x, y, width, height) => [

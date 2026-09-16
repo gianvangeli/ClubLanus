@@ -24,7 +24,7 @@ export const soportaGrabacion = () =>
  * `onFrame` en cada tick, y pase su `stageRef` acá para poder tomar cada
  * frame ya pintado.
  */
-export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, onFrame, endpointBase = 'ejercicios-tacticos' }) {
+export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, onFrame, endpointBase = 'ejercicios-tacticos', pixelRatio = 1, nombreArchivo }) {
   const [grabando, setGrabando] = useState(false)
   const [progresoMs, setProgresoMs] = useState(0)
   const [subiendo, setSubiendo] = useState(false)
@@ -71,7 +71,8 @@ export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, 
       recorder.onstop = async () => {
         detener()
         const blob = new Blob(chunks, { type: mimeType })
-        const archivo = new File([blob], `animacion-ejercicio-${ejercicioId || 'x'}.webm`, { type: 'video/webm' })
+        const nombre = nombreArchivo ? `${nombreArchivo}.webm` : `animacion-ejercicio-${ejercicioId || 'x'}.webm`
+        const archivo = new File([blob], nombre, { type: 'video/webm' })
         try {
           setSubiendo(true)
           const datos = new FormData()
@@ -99,7 +100,7 @@ export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, 
         // detrás del tick anterior), y en paralelo actualiza la escena
         // interpolada para que Konva la tenga lista para el próximo tick.
         if (stageRef.current) {
-          const canvasFuente = stageRef.current.toCanvas({ pixelRatio: 1 })
+          const canvasFuente = stageRef.current.toCanvas({ pixelRatio })
           ctx.clearRect(0, 0, canvasCaptura.width, canvasCaptura.height)
           ctx.drawImage(canvasFuente, 0, 0, canvasCaptura.width, canvasCaptura.height)
         }

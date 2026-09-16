@@ -4,7 +4,7 @@ import ManualControl from './ManualControl'
 import EscenasTimeline from './EscenasTimeline'
 import AnimacionPanel from './AnimacionPanel'
 import { normalizarEscenaV2, nuevaEscenaVaciaV2 } from './normalizarEscenaV2'
-import { generarPatronRayas, puntosOndulados } from '../../utils/canchaGeometria'
+import { generarPatronRayas, generarPatronCesped, puntosOndulados } from '../../utils/canchaGeometria'
 import JugadasPanel from './JugadasPanel'
 import './PizarraTactica.css'
 
@@ -125,6 +125,13 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     if (patronesListos[color]) return
     generarPatronRayas(color, (img) => setPatronesListos((prev) => (prev[color] ? prev : { ...prev, [color]: img })))
   }
+
+  // Césped rayado (fondo de cancha, variante "verde"): un solo patrón fijo,
+  // no depende de ninguna elección del usuario, se genera una vez al montar.
+  const [patronCesped, setPatronCesped] = useState(null)
+  useEffect(() => {
+    generarPatronCesped('#2f8f4e', '#287942', setPatronCesped)
+  }, [])
 
   const [dibujando, setDibujando] = useState(null)
   const [dibujandoZona, setDibujandoZona] = useState(null)
@@ -619,6 +626,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
             herramienta={herramienta}
             seleccionados={seleccionados}
             patronesListos={patronesListos}
+            patronCesped={patronCesped}
             dibujoEnCurso={dibujoEnCurso}
             handleCurva={handleCurva}
             escala={escala}
@@ -693,7 +701,6 @@ const PizarraTactica = forwardRef(function PizarraTactica(
       {!panelColapsado && (
         <ManualControl
           campo={modelo.campo}
-          equipos={modelo.equipos}
           herramienta={herramienta}
           onCambiarHerramienta={setHerramienta}
           onColapsar={() => setPanelColapsado(true)}
@@ -760,6 +767,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
           onCambiarDuracion={cambiarDuracionTransicion}
           ejercicioId={ejercicioId}
           endpointBase={endpointAnimacion}
+          patronCesped={patronCesped}
         />
       )}
 
