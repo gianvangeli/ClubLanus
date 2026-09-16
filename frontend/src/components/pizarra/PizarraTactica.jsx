@@ -60,6 +60,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const cancelandoTextoRef = useRef(false)
   const stageWrapRef = useRef(null)
   const [escala, setEscala] = useState(1)
+  const modelo = normalizarEscenaV2(value)
 
   // La cancha se dibuja siempre en su sistema de coordenadas interno fijo
   // (ANCHO x alto); acá se mide cuánto espacio real hay disponible en
@@ -87,7 +88,6 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelo.campo.tipo])
 
-  const modelo = normalizarEscenaV2(value)
   const [indiceEscena, setIndiceEscena] = useState(0)
   const escenaActivaIdx = Math.min(indiceEscena, modelo.escenas.length - 1)
   const escena = modelo.escenas[escenaActivaIdx]
