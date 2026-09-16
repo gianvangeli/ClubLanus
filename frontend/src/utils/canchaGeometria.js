@@ -78,7 +78,15 @@ export const puntoEnPolilinea = (points, t) => {
 // el relleno "con rayas" de las figuras/zonas — alternativa al relleno liso.
 const patronesRayasCache = {}
 export const generarPatronRayas = (color, onListo) => {
-  if (patronesRayasCache[color]) return patronesRayasCache[color]
+  if (patronesRayasCache[color]) {
+    // Ya se generó en un montaje anterior de la pizarra (misma pestaña) —
+    // avisar igual, sea ya (imagen cargada) o cuando termine de cargar,
+    // para no dejar al nuevo montaje esperando un onListo que no llega.
+    const img = patronesRayasCache[color]
+    if (img.complete) onListo(img)
+    else img.addEventListener('load', () => onListo(img), { once: true })
+    return img
+  }
   const size = 10
   const canvas = document.createElement('canvas')
   canvas.width = size
@@ -108,7 +116,11 @@ export const generarPatronRayas = (color, onListo) => {
 // vez para toda la sesión.
 let patronCespedCache = null
 export const generarPatronCesped = (colorClaro, colorOscuro, onListo) => {
-  if (patronCespedCache) return patronCespedCache
+  if (patronCespedCache) {
+    if (patronCespedCache.complete) onListo(patronCespedCache)
+    else patronCespedCache.addEventListener('load', () => onListo(patronCespedCache), { once: true })
+    return patronCespedCache
+  }
   const anchoFranja = 46
   const canvas = document.createElement('canvas')
   canvas.width = 40
