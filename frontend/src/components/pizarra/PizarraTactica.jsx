@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import CampoLienzo, { ANCHO } from './CampoLienzo'
+import CampoLienzo, { ANCHO, CAMPOS } from './CampoLienzo'
 import ManualControl from './ManualControl'
 import EscenasTimeline from './EscenasTimeline'
 import AnimacionPanel from './AnimacionPanel'
@@ -58,23 +58,34 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const stageRef = useRef(null)
   const internalChangeRef = useRef(false)
   const cancelandoTextoRef = useRef(false)
-  const canchaColRef = useRef(null)
+  const stageWrapRef = useRef(null)
   const [escala, setEscala] = useState(1)
 
-  // La cancha se dibuja siempre a tamaño completo (ANCHO fijo) en un
-  // sistema de coordenadas propio; acá solo se mide cuánto espacio real
-  // hay disponible y se la achica para que entre COMPLETA sin recortarse
-  // ni necesitar scroll (antes `overflow:hidden` del wrapper la recortaba
-  // cuando el panel de Manual de Control no dejaba los 460px que necesita).
+  // La cancha se dibuja siempre en su sistema de coordenadas interno fijo
+  // (ANCHO x alto); acá se mide cuánto espacio real hay disponible en
+  // `.pizarra-stage-wrap` (que ahora ocupa todo el alto/ancho sobrante de
+  // la columna vía flex, independiente del tamaño del propio Stage — sin
+  // esto la medición sería circular) y se la agranda o achica para que
+  // ocupe TODO ese espacio sin recortarse ni desbordar — ya no hay tope en
+  // 1, la pizarra ahora vive siempre a pantalla completa (ver
+  // PizarraTacticaEmbebida) así que conviene que la cancha crezca todo lo
+  // que el monitor permita en vez de quedarse en su tamaño nativo.
   useEffect(() => {
-    const el = canchaColRef.current
+    const el = stageWrapRef.current
     if (!el) return
-    const medir = () => setEscala(Math.min(1, el.clientWidth / ANCHO))
+    const alto = CAMPOS[modelo.campo.tipo]?.alto ?? CAMPOS.completa.alto
+    const medir = () => {
+      const anchoDisponible = el.clientWidth
+      const altoDisponible = el.clientHeight
+      if (anchoDisponible <= 0 || altoDisponible <= 0) return
+      setEscala(Math.min(anchoDisponible / ANCHO, altoDisponible / alto))
+    }
     medir()
     const observer = new ResizeObserver(medir)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelo.campo.tipo])
 
   const modelo = normalizarEscenaV2(value)
   const [indiceEscena, setIndiceEscena] = useState(0)
@@ -616,8 +627,8 @@ const PizarraTactica = forwardRef(function PizarraTactica(
 
   return (
     <div className={`pizarra-tactica ${panelColapsado ? 'panel-colapsado' : ''} ${panelLado === 'izquierda' ? 'panel-izquierda' : ''}`}>
-      <div className="pizarra-cancha-col" ref={canchaColRef}>
-        <div className="pizarra-stage-wrap">
+      <div className="pizarra-cancha-col">
+        <div className="pizarra-stage-wrap" ref={stageWrapRef}>
           <CampoLienzo
             stageRef={stageRef}
             escena={escena}

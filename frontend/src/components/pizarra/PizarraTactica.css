@@ -1,6 +1,10 @@
 .pizarra-tactica {
+  /* La pizarra ahora solo se monta dentro del wrapper de pantalla completa
+     (PizarraTacticaEmbebida) — usa todo el alto/ancho que ese overlay le
+     da, para que la cancha pueda crecer hasta llenar la pantalla en vez de
+     quedarse en su tamaño nativo con espacio vacío alrededor. */
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 20px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -8,6 +12,9 @@
   padding: 20px;
   position: relative;
   min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
   max-width: 100%;
 }
 
@@ -17,14 +24,23 @@
   gap: 12px;
   flex: 1 1 auto;
   min-width: 0;
+  min-height: 0;
 }
 
 .pizarra-stage-wrap {
+  /* Ocupa todo el espacio vertical sobrante de la columna (después del
+     timeline de escenas) — su tamaño viene del layout, no del Stage que
+     contiene, así la medición en PizarraTactica.jsx no es circular. El
+     Stage (tamaño en px fijo según `escala`) queda centrado adentro. */
   position: relative;
   border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
-  align-self: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pizarra-editor-texto {
