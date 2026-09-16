@@ -363,10 +363,9 @@ export default function CampoLienzo({
           y={0}
           width={ANCHO}
           height={alto}
-          fill={coloresCampo.fondo}
           {...(campo.color === 'verde' && patronCesped
             ? { fillPatternImage: patronCesped, fillPatternRepeat: 'repeat' }
-            : {})}
+            : { fill: coloresCampo.fondo })}
         />
         {campo.lineas && (
           <Group listening={false}>
