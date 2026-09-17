@@ -4,6 +4,7 @@ import api, { API_BASE, extraerError } from '../api/client'
 import { aInputDate, calcularEdad, formatFecha } from '../utils/fecha'
 import { colorSemaforo } from '../utils/semaforo'
 import MenuSeccionesJugador from '../components/MenuSeccionesJugador'
+import ResumenJugador from '../components/ResumenJugador'
 import './AdminJugadorDetalle.css'
 
 const ETIQUETAS_TRAMITE = {
@@ -168,6 +169,8 @@ export default function AdminJugadorDetalle() {
       </div>
 
       {error && <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>}
+
+      <ResumenJugador jugadorId={id} jugador={jugador} />
 
       <div className="detalle-grid">
         <InfoJugador jugador={jugador} onActualizado={cargarJugador} />

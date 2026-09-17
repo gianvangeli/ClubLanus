@@ -1,0 +1,97 @@
+.resumen-jugador {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.resumen-jugador-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.resumen-jugador-titulo h3 {
+  margin: 0;
+  font-family: var(--font-heading);
+}
+
+.resumen-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 10px;
+}
+
+.resumen-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: var(--granate-50);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 8px;
+}
+
+.resumen-tile-valor {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--granate-700);
+}
+
+.resumen-tile-etiqueta {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+.resumen-tile-amarillo .resumen-tile-valor {
+  color: var(--warning);
+}
+
+.resumen-tile-rojo .resumen-tile-valor {
+  color: var(--danger);
+}
+
+.resumen-tile-pendiente .resumen-tile-valor {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.resumen-cuerpo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.resumen-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.resumen-bloque-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+.resumen-nutricion-destacado {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resumen-nutricion-valor {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--granate-700);
+}
