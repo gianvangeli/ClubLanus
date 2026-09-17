@@ -44,6 +44,17 @@
   justify-content: center;
 }
 
+.pizarra-stage-inner {
+  /* Tamaño exacto del Stage (ANCHO*escala x alto*escala) — el editor de
+     texto/número inline (position:absolute) se ancla a ESTE div, no a
+     `.pizarra-stage-wrap` (que puede ser más grande y centrar el Stage
+     adentro con márgenes en cualquiera de los dos ejes); si se ancla al
+     wrap, las coordenadas x*escala/y*escala quedan desplazadas del punto
+     real donde se hizo click en la cancha. */
+  position: relative;
+  flex-shrink: 0;
+}
+
 .pizarra-editor-texto {
   position: absolute;
   z-index: 5;

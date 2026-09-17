@@ -61,6 +61,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const stageWrapRef = useRef(null)
   const [escala, setEscala] = useState(1)
   const modelo = normalizarEscenaV2(value)
+  const alto = CAMPOS[modelo.campo.tipo]?.alto ?? CAMPOS.completa.alto
 
   // La cancha se dibuja siempre en su sistema de coordenadas interno fijo
   // (ANCHO x alto); acá se mide cuánto espacio real hay disponible en
@@ -74,7 +75,6 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   useEffect(() => {
     const el = stageWrapRef.current
     if (!el) return
-    const alto = CAMPOS[modelo.campo.tipo]?.alto ?? CAMPOS.completa.alto
     const medir = () => {
       const anchoDisponible = el.clientWidth
       const altoDisponible = el.clientHeight
@@ -629,71 +629,73 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     <div className={`pizarra-tactica ${panelColapsado ? 'panel-colapsado' : ''} ${panelLado === 'izquierda' ? 'panel-izquierda' : ''}`}>
       <div className="pizarra-cancha-col">
         <div className="pizarra-stage-wrap" ref={stageWrapRef}>
-          <CampoLienzo
-            stageRef={stageRef}
-            escena={escena}
-            campo={modelo.campo}
-            editable={editable}
-            herramienta={herramienta}
-            seleccionados={seleccionados}
-            patronesListos={patronesListos}
-            patronCesped={patronCesped}
-            dibujoEnCurso={dibujoEnCurso}
-            handleCurva={handleCurva}
-            escala={escala}
-            onStageMouseDown={onStageMouseDown}
-            onStageMouseMove={onStageMouseMove}
-            onStageMouseUp={onStageMouseUp}
-            onStageDblClick={cerrarPoligono}
-            onClickElemento={onClickElemento}
-            onMoverElemento={moverElemento}
-            onArrastrarHandleCurva={onArrastrarHandleCurva}
-            onEditarTexto={onEditarTexto}
-            onEditarNumero={onEditarNumero}
-            onRotarFigura={rotarFigura}
-            onRedimensionarZona={redimensionarZona}
-            onRedimensionarImagen={redimensionarImagen}
-          />
-          {editorTexto && (
-            <input
-              className="pizarra-editor-texto"
-              autoFocus
-              style={{ left: editorTexto.x * escala, top: editorTexto.y * escala, fontSize: 14 * escala }}
-              value={editorTexto.valor}
-              onChange={(e) => setEditorTexto({ ...editorTexto, valor: e.target.value })}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  confirmarEditorTexto()
-                } else if (e.key === 'Escape') {
-                  e.preventDefault()
-                  cancelarEditorTexto()
-                }
-              }}
-              onBlur={confirmarEditorTexto}
+          <div className="pizarra-stage-inner" style={{ width: ANCHO * escala, height: alto * escala }}>
+            <CampoLienzo
+              stageRef={stageRef}
+              escena={escena}
+              campo={modelo.campo}
+              editable={editable}
+              herramienta={herramienta}
+              seleccionados={seleccionados}
+              patronesListos={patronesListos}
+              patronCesped={patronCesped}
+              dibujoEnCurso={dibujoEnCurso}
+              handleCurva={handleCurva}
+              escala={escala}
+              onStageMouseDown={onStageMouseDown}
+              onStageMouseMove={onStageMouseMove}
+              onStageMouseUp={onStageMouseUp}
+              onStageDblClick={cerrarPoligono}
+              onClickElemento={onClickElemento}
+              onMoverElemento={moverElemento}
+              onArrastrarHandleCurva={onArrastrarHandleCurva}
+              onEditarTexto={onEditarTexto}
+              onEditarNumero={onEditarNumero}
+              onRotarFigura={rotarFigura}
+              onRedimensionarZona={redimensionarZona}
+              onRedimensionarImagen={redimensionarImagen}
             />
-          )}
-          {editorNumero && (
-            <input
-              className="pizarra-editor-texto pizarra-editor-numero"
-              type="number"
-              autoFocus
-              style={{ left: editorNumero.x * escala - 16 * escala, top: editorNumero.y * escala - 12 * escala, fontSize: 14 * escala }}
-              value={editorNumero.valor}
-              onChange={(e) => setEditorNumero({ ...editorNumero, valor: e.target.value })}
-              onFocus={(e) => e.target.select()}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  confirmarEditorNumero()
-                } else if (e.key === 'Escape') {
-                  e.preventDefault()
-                  setEditorNumero(null)
-                }
-              }}
-              onBlur={confirmarEditorNumero}
-            />
-          )}
+            {editorTexto && (
+              <input
+                className="pizarra-editor-texto"
+                autoFocus
+                style={{ left: editorTexto.x * escala, top: editorTexto.y * escala, fontSize: 14 * escala }}
+                value={editorTexto.valor}
+                onChange={(e) => setEditorTexto({ ...editorTexto, valor: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    confirmarEditorTexto()
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    cancelarEditorTexto()
+                  }
+                }}
+                onBlur={confirmarEditorTexto}
+              />
+            )}
+            {editorNumero && (
+              <input
+                className="pizarra-editor-texto pizarra-editor-numero"
+                type="number"
+                autoFocus
+                style={{ left: editorNumero.x * escala - 16 * escala, top: editorNumero.y * escala - 12 * escala, fontSize: 14 * escala }}
+                value={editorNumero.valor}
+                onChange={(e) => setEditorNumero({ ...editorNumero, valor: e.target.value })}
+                onFocus={(e) => e.target.select()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    confirmarEditorNumero()
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault()
+                    setEditorNumero(null)
+                  }
+                }}
+                onBlur={confirmarEditorNumero}
+              />
+            )}
+          </div>
         </div>
         <EscenasTimeline
           escenas={modelo.escenas}
