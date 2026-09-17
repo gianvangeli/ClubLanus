@@ -1,12 +1,15 @@
 .manual-control {
   /* Barra angosta de solo íconos (antes: panel ancho de 380px con
      secciones inline) — todo lo que no entra en un ícono vive en un
-     popover flotante anclado al ícono correspondiente. */
+     popover flotante anclado al ícono correspondiente. Sin overflow
+     propio a propósito: overflow-y:auto acá recortaría también el eje X
+     (así es como funciona `overflow` en CSS), y con eso los popovers —
+     que se abren hacia afuera del ícono, no hacia adentro de la barra —
+     quedarían invisibles. Si la barra no entra completa, scrollea el
+     overlay de pantalla completa entero (ver .pizarra-embebida-abierta). */
   flex: 0 0 auto;
   width: 56px;
   max-width: 100%;
-  max-height: 100%;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
