@@ -90,6 +90,30 @@
   margin-top: 4px;
 }
 
+.jg-info-toggle {
+  align-self: flex-start;
+}
+
+.jg-info-jugador-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  background: var(--jg-surface-2);
+  border: 1px solid var(--jg-border);
+  border-radius: 12px;
+}
+
+.jg-form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.jg-form-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ---------- Player list ---------- */
 
 .jg-list-header {
@@ -113,6 +137,68 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Columnas de estadísticas (Edad/Min/Goles/Ast/TA/TR/Rating) — misma
+   grilla en el header y en cada fila, para que los valores queden
+   alineados debajo de su etiqueta (formato "banner", inspirado en un
+   panel de rendimiento por jugador, no en chips sueltos). */
+.jg-fila-stats {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(44px, 1fr));
+  gap: 4px;
+  flex: 1 1 420px;
+  text-align: center;
+}
+
+.jg-fila-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 68px 6px 68px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--jg-text-muted);
+}
+
+.jg-fila-header-nombre {
+  flex: 1 1 auto;
+  min-width: 130px;
+}
+
+.jg-stat-valor-chico {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--jg-text);
+}
+
+.jg-stat-pendiente {
+  color: var(--jg-text-muted);
+  font-weight: 500;
+}
+
+.jg-stat-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  justify-self: center;
+}
+
+.jg-stat-chip-amarillo {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+
+.jg-stat-chip-rojo {
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .jg-fila {
@@ -320,5 +406,17 @@
 
   .jg-stats {
     grid-template-columns: 1fr;
+  }
+
+  /* Las columnas de estadísticas dejan de alinearse con el header una vez
+     que la fila envuelve — se ocultan las etiquetas y la grilla pasa a
+     ocupar todo el ancho en su propia línea. */
+  .jg-fila-header {
+    display: none;
+  }
+
+  .jg-fila-stats {
+    flex-basis: 100%;
+    order: 1;
   }
 }

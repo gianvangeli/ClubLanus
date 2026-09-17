@@ -5,7 +5,13 @@ import { calcularEdad } from '../utils/fecha'
 import { colorSemaforo } from '../utils/semaforo'
 import './AdminJugadores.css'
 
-const VACIO = { nombre: '', apellido: '', fecha_nacimiento: '' }
+const VACIO = {
+  nombre: '', apellido: '', fecha_nacimiento: '',
+  nacionalidad_1: '', nacionalidad_2: '', nacionalidad_2_tramite: '',
+  categoria: '', contrato: '', contrato_hasta_mes: '', contrato_hasta_anio: '',
+}
+
+const ESTADISTICAS_VACIAS = { minutos: 0, goles: 0, asistencias: 0, amarillas: 0, rojas: 0 }
 
 const COLORES_AVATAR = ['avatar-granate', 'avatar-oro', 'avatar-gris', 'avatar-granate-claro']
 
@@ -14,17 +20,21 @@ const iniciales = (jugador) =>
 
 export default function AdminJugadores() {
   const [jugadores, setJugadores] = useState([])
+  const [estadisticas, setEstadisticas] = useState({})
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
   const [form, setForm] = useState(VACIO)
+  const [mostrarInfoJugador, setMostrarInfoJugador] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [mensaje, setMensaje] = useState('')
 
   const cargar = () => {
     setCargando(true)
-    api
-      .get('/jugadores')
-      .then(({ data }) => setJugadores(data))
+    Promise.all([api.get('/jugadores'), api.get('/jugadores/estadisticas')])
+      .then(([resJugadores, resEstadisticas]) => {
+        setJugadores(resJugadores.data)
+        setEstadisticas(resEstadisticas.data)
+      })
       .catch((err) => setError(extraerError(err, 'No se pudo cargar el listado')))
       .finally(() => setCargando(false))
   }
@@ -57,9 +67,17 @@ export default function AdminJugadores() {
         nombre: form.nombre,
         apellido: form.apellido,
         fecha_nacimiento: form.fecha_nacimiento || null,
+        nacionalidad_1: form.nacionalidad_1 || null,
+        nacionalidad_2: form.nacionalidad_2 || null,
+        nacionalidad_2_tramite: form.nacionalidad_2_tramite || null,
+        categoria: form.categoria || null,
+        contrato: form.contrato || null,
+        contrato_hasta_mes: form.contrato_hasta_mes || null,
+        contrato_hasta_anio: form.contrato_hasta_anio || null,
       })
       setMensaje('Jugador registrado correctamente')
       setForm(VACIO)
+      setMostrarInfoJugador(false)
       cargar()
     } catch (err) {
       setError(extraerError(err, 'No se pudo registrar el jugador'))
@@ -127,6 +145,72 @@ export default function AdminJugadores() {
                 <span className="jg-edad-preview">{calcularEdad(form.fecha_nacimiento)} años</span>
               )}
             </div>
+
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm jg-info-toggle"
+              onClick={() => setMostrarInfoJugador((v) => !v)}
+            >
+              {mostrarInfoJugador ? '− Ocultar info del jugador' : '+ Agregar info del jugador (opcional)'}
+            </button>
+
+            {mostrarInfoJugador && (
+              <div className="jg-info-jugador-form">
+                <div className="field">
+                  <label>Categoría</label>
+                  <input value={form.categoria} onChange={onChange('categoria')} />
+                </div>
+                <div className="field">
+                  <label>Nacionalidad</label>
+                  <input value={form.nacionalidad_1} onChange={onChange('nacionalidad_1')} />
+                </div>
+                <div className="field">
+                  <label>Segunda nacionalidad</label>
+                  <input value={form.nacionalidad_2} onChange={onChange('nacionalidad_2')} />
+                </div>
+                {form.nacionalidad_2 && (
+                  <div className="field">
+                    <label>Trámite de la segunda nacionalidad</label>
+                    <select value={form.nacionalidad_2_tramite} onChange={onChange('nacionalidad_2_tramite')}>
+                      <option value="">Sin especificar</option>
+                      <option value="sin_iniciar">Sin iniciar</option>
+                      <option value="en_curso">En curso</option>
+                      <option value="finalizado">Finalizado</option>
+                    </select>
+                  </div>
+                )}
+                <div className="field">
+                  <label>Contrato</label>
+                  <select value={form.contrato} onChange={onChange('contrato')}>
+                    <option value="">Sin especificar</option>
+                    <option value="si">Sí</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+                {form.contrato === 'si' && (
+                  <div className="jg-form-row">
+                    <div className="field">
+                      <label>Vence en</label>
+                      <select value={form.contrato_hasta_mes} onChange={onChange('contrato_hasta_mes')}>
+                        <option value="">Mes</option>
+                        <option value="julio">Julio</option>
+                        <option value="diciembre">Diciembre</option>
+                      </select>
+                    </div>
+                    <div className="field">
+                      <label>Año</label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={form.contrato_hasta_anio}
+                        onChange={onChange('contrato_hasta_anio')}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button className="btn btn-primary" type="submit" disabled={enviando}>
               {enviando ? <span className="spinner" /> : 'Registrar jugador'}
             </button>
@@ -150,45 +234,68 @@ export default function AdminJugadores() {
             )}
             {!cargando && jugadores.length > 0 && (
               <div className="jg-lista">
-                {jugadores.map((j, i) => (
-                  <div className="jg-fila" key={j.id}>
-                    <Link className="jg-fila-link" to={`/admin/jugadores/${j.id}`}>
-                      <AvatarJugador
-                        jugador={j}
-                        colorClase={COLORES_AVATAR[i % COLORES_AVATAR.length]}
-                        onFotoActualizada={cargar}
-                      />
-                      <div className="jg-fila-info">
-                        <strong>
-                          {j.nombre} {j.apellido}
-                        </strong>
-                        <span>{j.posicion || j.categoria || 'Sin posición'}</span>
-                      </div>
-                      <div className="jg-fila-chips">
-                        {j.semaforo_riesgo_ia && (
-                          <span className="jg-chip" title={j.motivo_riesgo_ia || ''}>
-                            <span className="jg-chip-dot" style={{ background: colorSemaforo(j.semaforo_riesgo_ia) }} />
-                            Riesgo IA
-                          </span>
-                        )}
-                        {j.edad && <span className="jg-chip">{j.edad} años</span>}
-                        {j.peso && <span className="jg-chip">{j.peso} kg</span>}
-                        {j.usuario_id ? (
-                          <span className="jg-chip jg-chip-oro">Vinculado</span>
-                        ) : (
-                          <span className="jg-chip jg-chip-gris">Sin vincular</span>
-                        )}
-                      </div>
-                    </Link>
-                    <button
-                      className="jg-eliminar"
-                      title="Eliminar jugador"
-                      onClick={() => eliminar(j)}
-                    >
-                      ✕
-                    </button>
+                <div className="jg-fila-header">
+                  <span className="jg-fila-header-nombre">Jugador</span>
+                  <div className="jg-fila-stats">
+                    <span>Edad</span>
+                    <span>Min</span>
+                    <span>Goles</span>
+                    <span>Ast</span>
+                    <span>TA</span>
+                    <span>TR</span>
+                    <span>Rating</span>
                   </div>
-                ))}
+                </div>
+                {jugadores.map((j, i) => {
+                  const est = estadisticas[j.id] || ESTADISTICAS_VACIAS
+                  return (
+                    <div className="jg-fila" key={j.id}>
+                      <Link className="jg-fila-link" to={`/admin/jugadores/${j.id}`}>
+                        <AvatarJugador
+                          jugador={j}
+                          colorClase={COLORES_AVATAR[i % COLORES_AVATAR.length]}
+                          onFotoActualizada={cargar}
+                        />
+                        <div className="jg-fila-info">
+                          <strong>
+                            {j.nombre} {j.apellido}
+                          </strong>
+                          <span>{j.posicion || j.categoria || 'Sin posición'}</span>
+                        </div>
+                        <div className="jg-fila-stats">
+                          <span className="jg-stat-valor-chico">{j.edad ?? '—'}</span>
+                          <span className="jg-stat-valor-chico">{est.minutos}</span>
+                          <span className="jg-stat-valor-chico">{est.goles}</span>
+                          <span className="jg-stat-valor-chico">{est.asistencias}</span>
+                          <span className="jg-stat-chip jg-stat-chip-amarillo">{est.amarillas}</span>
+                          <span className="jg-stat-chip jg-stat-chip-rojo">{est.rojas}</span>
+                          <span className="jg-stat-valor-chico jg-stat-pendiente" title="Todavía sin definir">—</span>
+                        </div>
+                        <div className="jg-fila-chips">
+                          {j.semaforo_riesgo_ia && (
+                            <span className="jg-chip" title={j.motivo_riesgo_ia || ''}>
+                              <span className="jg-chip-dot" style={{ background: colorSemaforo(j.semaforo_riesgo_ia) }} />
+                              Riesgo IA
+                            </span>
+                          )}
+                          {j.peso && <span className="jg-chip">{j.peso} kg</span>}
+                          {j.usuario_id ? (
+                            <span className="jg-chip jg-chip-oro">Vinculado</span>
+                          ) : (
+                            <span className="jg-chip jg-chip-gris">Sin vincular</span>
+                          )}
+                        </div>
+                      </Link>
+                      <button
+                        className="jg-eliminar"
+                        title="Eliminar jugador"
+                        onClick={() => eliminar(j)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

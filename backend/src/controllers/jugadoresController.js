@@ -41,23 +41,64 @@ const calcularEdad = (fechaNacimiento) => {
   return edad;
 };
 
-// Alta de jugador (ficha del cuerpo técnico): nombre, apellido, fecha de
-// nacimiento. El peso no se carga acá: se registra desde la ficha del
-// jugador como una medición de composición corporal (peso + % grasa
-// corporal). No requiere una cuenta de usuario todavía: se crea después con
-// crearCuentaJugador, pidiéndole el mail al jugador.
+// Alta de jugador (ficha del cuerpo técnico): nombre y fecha de nacimiento
+// son obligatorios; el resto de "Info del jugador" (nacionalidad, categoría,
+// contrato — los mismos campos que ya se editan después en
+// actualizarJugador) es opcional acá: si no se completa al crear, la ficha
+// se crea igual y se completa/edita más tarde. El peso no se carga acá: se
+// registra desde la ficha del jugador como una medición de composición
+// corporal (peso + % grasa corporal). No requiere una cuenta de usuario
+// todavía: se crea después con crearCuentaJugador, pidiéndole el mail al jugador.
 const crearJugador = async (req, res) => {
   try {
-    const { nombre, apellido, fecha_nacimiento, usuario_id } = req.body;
+    const {
+      nombre,
+      apellido,
+      fecha_nacimiento,
+      usuario_id,
+      nacionalidad_1,
+      nacionalidad_2,
+      nacionalidad_2_tramite,
+      categoria,
+      contrato,
+      contrato_hasta_mes,
+      contrato_hasta_anio,
+    } = req.body;
 
     if (!nombre || !apellido) {
       return res.status(400).json({ message: "Nombre y apellido son obligatorios" });
     }
 
+    if (contrato && !["si", "no"].includes(contrato)) {
+      return res.status(400).json({ message: "Contrato tiene que ser 'si' o 'no'" });
+    }
+
+    if (nacionalidad_2_tramite && !["sin_iniciar", "en_curso", "finalizado"].includes(nacionalidad_2_tramite)) {
+      return res.status(400).json({ message: "El trámite de la segunda nacionalidad tiene que ser 'sin_iniciar', 'en_curso' o 'finalizado'" });
+    }
+
+    if (contrato_hasta_mes && !["julio", "diciembre"].includes(contrato_hasta_mes)) {
+      return res.status(400).json({ message: "El contrato solo puede vencer en julio o diciembre" });
+    }
+
     const [result] = await db.query(
-      `INSERT INTO jugadores (usuario_id, nombre, apellido, fecha_nacimiento)
-       VALUES (?, ?, ?, ?)`,
-      [usuario_id || null, nombre, apellido, fecha_nacimiento || null]
+      `INSERT INTO jugadores
+         (usuario_id, nombre, apellido, fecha_nacimiento, nacionalidad_1, nacionalidad_2,
+          nacionalidad_2_tramite, categoria, contrato, contrato_hasta_mes, contrato_hasta_anio)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        usuario_id || null,
+        nombre,
+        apellido,
+        fecha_nacimiento || null,
+        nacionalidad_1 || null,
+        nacionalidad_2 || null,
+        nacionalidad_2_tramite || null,
+        categoria || null,
+        contrato || null,
+        contrato_hasta_mes || null,
+        contrato_hasta_anio || null,
+      ]
     );
 
     res.status(201).json({

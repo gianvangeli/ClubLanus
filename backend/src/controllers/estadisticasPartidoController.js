@@ -424,4 +424,8 @@ module.exports = {
   obtenerEstadisticasPartido,
   obtenerArchivoEstadisticasPartido,
   eliminarEstadisticasPartido,
+  // Vocabulario de indicadores por jugador — se reexporta para que
+  // estadisticasJugadorController.js sume los mismos nombres exactos
+  // ("Goles", "Asistencias", etc.) sin duplicar el string en otro lado.
+  BLOQUES_JUGADOR,
 };

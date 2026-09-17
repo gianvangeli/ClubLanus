@@ -112,6 +112,11 @@ const {
   confirmarImportacionGps,
 } = require("../controllers/gpsImportController");
 
+const {
+  obtenerEstadisticasPlantel,
+  obtenerEstadisticasJugador,
+} = require("../controllers/estadisticasJugadorController");
+
 const { verificarToken, autorizarRoles } = require("../middlewares/authMiddleware");
 const uploadVideo = require("../middlewares/uploadMiddleware");
 const uploadDocumento = require("../middlewares/uploadDocumentoMiddleware");
@@ -156,6 +161,16 @@ router.get(
   verificarToken,
   autorizarRoles("jugador"),
   listarMisVideos
+);
+
+// Estadísticas (temporada = año calendario) de todo el plantel a la vez,
+// para el listado — registrada antes de "/:id" para que no la capture ese
+// patrón (mismo motivo que "/mi-plan-alimentacion" arriba).
+router.get(
+  "/estadisticas",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  obtenerEstadisticasPlantel
 );
 
 // Ficha de un jugador puntual
@@ -276,6 +291,15 @@ router.get(
   verificarToken,
   autorizarRoles(...CUERPO_TECNICO),
   listarComposicion
+);
+
+// Estadísticas (temporada = año calendario) de este jugador puntual, para
+// el dashboard resumen de su ficha.
+router.get(
+  "/:id/estadisticas",
+  verificarToken,
+  autorizarRoles(...CUERPO_TECNICO),
+  obtenerEstadisticasJugador
 );
 
 // Nutrición: cargar una nueva evaluación (siempre un registro nuevo, nunca
