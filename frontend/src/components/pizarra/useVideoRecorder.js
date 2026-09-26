@@ -24,7 +24,7 @@ export const soportaGrabacion = () =>
  * `onFrame` en cada tick, y pase su `stageRef` acá para poder tomar cada
  * frame ya pintado.
  */
-export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, onFrame, endpointBase = 'ejercicios-tacticos', pixelRatio = 1, nombreArchivo }) {
+export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, onFrame, endpointBase = 'ejercicios-tacticos', pixelRatio = 1, nombreArchivo, videoBitsPerSecond }) {
   const [grabando, setGrabando] = useState(false)
   const [progresoMs, setProgresoMs] = useState(0)
   const [subiendo, setSubiendo] = useState(false)
@@ -64,7 +64,7 @@ export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, 
       setError(null)
       const canvasCaptura = canvasCapturaRef.current
       const stream = canvasCaptura.captureStream(FPS)
-      const recorder = new MediaRecorder(stream, { mimeType })
+      const recorder = new MediaRecorder(stream, { mimeType, ...(videoBitsPerSecond ? { videoBitsPerSecond } : {}) })
       const chunks = []
       recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data)
 
@@ -100,9 +100,19 @@ export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, 
         // detrás del tick anterior), y en paralelo actualiza la escena
         // interpolada para que Konva la tenga lista para el próximo tick.
         if (stageRef.current) {
+          // El canvas de captura puede tener una relación de aspecto
+          // distinta a la de la cancha (ej. orientación Horizontal/Vertical
+          // del export, más ancha/alta que el Stage) — se ajusta (contain)
+          // y centra en vez de estirar, con barras negras tipo letterbox.
           const canvasFuente = stageRef.current.toCanvas({ pixelRatio })
-          ctx.clearRect(0, 0, canvasCaptura.width, canvasCaptura.height)
-          ctx.drawImage(canvasFuente, 0, 0, canvasCaptura.width, canvasCaptura.height)
+          const escalaAjuste = Math.min(canvasCaptura.width / canvasFuente.width, canvasCaptura.height / canvasFuente.height)
+          const anchoDibujo = canvasFuente.width * escalaAjuste
+          const altoDibujo = canvasFuente.height * escalaAjuste
+          const offsetX = (canvasCaptura.width - anchoDibujo) / 2
+          const offsetY = (canvasCaptura.height - altoDibujo) / 2
+          ctx.fillStyle = '#000000'
+          ctx.fillRect(0, 0, canvasCaptura.width, canvasCaptura.height)
+          ctx.drawImage(canvasFuente, offsetX, offsetY, anchoDibujo, altoDibujo)
         }
         setProgresoMs(Math.min(t, duracionTotal))
 

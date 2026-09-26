@@ -1,8 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
-import CampoLienzo, { ANCHO, CAMPOS } from './CampoLienzo'
+import CampoLienzo, { ANCHO } from './CampoLienzo'
 import useVideoRecorder, { soportaGrabacion } from './useVideoRecorder'
 import { escenaInterpolada, duracionTotalMs } from './interpolarEscenas'
 import './AnimacionPanel.css'
+
+// Tamaño del canvas de salida del video según la orientación elegida — no
+// necesariamente coincide con la relación de aspecto de la cancha; el
+// ajuste (contain + centrado) lo resuelve useVideoRecorder.
+const RESOLUCIONES_ORIENTACION = {
+  horizontal: { width: 1280, height: 720 },
+  vertical: { width: 720, height: 1280 },
+}
+
+// Bitrate fijo por calidad, usado tanto para MediaRecorder como para
+// estimar el tamaño del archivo antes de exportar (aproximado, declarado
+// como estimación — no hay forma de saber el tamaño exacto de antemano).
+const BITRATE_POR_CALIDAD = { baja: 1_500_000, alta: 4_000_000 }
 
 /**
  * Modal "Exportar animación": arma la reproducción de la secuencia de
@@ -13,7 +26,6 @@ import './AnimacionPanel.css'
  * solo reproducción + exportación.
  */
 export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, endpointBase, patronCesped }) {
-  const alto = CAMPOS[campo.tipo]?.alto ?? CAMPOS.completa.alto
   const [escenaMostrada, setEscenaMostrada] = useState(escenas[0])
   const [reproduciendo, setReproduciendo] = useState(false)
   const previewRafRef = useRef(null)
@@ -25,7 +37,10 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
   const [nombreArchivo, setNombreArchivo] = useState(`animacion-ejercicio-${ejercicioId || ''}`)
   const [formato, setFormato] = useState('video') // 'video' | 'imagen'
   const [calidad, setCalidad] = useState('alta') // 'baja' | 'alta'
+  const [orientacion, setOrientacion] = useState('horizontal') // 'horizontal' | 'vertical'
   const pixelRatio = calidad === 'alta' ? 2 : 1
+  const resolucionSalida = RESOLUCIONES_ORIENTACION[orientacion]
+  const tamanoEstimadoMB = (BITRATE_POR_CALIDAD[calidad] * (duracionTotal / 1000) / 8 / 1_000_000).toFixed(1)
 
   const detenerPreview = () => {
     if (previewRafRef.current) cancelAnimationFrame(previewRafRef.current)
@@ -60,6 +75,7 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
     endpointBase,
     pixelRatio,
     nombreArchivo,
+    videoBitsPerSecond: BITRATE_POR_CALIDAD[calidad],
   })
 
   const [resultado, setResultado] = useState(null)
@@ -98,7 +114,7 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
             <button type="button" className="btn btn-ghost btn-sm" onClick={onCerrar}>Cancelar</button>
             <button type="button" className="btn btn-primary btn-sm" onClick={exportar} disabled={!puedeExportar || exportando}>
               {grabando
-                ? `Generando… ${(progresoMs / 1000).toFixed(1)}s / ${(duracionTotal / 1000).toFixed(1)}s`
+                ? `Generando… ${Math.round((progresoMs / duracionTotal) * 100) || 0}%`
                 : subiendo
                 ? 'Subiendo…'
                 : 'Exportar'}
@@ -113,7 +129,7 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
             </div>
             {/* Canvas oculto: acá se compone cada frame (fusión del stage de
                 arriba) para que MediaRecorder lo capture vía captureStream. */}
-            <canvas ref={canvasCapturaRef} width={ANCHO} height={alto} style={{ display: 'none' }} />
+            <canvas ref={canvasCapturaRef} width={resolucionSalida.width} height={resolucionSalida.height} style={{ display: 'none' }} />
 
             <div className="animacion-controles">
               <button type="button" className="btn btn-ghost btn-sm" onClick={reproducirPreview} disabled={reproduciendo || grabando || escenas.length < 2}>
@@ -148,8 +164,19 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
             </div>
 
             {formato === 'video' && (
+              <div className="animacion-campo">
+                <label>Orientación</label>
+                <div className="animacion-chips">
+                  <button type="button" className={`animacion-chip ${orientacion === 'horizontal' ? 'activo' : ''}`} onClick={() => setOrientacion('horizontal')}>Horizontal</button>
+                  <button type="button" className={`animacion-chip ${orientacion === 'vertical' ? 'activo' : ''}`} onClick={() => setOrientacion('vertical')}>Vertical</button>
+                </div>
+              </div>
+            )}
+
+            {formato === 'video' && (
               <p className="texto-muted">
                 {escenas.length} escena{escenas.length !== 1 ? 's' : ''} · duración total aprox. {(duracionTotal / 1000).toFixed(1)}s
+                {duracionTotal > 0 && <> · {tamanoEstimadoMB} MB (estimado)</>}
               </p>
             )}
 
