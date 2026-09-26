@@ -162,6 +162,48 @@
   margin: 0;
 }
 
+/* Categorías expandibles del popover de Equipamiento */
+.pizarra-popover-categorias {
+  gap: 4px;
+}
+
+.pizarra-popover-categorias details {
+  border-top: 1px solid var(--border);
+  padding: 6px 0;
+}
+
+.pizarra-popover-categorias details:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.pizarra-popover-categorias summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  list-style: none;
+}
+
+.pizarra-popover-categorias summary::-webkit-details-marker {
+  display: none;
+}
+
+.pizarra-popover-categorias summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 12px;
+  color: var(--text-muted);
+}
+
+.pizarra-popover-categorias details[open] summary::before {
+  content: '▾';
+}
+
+.pizarra-popover-categorias .mc-grilla-equipamiento {
+  margin-top: 6px;
+}
+
 /* Contenido reubicado dentro de los popovers nuevos (antes secciones
    inline del panel ancho: Generic Player / Add Equipment / Cancha). */
 .mc-check {

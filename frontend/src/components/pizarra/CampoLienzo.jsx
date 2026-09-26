@@ -16,11 +16,16 @@ export const CAMPOS = {
   media: { alto: 370, mitad: true },
 }
 
-// Paleta institucional (blanco + granate/bordo) — la referencia de la spec
-// está en modo oscuro, pero lo que se copia es la estructura, no el color.
-const COLORES_CAMPO = {
-  verde: { fondo: '#2f8f4e', linea: 'rgba(255,255,255,0.85)' },
-  blanco: { fondo: '#fbf7f4', linea: 'rgba(122,18,48,0.45)' },
+// Paleta de cancha — cada color trae un tono "oscuro" hermano (mismo matiz,
+// ~12% más oscuro, elegido a mano) para el patrón de césped rayado/
+// cuadriculado/diagonal (ver generarPatronCesped en canchaGeometria.js).
+// Exportado: PizarraTactica.jsx lo reusa para generar el patrón sin
+// duplicar los hex acá y allá.
+export const COLORES_CAMPO = {
+  verde: { fondo: '#2f8f4e', fondoOscuro: '#287942', linea: 'rgba(255,255,255,0.85)' },
+  blanco: { fondo: '#fbf7f4', fondoOscuro: '#efe8e3', linea: 'rgba(122,18,48,0.45)' },
+  azul: { fondo: '#1d6fa5', fondoOscuro: '#185c88', linea: 'rgba(255,255,255,0.85)' },
+  gris: { fondo: '#3d4148', fondoOscuro: '#33363c', linea: 'rgba(255,255,255,0.8)' },
 }
 
 const AREA_ANCHO = 285
@@ -363,7 +368,7 @@ export default function CampoLienzo({
           y={0}
           width={ANCHO}
           height={alto}
-          {...(campo.color === 'verde' && patronCesped
+          {...(patronCesped
             ? { fillPatternImage: patronCesped, fillPatternRepeat: 'repeat' }
             : { fill: coloresCampo.fondo })}
         />
@@ -501,6 +506,8 @@ export default function CampoLienzo({
             x={f.x}
             y={f.y}
             rotation={f.rotacion || 0}
+            scaleX={f.escala || 1}
+            scaleY={f.escala || 1}
             opacity={op(f)}
             draggable={puedeArrastrar(f)}
             onDragEnd={(e) => onMoverElemento?.('figuras', f.id, e.target.x(), e.target.y())}

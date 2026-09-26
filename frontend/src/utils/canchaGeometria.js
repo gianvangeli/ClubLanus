@@ -108,32 +108,60 @@ export const generarPatronRayas = (color, onListo) => {
   return img
 }
 
-// Genera (una sola vez, cacheada a nivel módulo) una imagen con franjas
-// horizontales alternadas tipo "corte de césped de estadio", para el fondo
-// de la cancha en la variante "verde" — misma técnica que
-// `generarPatronRayas` (canvas offscreen -> data URL -> Image), pero sin
-// depender de un color elegido por el usuario, así que se genera una sola
-// vez para toda la sesión.
-let patronCespedCache = null
-export const generarPatronCesped = (colorClaro, colorOscuro, onListo) => {
-  if (patronCespedCache) {
-    if (patronCespedCache.complete) onListo(patronCespedCache)
-    else patronCespedCache.addEventListener('load', () => onListo(patronCespedCache), { once: true })
-    return patronCespedCache
+// Genera (cacheada por modo+color a nivel módulo) una imagen de "corte de
+// césped de estadio" para el fondo de la cancha — misma técnica que
+// `generarPatronRayas` (canvas offscreen -> data URL -> Image). `modo`:
+// 'rayas' (franjas horizontales), 'cuadros' (checkerboard) o 'diagonal'
+// (dos triángulos por tile — tilea sin costuras porque la diagonal de un
+// tile continúa exactamente en la del tile vecino).
+const patronesCespedCache = {}
+export const generarPatronCesped = (colorClaro, colorOscuro, modo, onListo) => {
+  const clave = `${modo}-${colorClaro}-${colorOscuro}`
+  if (patronesCespedCache[clave]) {
+    const img = patronesCespedCache[clave]
+    if (img.complete) onListo(img)
+    else img.addEventListener('load', () => onListo(img), { once: true })
+    return img
   }
-  const anchoFranja = 46
+
+  const size = 46
   const canvas = document.createElement('canvas')
-  canvas.width = 40
-  canvas.height = anchoFranja * 2
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = colorClaro
-  ctx.fillRect(0, 0, canvas.width, anchoFranja)
-  ctx.fillStyle = colorOscuro
-  ctx.fillRect(0, anchoFranja, canvas.width, anchoFranja)
+
+  if (modo === 'cuadros') {
+    canvas.width = size * 2
+    canvas.height = size * 2
+    ctx.fillStyle = colorClaro
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = colorOscuro
+    ctx.fillRect(size, 0, size, size)
+    ctx.fillRect(0, size, size, size)
+  } else if (modo === 'diagonal') {
+    canvas.width = size
+    canvas.height = size
+    ctx.fillStyle = colorClaro
+    ctx.fillRect(0, 0, size, size)
+    ctx.fillStyle = colorOscuro
+    ctx.beginPath()
+    ctx.moveTo(0, 0)
+    ctx.lineTo(size, 0)
+    ctx.lineTo(size, size)
+    ctx.closePath()
+    ctx.fill()
+  } else {
+    // 'rayas' (default): franjas horizontales.
+    canvas.width = 40
+    canvas.height = size * 2
+    ctx.fillStyle = colorClaro
+    ctx.fillRect(0, 0, canvas.width, size)
+    ctx.fillStyle = colorOscuro
+    ctx.fillRect(0, size, canvas.width, size)
+  }
+
   const img = new window.Image()
   img.onload = () => onListo(img)
   img.src = canvas.toDataURL()
-  patronCespedCache = img
+  patronesCespedCache[clave] = img
   return img
 }
 

@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import CampoLienzo, { ANCHO, CAMPOS } from './CampoLienzo'
+import CampoLienzo, { ANCHO, CAMPOS, COLORES_CAMPO } from './CampoLienzo'
 import ManualControl from './ManualControl'
 import EscenasTimeline from './EscenasTimeline'
 import AnimacionPanel from './AnimacionPanel'
@@ -20,6 +20,11 @@ const TAMANOS = [
   { valor: 2, etiqueta: 'Chico' },
   { valor: 4, etiqueta: 'Mediano' },
   { valor: 7, etiqueta: 'Grande' },
+]
+const ESCALAS_FIGURA = [
+  { valor: 0.7, etiqueta: 'Chico' },
+  { valor: 1, etiqueta: 'Mediano' },
+  { valor: 1.4, etiqueta: 'Grande' },
 ]
 
 const desplazarElemento = (el, dx, dy) =>
@@ -128,6 +133,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const [punteadaZona, setPunteadaZona] = useState(false)
   const [patronRelleno, setPatronRelleno] = useState('ninguno')
   const [figuraEquipamiento, setFiguraEquipamiento] = useState('pelota')
+  const [escalaFigura, setEscalaFigura] = useState(1)
   const [colorJugador, setColorJugador] = useState(COLORES_JUGADOR[0])
   const [mostrarNumeroJugador, setMostrarNumeroJugador] = useState(true)
   const [patronesListos, setPatronesListos] = useState({})
@@ -137,12 +143,18 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     generarPatronRayas(color, (img) => setPatronesListos((prev) => (prev[color] ? prev : { ...prev, [color]: img })))
   }
 
-  // Césped rayado (fondo de cancha, variante "verde"): un solo patrón fijo,
-  // no depende de ninguna elección del usuario, se genera una vez al montar.
+  // Patrón de césped (fondo de cancha): se regenera cuando cambia el color
+  // de cancha o el modo de patrón elegidos — 'ninguno' deja el fondo liso.
   const [patronCesped, setPatronCesped] = useState(null)
   useEffect(() => {
-    generarPatronCesped('#2f8f4e', '#287942', setPatronCesped)
-  }, [])
+    const modo = modelo.campo.patronCesped || 'rayas'
+    if (modo === 'ninguno') {
+      setPatronCesped(null)
+      return
+    }
+    const { fondo, fondoOscuro } = COLORES_CAMPO[modelo.campo.color] || COLORES_CAMPO.verde
+    generarPatronCesped(fondo, fondoOscuro, modo, setPatronCesped)
+  }, [modelo.campo.color, modelo.campo.patronCesped])
 
   const [dibujando, setDibujando] = useState(null)
   const [dibujandoZona, setDibujandoZona] = useState(null)
@@ -343,7 +355,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
       return
     }
     if (herramienta === 'figura') {
-      actualizarEscena({ figuras: [...escena.figuras, { id: nuevoId(), tipo: figuraEquipamiento, color: colorDibujo, x: pos.x, y: pos.y, rotacion: 0 }] })
+      actualizarEscena({ figuras: [...escena.figuras, { id: nuevoId(), tipo: figuraEquipamiento, color: colorDibujo, x: pos.x, y: pos.y, rotacion: 0, escala: escalaFigura }] })
       return
     }
     if (herramienta === 'texto') {
@@ -725,6 +737,9 @@ const PizarraTactica = forwardRef(function PizarraTactica(
           coloresJugador={COLORES_JUGADOR}
           figuraEquipamiento={figuraEquipamiento}
           onCambiarFiguraEquipamiento={setFiguraEquipamiento}
+          escalaFigura={escalaFigura}
+          onCambiarEscalaFigura={setEscalaFigura}
+          escalasFigura={ESCALAS_FIGURA}
           colorDibujo={colorDibujo}
           onCambiarColorDibujo={setColorDibujo}
           paletaDibujo={PALETA_DIBUJO}

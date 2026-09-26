@@ -44,6 +44,7 @@ export default function ManualControl(props) {
     campo, herramienta, onCambiarHerramienta, onColapsar, onCambiarCampo,
     colorJugador, onCambiarColorJugador, mostrarNumeroJugador, onCambiarMostrarNumeroJugador, coloresJugador,
     figuraEquipamiento, onCambiarFiguraEquipamiento,
+    escalaFigura, onCambiarEscalaFigura, escalasFigura,
     colorDibujo, onCambiarColorDibujo, paletaDibujo,
     grosorDibujo, onCambiarGrosorDibujo, tamanos,
     tipoLinea, onCambiarTipoLinea, curva, onCambiarCurva, estiloLinea, onCambiarEstiloLinea,
@@ -130,6 +131,9 @@ export default function ManualControl(props) {
                 colorDibujo={colorDibujo}
                 onCambiarColorDibujo={onCambiarColorDibujo}
                 paletaDibujo={paletaDibujo}
+                escalaFigura={escalaFigura}
+                onCambiarEscalaFigura={onCambiarEscalaFigura}
+                escalasFigura={escalasFigura}
                 onCerrar={cerrarPopover}
               />
             )}

@@ -102,6 +102,19 @@ function IconoBandera({ color }) {
   )
 }
 
+// Marcador tipo "pin de mapa": para señalar un punto/objetivo en la
+// cancha (target de un ejercicio, punto de referencia), distinto de la
+// bandera (asta con banderín) que ya existía.
+function IconoMarcador({ color }) {
+  return (
+    <>
+      <Line points={[-4, 0, 4, 0, 0, 12]} closed fill={color} stroke="#00000022" strokeWidth={1} />
+      <Circle y={-5} radius={7} fill={color} stroke="#ffffff" strokeWidth={1.5} />
+      <Circle y={-5} radius={2.5} fill="#ffffff" />
+    </>
+  )
+}
+
 function IconoCuadrado({ color }) {
   return <Rect x={-8} y={-8} width={16} height={16} fill={color} />
 }
@@ -119,18 +132,23 @@ function IconoCruz({ color }) {
   )
 }
 
+// `categoria` agrupa las opciones dentro del popover de Equipamiento
+// (secciones expandibles) — no afecta el modelo de datos ni el render.
 export const EQUIPAMIENTO = [
-  { valor: 'pelota', etiqueta: 'Pelota', rotable: false },
-  { valor: 'cono', etiqueta: 'Cono', rotable: false },
-  { valor: 'varilla', etiqueta: 'Varilla', rotable: true },
-  { valor: 'arco1', etiqueta: 'Arco (marco completo)', rotable: true },
-  { valor: 'arco2', etiqueta: 'Arco (ángulo distinto)', rotable: true },
-  { valor: 'arco3', etiqueta: 'Arco (otro ángulo)', rotable: true },
-  { valor: 'barrera', etiqueta: 'Barrera', rotable: true },
-  { valor: 'arco_chico', etiqueta: 'Arco chico', rotable: true },
-  { valor: 'maniqui', etiqueta: 'Maniquí', rotable: true },
-  { valor: 'bandera', etiqueta: 'Bandera', rotable: false },
+  { valor: 'pelota', etiqueta: 'Pelota', rotable: false, categoria: 'Balón' },
+  { valor: 'cono', etiqueta: 'Cono', rotable: false, categoria: 'Conos' },
+  { valor: 'varilla', etiqueta: 'Varilla', rotable: true, categoria: 'Postes' },
+  { valor: 'arco1', etiqueta: 'Arco (marco completo)', rotable: true, categoria: 'Arcos' },
+  { valor: 'arco2', etiqueta: 'Arco (ángulo distinto)', rotable: true, categoria: 'Arcos' },
+  { valor: 'arco3', etiqueta: 'Arco (otro ángulo)', rotable: true, categoria: 'Arcos' },
+  { valor: 'arco_chico', etiqueta: 'Arco chico', rotable: true, categoria: 'Arcos' },
+  { valor: 'maniqui', etiqueta: 'Maniquí', rotable: true, categoria: 'Maniquíes' },
+  { valor: 'barrera', etiqueta: 'Barrera', rotable: true, categoria: 'Maniquíes' },
+  { valor: 'bandera', etiqueta: 'Bandera', rotable: false, categoria: 'Marcadores' },
+  { valor: 'marcador', etiqueta: 'Marcador', rotable: false, categoria: 'Marcadores' },
 ]
+
+export const CATEGORIAS_EQUIPAMIENTO = [...new Set(EQUIPAMIENTO.map((e) => e.categoria))]
 
 export function renderFiguraEquipamiento(tipo, color, _rotacion) {
   switch (tipo) {
@@ -154,6 +172,8 @@ export function renderFiguraEquipamiento(tipo, color, _rotacion) {
       return <IconoManiqui color={color} />
     case 'bandera':
       return <IconoBandera color={color} />
+    case 'marcador':
+      return <IconoMarcador color={color} />
     // Compatibilidad con dibujos viejos (CanchaEditor clásico).
     case 'cuadrado':
       return <IconoCuadrado color={color} />
