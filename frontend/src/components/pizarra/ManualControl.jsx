@@ -3,6 +3,8 @@ import {
   MousePointer2, Move, UserRound, ArrowUpRight, Shapes, Package2, Type, Pencil,
   Lock, LockKeyhole, Eraser, LayoutGrid, Undo2, Redo2, ImagePlus, Download,
   Trash2, FolderOpen, Save, Copy, Clapperboard, ChevronsLeft, ArrowLeftRight,
+  AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter,
+  AlignHorizontalDistributeCenter, AlignVerticalDistributeCenter,
 } from 'lucide-react'
 import LineaPopover from './popovers/LineaPopover'
 import FormaPopover from './popovers/FormaPopover'
@@ -53,6 +55,7 @@ export default function ManualControl(props) {
     formaZona, onCambiarFormaZona, punteadaZona, onCambiarPunteadaZona, patronRelleno, onCambiarPatronRelleno,
     puedeDeshacer, puedeRehacer, onDeshacer, onRehacer, onExportarImagen, onVaciarCancha,
     seleccionActiva, onEliminarSeleccion, onDuplicarSeleccion, onBloquearSeleccion,
+    seleccionMultiple, onAlinearHorizontal, onAlinearVertical, onDistribuirHorizontal, onDistribuirVertical,
     onAbrirAnimacion, onAbrirJugadas,
     panelLado, onCambiarLado, onSubirImagen, onGuardar,
   } = props
@@ -166,6 +169,22 @@ export default function ManualControl(props) {
           <button type="button" className="mc-icono mc-icono-peligro" title="Eliminar" onClick={onEliminarSeleccion}>
             <Trash2 size={18} />
           </button>
+          {seleccionMultiple && (
+            <>
+              <button type="button" className="mc-icono" title="Alinear horizontal" onClick={onAlinearHorizontal}>
+                <AlignHorizontalJustifyCenter size={18} />
+              </button>
+              <button type="button" className="mc-icono" title="Alinear vertical" onClick={onAlinearVertical}>
+                <AlignVerticalJustifyCenter size={18} />
+              </button>
+              <button type="button" className="mc-icono" title="Distribuir horizontal" onClick={onDistribuirHorizontal}>
+                <AlignHorizontalDistributeCenter size={18} />
+              </button>
+              <button type="button" className="mc-icono" title="Distribuir vertical" onClick={onDistribuirVertical}>
+                <AlignVerticalDistributeCenter size={18} />
+              </button>
+            </>
+          )}
         </div>
       )}
 

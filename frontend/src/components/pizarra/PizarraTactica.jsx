@@ -322,6 +322,44 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     actualizarEscena(cambios)
   }
 
+  // Alinear/distribuir (5.1): solo tiene sentido para elementos con un
+  // único punto de anclaje x/y (jugadores, figuras, textos, imágenes) — las
+  // flechas (puntos múltiples) y zonas rect/ovalo/rombo/hexágono con ancho/
+  // alto quedan afuera, igual que el "forma libre" con puntos sueltos.
+  const LISTAS_ALINEABLES = new Set(['jugadores', 'figuras', 'textos', 'imagenes'])
+
+  const alinearSeleccion = (eje) => {
+    const relevantes = seleccionados.filter((s) => LISTAS_ALINEABLES.has(s.lista))
+    const valores = relevantes.map(({ lista, id }) => escena[lista].find((el) => el.id === id)?.[eje]).filter((v) => v !== undefined)
+    if (valores.length < 2) return
+    const promedio = valores.reduce((a, b) => a + b, 0) / valores.length
+    const cambios = {}
+    relevantes.forEach(({ lista, id }) => {
+      const base = cambios[lista] || escena[lista]
+      cambios[lista] = base.map((el) => (el.id === id && !el.bloqueado ? { ...el, [eje]: promedio } : el))
+    })
+    actualizarEscena(cambios)
+  }
+
+  const distribuirSeleccion = (eje) => {
+    const relevantes = seleccionados
+      .filter((s) => LISTAS_ALINEABLES.has(s.lista))
+      .map(({ lista, id }) => ({ lista, id, el: escena[lista].find((e) => e.id === id) }))
+      .filter((x) => x.el)
+      .sort((a, b) => a.el[eje] - b.el[eje])
+    if (relevantes.length < 3) return
+    const min = relevantes[0].el[eje]
+    const max = relevantes[relevantes.length - 1].el[eje]
+    const paso = (max - min) / (relevantes.length - 1)
+    const cambios = {}
+    relevantes.forEach(({ lista, id, el }, i) => {
+      if (el.bloqueado) return
+      const base = cambios[lista] || escena[lista]
+      cambios[lista] = base.map((x) => (x.id === id ? { ...x, [eje]: min + paso * i } : x))
+    })
+    actualizarEscena(cambios)
+  }
+
   const onClickElemento = (lista, elemento) => {
     if (herramienta === 'borrar') {
       if (elemento.bloqueado) return
@@ -790,9 +828,14 @@ const PizarraTactica = forwardRef(function PizarraTactica(
           onExportarImagen={exportarImagen}
           onVaciarCancha={vaciarCancha}
           seleccionActiva={seleccionados.length > 0}
+          seleccionMultiple={seleccionados.filter((s) => LISTAS_ALINEABLES.has(s.lista)).length >= 2}
           onEliminarSeleccion={eliminarSeleccion}
           onDuplicarSeleccion={duplicarSeleccion}
           onBloquearSeleccion={bloquearSeleccion}
+          onAlinearHorizontal={() => alinearSeleccion('y')}
+          onAlinearVertical={() => alinearSeleccion('x')}
+          onDistribuirHorizontal={() => distribuirSeleccion('x')}
+          onDistribuirVertical={() => distribuirSeleccion('y')}
           onAbrirAnimacion={() => setPanelAnimacionAbierto(true)}
           onAbrirJugadas={() => setPanelJugadasAbierto(true)}
           panelLado={panelLado}
