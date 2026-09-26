@@ -204,6 +204,44 @@
   margin-top: 6px;
 }
 
+/* Miniaturas de esquemas de grilla táctica */
+.pizarra-popover-grid-grillas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.pizarra-grilla-miniatura {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.pizarra-grilla-miniatura.activo {
+  border-color: var(--granate-700);
+  box-shadow: 0 0 0 2px var(--granate-100);
+}
+
+.pizarra-grilla-miniatura span {
+  font-size: 9.5px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.1;
+}
+
+.pizarra-grilla-svg {
+  width: 100%;
+  height: 40px;
+  background: #eef4ef;
+  border-radius: 3px;
+}
+
 /* Contenido reubicado dentro de los popovers nuevos (antes secciones
    inline del panel ancho: Generic Player / Add Equipment / Cancha). */
 .mc-check {

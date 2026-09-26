@@ -1,4 +1,4 @@
-import { Line } from 'react-konva'
+import { Line, Rect } from 'react-konva'
 
 // "Select Grid": overlays de esquema/disposición de cancha, seleccionables
 // desde un dropdown en el Manual de Control. Convive con (no reemplaza) el
@@ -26,6 +26,45 @@ export const DEFINICIONES_GRID = [
         el.push(<Line key={`h${i}`} points={[4, y, w - 4, y]} stroke="#7a1230" strokeWidth={1} dash={[4, 5]} />)
       }
       return el
+    },
+  },
+  {
+    valor: 'tercios',
+    etiqueta: 'Tercios',
+    // Solo las 2 líneas horizontales (defensivo/medio/ofensivo), sin corredores.
+    lineas: (w, h, tipo) => {
+      const filas = tipo === 'completa' ? 3 : 2
+      const el = []
+      for (let i = 1; i < filas; i++) {
+        const y = (h / filas) * i
+        el.push(<Line key={`h${i}`} points={[4, y, w - 4, y]} stroke="#7a1230" strokeWidth={1} dash={[4, 5]} />)
+      }
+      return el
+    },
+  },
+  {
+    valor: 'carriles',
+    etiqueta: 'Carriles',
+    // Solo los corredores verticales, sin tercios horizontales.
+    lineas: (w, h) => {
+      const cols = 5
+      const el = []
+      for (let i = 1; i < cols; i++) {
+        const x = (w / cols) * i
+        el.push(<Line key={`v${i}`} points={[x, 4, x, h - 4]} stroke="#7a1230" strokeWidth={1} dash={[4, 5]} />)
+      }
+      return el
+    },
+  },
+  {
+    valor: 'zona_central',
+    etiqueta: 'Zona central',
+    // Rectángulo resaltado en el tercio medio de la cancha (zona de
+    // definición del juego posicional), sin dividir el resto.
+    lineas: (w, h) => {
+      const altoZona = h / 3
+      const y = (h - altoZona) / 2
+      return [<Rect key="zona" x={4} y={y} width={w - 8} height={altoZona} stroke="#7a1230" strokeWidth={1} dash={[4, 5]} />]
     },
   },
 ]

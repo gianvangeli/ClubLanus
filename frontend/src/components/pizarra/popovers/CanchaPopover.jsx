@@ -69,13 +69,52 @@ export default function CanchaPopover({ campo, onCambiarCampo, onCerrar }) {
 
       <div className="pizarra-popover-seccion">
         <span className="pizarra-popover-label">Grilla táctica</span>
-        <select value={campo.grid || 'ninguno'} onChange={(e) => onCambiarCampo({ grid: e.target.value })}>
-          <option value="ninguno">Sin esquema</option>
+        <div className="pizarra-popover-grid-grillas">
+          <button
+            type="button"
+            className={`pizarra-grilla-miniatura ${!campo.grid || campo.grid === 'ninguno' ? 'activo' : ''}`}
+            title="Sin esquema"
+            onClick={() => onCambiarCampo({ grid: 'ninguno' })}
+          >
+            <MiniaturaGrid tipo="ninguno" />
+            <span>Ninguno</span>
+          </button>
           {DEFINICIONES_GRID.map((g) => (
-            <option key={g.valor} value={g.valor}>{g.etiqueta}</option>
+            <button
+              key={g.valor}
+              type="button"
+              className={`pizarra-grilla-miniatura ${campo.grid === g.valor ? 'activo' : ''}`}
+              title={g.etiqueta}
+              onClick={() => onCambiarCampo({ grid: g.valor })}
+            >
+              <MiniaturaGrid tipo={g.valor} />
+              <span>{g.etiqueta}</span>
+            </button>
           ))}
-        </select>
+        </div>
       </div>
     </div>
+  )
+}
+
+// Miniatura SVG esquemática de cada esquema de grilla — un dibujo simple
+// (no un render Konva real) para no montar Stages extra dentro del popover.
+function MiniaturaGrid({ tipo }) {
+  const w = 40
+  const h = 56
+  const linea = { stroke: '#7a1230', strokeWidth: 1.5, strokeDasharray: '3 3' }
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="pizarra-grilla-svg">
+      <rect x={1} y={1} width={w - 2} height={h - 2} fill="none" stroke="#c9c0c3" strokeWidth={1} />
+      {tipo === 'posicional' && (
+        <>
+          {[1, 2, 3, 4].map((i) => <line key={i} x1={(w / 5) * i} y1={2} x2={(w / 5) * i} y2={h - 2} {...linea} />)}
+          {[1, 2].map((i) => <line key={i} x1={2} y1={(h / 3) * i} x2={w - 2} y2={(h / 3) * i} {...linea} />)}
+        </>
+      )}
+      {tipo === 'tercios' && [1, 2].map((i) => <line key={i} x1={2} y1={(h / 3) * i} x2={w - 2} y2={(h / 3) * i} {...linea} />)}
+      {tipo === 'carriles' && [1, 2, 3, 4].map((i) => <line key={i} x1={(w / 5) * i} y1={2} x2={(w / 5) * i} y2={h - 2} {...linea} />)}
+      {tipo === 'zona_central' && <rect x={2} y={h / 3} width={w - 4} height={h / 3} fill="none" {...linea} />}
+    </svg>
   )
 }
