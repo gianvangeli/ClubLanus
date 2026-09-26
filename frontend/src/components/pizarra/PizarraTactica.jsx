@@ -135,6 +135,8 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const [figuraEquipamiento, setFiguraEquipamiento] = useState('pelota')
   const [escalaFigura, setEscalaFigura] = useState(1)
   const [colorJugador, setColorJugador] = useState(COLORES_JUGADOR[0])
+  const [patronJugador, setPatronJugador] = useState('liso')
+  const [colorSecundarioJugador, setColorSecundarioJugador] = useState('#ffffff')
   const [mostrarNumeroJugador, setMostrarNumeroJugador] = useState(true)
   const [patronesListos, setPatronesListos] = useState({})
 
@@ -351,7 +353,21 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     if (herramienta === 'jugador') {
       const usados = escena.jugadores.map((j) => j.numero || 0)
       const numero = usados.length ? Math.max(...usados) + 1 : 1
-      actualizarEscena({ jugadores: [...escena.jugadores, { id: nuevoId(), color: colorJugador, numero, mostrarNumero: mostrarNumeroJugador, x: pos.x, y: pos.y }] })
+      actualizarEscena({
+        jugadores: [
+          ...escena.jugadores,
+          {
+            id: nuevoId(),
+            color: colorJugador,
+            colorSecundario: colorSecundarioJugador,
+            patron: patronJugador,
+            numero,
+            mostrarNumero: mostrarNumeroJugador,
+            x: pos.x,
+            y: pos.y,
+          },
+        ],
+      })
       return
     }
     if (herramienta === 'figura') {
@@ -732,6 +748,10 @@ const PizarraTactica = forwardRef(function PizarraTactica(
           onCambiarCampo={actualizarCampo}
           colorJugador={colorJugador}
           onCambiarColorJugador={setColorJugador}
+          patronJugador={patronJugador}
+          onCambiarPatronJugador={setPatronJugador}
+          colorSecundarioJugador={colorSecundarioJugador}
+          onCambiarColorSecundarioJugador={setColorSecundarioJugador}
           mostrarNumeroJugador={mostrarNumeroJugador}
           onCambiarMostrarNumeroJugador={setMostrarNumeroJugador}
           coloresJugador={COLORES_JUGADOR}

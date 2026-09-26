@@ -43,6 +43,7 @@ export default function ManualControl(props) {
   const {
     campo, herramienta, onCambiarHerramienta, onColapsar, onCambiarCampo,
     colorJugador, onCambiarColorJugador, mostrarNumeroJugador, onCambiarMostrarNumeroJugador, coloresJugador,
+    patronJugador, onCambiarPatronJugador, colorSecundarioJugador, onCambiarColorSecundarioJugador,
     figuraEquipamiento, onCambiarFiguraEquipamiento,
     escalaFigura, onCambiarEscalaFigura, escalasFigura,
     colorDibujo, onCambiarColorDibujo, paletaDibujo,
@@ -98,6 +99,10 @@ export default function ManualControl(props) {
                 coloresJugador={coloresJugador}
                 colorJugador={colorJugador}
                 onCambiarColorJugador={onCambiarColorJugador}
+                patronJugador={patronJugador}
+                onCambiarPatronJugador={onCambiarPatronJugador}
+                colorSecundarioJugador={colorSecundarioJugador}
+                onCambiarColorSecundarioJugador={onCambiarColorSecundarioJugador}
                 mostrarNumeroJugador={mostrarNumeroJugador}
                 onCambiarMostrarNumeroJugador={onCambiarMostrarNumeroJugador}
                 onCerrar={cerrarPopover}

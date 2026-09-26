@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Stage, Layer, Rect, Line, Circle, Ellipse, Arrow, Text, Group, Arc, Transformer, Image as ImagenKonva } from 'react-konva'
+import { Stage, Layer, Rect, Line, Circle, Ellipse, Arrow, Text, Group, Arc, Path, Transformer, Image as ImagenKonva } from 'react-konva'
 import { puntosBarraBloqueo, puntosRombo } from '../../utils/canchaGeometria'
 import { DEFINICIONES_GRID } from './grillas/definicionesGrid'
 import { renderFiguraEquipamiento } from './equipamiento/iconos'
@@ -139,21 +139,80 @@ const propsRelleno = (patron, color, patronesListos) => {
 // Ficha "Generic Player": silueta de jugador (cabeza + camiseta) con
 // número opcional, sin el concepto viejo de "equipo A/B con pechera" — cada
 // ficha lleva su propio color y su propio toggle de número.
-function TokenJugador({ color, numero, mostrarNumero }) {
+// Misma silueta de camiseta que ya existía en el editor clásico
+// (CanchaEditor.jsx, JERSEY_PATH) — se duplica acá a propósito (son dos
+// editores independientes, ver comentario de PizarraTactica.jsx sobre
+// CanchaEditor) en vez de importar entre ellos.
+const JERSEY_PATH =
+  'M -5,-9 L -9,-5 L -6,-2 L -6,9 L 6,9 L 6,-2 L 9,-5 L 5,-9 L 2.5,-9 Q 0,-6 -2.5,-9 Z'
+
+// Traza el mismo contorno que JERSEY_PATH pero con comandos de Konva.Context
+// (no hay forma directa de usar un `data` de SVG como máscara de clipeo),
+// para poder recortar el relleno de patrón (mitades/rayas/aros) a la forma
+// de la camiseta.
+const trazarJersey = (ctx) => {
+  ctx.moveTo(-5, -9)
+  ctx.lineTo(-9, -5)
+  ctx.lineTo(-6, -2)
+  ctx.lineTo(-6, 9)
+  ctx.lineTo(6, 9)
+  ctx.lineTo(6, -2)
+  ctx.lineTo(9, -5)
+  ctx.lineTo(5, -9)
+  ctx.lineTo(2.5, -9)
+  ctx.quadraticCurveTo(0, -6, -2.5, -9)
+  ctx.closePath()
+}
+
+// Relleno de la camiseta según el patrón elegido, recortado a JERSEY_PATH
+// por el <Group clipFunc> que lo envuelve — acá solo hace falta dibujar
+// rectángulos de sobra, el clip se encarga de la forma final.
+function RellenoJersey({ patron, color, colorSecundario }) {
+  const c2 = colorSecundario || '#ffffff'
+  if (patron === 'mitades') {
+    return (
+      <>
+        <Rect x={-10} y={-10} width={20} height={10} fill={color} />
+        <Rect x={-10} y={0} width={20} height={10} fill={c2} />
+      </>
+    )
+  }
+  if (patron === 'rayas') {
+    const ancho = 20 / 5
+    return Array.from({ length: 5 }, (_, i) => (
+      <Rect key={i} x={-10 + i * ancho} y={-10} width={ancho} height={20} fill={i % 2 === 0 ? color : c2} />
+    ))
+  }
+  if (patron === 'aros') {
+    const alto = 20 / 5
+    return Array.from({ length: 5 }, (_, i) => (
+      <Rect key={i} x={-10} y={-10 + i * alto} width={20} height={alto} fill={i % 2 === 0 ? color : c2} />
+    ))
+  }
+  return <Rect x={-10} y={-10} width={20} height={20} fill={color} />
+}
+
+function TokenJugador({ color, colorSecundario, patron, numero, mostrarNumero }) {
   return (
     <>
-      <Circle y={-8} radius={4.5} fill={color} stroke="#fff" strokeWidth={1.5} />
-      <Rect x={-8} y={-3} width={16} height={15} cornerRadius={6} fill={color} stroke="#fff" strokeWidth={1.5} />
+      <Circle y={-12} radius={4.2} fill={color} stroke="#fff" strokeWidth={1.3} />
+      <Group clipFunc={trazarJersey}>
+        <RellenoJersey patron={patron} color={color} colorSecundario={colorSecundario} />
+      </Group>
+      <Path data={JERSEY_PATH} stroke="#fff" strokeWidth={1.2} listening={false} />
       {mostrarNumero && (
         <Text
           text={String(numero ?? '')}
-          fontSize={10}
+          fontSize={9}
           fontStyle="bold"
           fill="#fff"
-          x={-8}
-          y={-3}
-          width={16}
-          height={15}
+          shadowColor="#000"
+          shadowBlur={2}
+          shadowOpacity={0.6}
+          x={-9}
+          y={-9}
+          width={18}
+          height={18}
           align="center"
           verticalAlign="middle"
         />
@@ -636,7 +695,13 @@ export default function CampoLienzo({
             onDblTap={() => onEditarNumero?.(j)}
           >
             {estaSeleccionado('jugadores', j.id) && <Circle radius={17} stroke="#7a1230" strokeWidth={2} dash={[4, 3]} />}
-            <TokenJugador color={j.color} numero={j.numero} mostrarNumero={j.mostrarNumero !== false} />
+            <TokenJugador
+              color={j.color}
+              colorSecundario={j.colorSecundario}
+              patron={j.patron || 'liso'}
+              numero={j.numero}
+              mostrarNumero={j.mostrarNumero !== false}
+            />
           </Group>
         ))}
 
