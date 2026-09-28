@@ -5,9 +5,57 @@
 // siguiente (emparejados por `id`), y mostrando/ocultando con fundido los
 // elementos que aparecen o desaparecen entre una escena y otra.
 //
-// Los dibujos estáticos (flechas, textos, trazos, zonas) NUNCA se
-// interpretan como movimiento — solo se funden in/out entre escenas, tal
-// como pide la spec ("el dibujo NO es la animación").
+// Con 2+ escenas, los dibujos estáticos (flechas, textos, trazos, zonas)
+// NUNCA se interpretan como movimiento — solo se funden in/out entre
+// escenas. La ÚNICA excepción es la animación automática de una escena
+// única (ver más abajo): ahí sí, las flechas que salen de un jugador o de
+// la pelota SON el movimiento, a propósito, para no tener que armar una
+// segunda escena a mano solo para mover algo a lo largo de una flecha ya
+// dibujada.
+
+import { puntoEnPolilinea } from '../../utils/canchaGeometria'
+
+// Tipos de flecha que representan una carrera/conducción (mueven al
+// jugador). Una "línea" sin punta que sale de un jugador se interpreta
+// como un PASE (mueve la pelota, no al jugador que la tira); "bloqueo"
+// nunca mueve nada, marca una acción estática.
+const TIPOS_MOVIMIENTO_JUGADOR = new Set(['flecha', 'flecha-doble', 'ondulada'])
+// La pelota sí se mueve con una "línea" (representa el pase).
+const TIPOS_MOVIMIENTO_FIGURA = new Set(['flecha', 'flecha-doble', 'ondulada', 'linea'])
+
+const DURACION_AUTO_DEFAULT_MS = 3000
+
+// Flecha "de movimiento" propia de un jugador/figura puntual (ver arriba
+// qué tipos cuentan para cada uno) — cada elemento sigue como mucho UNA
+// flecha (la primera que le pertenezca); no hay caminos encadenados.
+const buscarFlechaDeMovimiento = (flechas, lista, id) => {
+  const tipos = lista === 'jugadores' ? TIPOS_MOVIMIENTO_JUGADOR : TIPOS_MOVIMIENTO_FIGURA
+  return flechas.find((f) => {
+    const propia = lista === 'jugadores' ? f.origenJugadorId === id : f.origenFiguraId === id
+    return propia && tipos.has(f.tipoLinea || 'flecha')
+  })
+}
+
+export const tieneMovimientoAutomatico = (escena) =>
+  !!escena && escena.flechas.some((f) => f.origenJugadorId || f.origenFiguraId)
+
+const moverSegunFlechas = (lista, elementos, flechas, t) =>
+  elementos.map((el) => {
+    const flecha = buscarFlechaDeMovimiento(flechas, lista, el.id)
+    if (!flecha) return el
+    const { x, y } = puntoEnPolilinea(flecha.points, t)
+    return { ...el, x, y }
+  })
+
+// Anima una escena única deslizando cada jugador/pelota a lo largo de su
+// propia flecha de movimiento (si tiene una) — el resto de los elementos
+// (sin flecha propia, y las flechas/zonas/textos/trazos en sí) quedan tal
+// cual, como guía visual mientras se mueve lo que corresponde.
+export const escenaAutomatica = (escena, t) => ({
+  ...escena,
+  jugadores: moverSegunFlechas('jugadores', escena.jugadores, escena.flechas, t),
+  figuras: moverSegunFlechas('figuras', escena.figuras, escena.flechas, t),
+})
 
 const lerp = (a, b, t) => a + (b - a) * t
 const ease = (t) => t // lineal por ahora; queda como punto de ajuste fino
@@ -51,12 +99,23 @@ function interpolarListaEstatica(anterior, siguiente, t) {
   return resultado
 }
 
-export const duracionTotalMs = (escenas) => escenas.slice(1).reduce((acc, e) => acc + (e.duracionTransicionMs || 1500), 0)
+export const duracionTotalMs = (escenas) => {
+  if (escenas.length === 1) {
+    return tieneMovimientoAutomatico(escenas[0]) ? (escenas[0].duracionTransicionMs || DURACION_AUTO_DEFAULT_MS) : 0
+  }
+  return escenas.slice(1).reduce((acc, e) => acc + (e.duracionTransicionMs || 1500), 0)
+}
 
 // tGlobalMs: tiempo transcurrido desde el arranque de la animación completa.
 export function escenaInterpolada(escenas, tGlobalMs) {
   if (escenas.length === 0) return null
-  if (escenas.length === 1) return escenas[0]
+  if (escenas.length === 1) {
+    const escena = escenas[0]
+    if (!tieneMovimientoAutomatico(escena)) return escena
+    const duracion = escena.duracionTransicionMs || DURACION_AUTO_DEFAULT_MS
+    const t = ease(Math.max(0, Math.min(1, tGlobalMs / duracion)))
+    return escenaAutomatica(escena, t)
+  }
 
   let acumulado = 0
   for (let i = 1; i < escenas.length; i++) {

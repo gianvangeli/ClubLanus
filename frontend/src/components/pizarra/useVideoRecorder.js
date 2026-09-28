@@ -47,8 +47,8 @@ export default function useVideoRecorder({ escenas, stageRef, canvasCapturaRef, 
         reject(e)
         return
       }
-      if (escenas.length < 2) {
-        const e = new Error('Hacen falta al menos 2 escenas para generar una animación.')
+      if (duracionTotal <= 0) {
+        const e = new Error('Hacen falta al menos 2 escenas, o una flecha de movimiento desde un jugador o la pelota, para generar una animación.')
         setError(e.message)
         reject(e)
         return

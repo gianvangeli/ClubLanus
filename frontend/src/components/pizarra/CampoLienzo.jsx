@@ -667,6 +667,12 @@ export default function CampoLienzo({
             opacity: op(a),
             onClick: click('flechas', a),
           }
+          // Punto relleno en el inicio: marca las flechas "de movimiento"
+          // (nacen pegadas a un jugador o a la pelota) — esas son las que
+          // van a animar solas con una escena única (ver interpolarEscenas.js).
+          const puntoOrigen = (a.origenJugadorId || a.origenFiguraId) && (
+            <Circle x={puntos[0]} y={puntos[1]} radius={(a.grosor || 3) + 2} fill={comun.stroke} opacity={op(a)} listening={false} />
+          )
           if (tipo === 'linea') {
             // Estructura "doble": dos rectas paralelas en vez de una, sin
             // punta — no aplica a flecha/bloqueo (la punta/barra duplicada
@@ -677,10 +683,16 @@ export default function CampoLienzo({
                 <Group key={a.id} opacity={op(a)} onClick={click('flechas', a)}>
                   <Line {...comun} opacity={1} points={desplazarPuntosPerpendicular(puntos, off)} lineCap="round" />
                   <Line {...comun} opacity={1} points={desplazarPuntosPerpendicular(puntos, -off)} lineCap="round" />
+                  {puntoOrigen}
                 </Group>
               )
             }
-            return <Line key={a.id} {...comun} lineCap="round" />
+            return (
+              <Group key={a.id}>
+                <Line {...comun} lineCap="round" />
+                {puntoOrigen}
+              </Group>
+            )
           }
           if (tipo === 'bloqueo') {
             return (
@@ -690,7 +702,12 @@ export default function CampoLienzo({
               </Group>
             )
           }
-          return <Arrow key={a.id} {...comun} fill={comun.stroke} pointerAtBeginning={tipo === 'flecha-doble'} pointerAtEnding pointerLength={10} pointerWidth={10} />
+          return (
+            <Group key={a.id}>
+              <Arrow {...comun} fill={comun.stroke} pointerAtBeginning={tipo === 'flecha-doble'} pointerAtEnding pointerLength={10} pointerWidth={10} />
+              {puntoOrigen}
+            </Group>
+          )
         })}
         {dibujoEnCurso?.tipo === 'flecha' && (
           <Arrow

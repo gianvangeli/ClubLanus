@@ -102,7 +102,7 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
   }
 
   const exportando = grabando || subiendo
-  const puedeExportar = formato === 'imagen' || (escenas.length >= 2 && soportaGrabacion())
+  const puedeExportar = formato === 'imagen' || (duracionTotal > 0 && soportaGrabacion())
 
   const exportar = () => (formato === 'imagen' ? exportarComoImagen() : convertirEnVideo())
 
@@ -133,7 +133,7 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
             <canvas ref={canvasCapturaRef} width={resolucionSalida.width} height={resolucionSalida.height} style={{ display: 'none' }} />
 
             <div className="animacion-controles">
-              <button type="button" className="btn btn-ghost btn-sm" onClick={reproducirPreview} disabled={reproduciendo || grabando || escenas.length < 2}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={reproducirPreview} disabled={reproduciendo || grabando || duracionTotal <= 0}>
                 {reproduciendo ? '▶ Reproduciendo…' : '▶ Vista previa'}
               </button>
               {reproduciendo && (
@@ -184,8 +184,8 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
             {formato === 'video' && !soportaGrabacion() && (
               <p className="animacion-error">Este navegador no puede generar video (probá con Chrome o Edge de escritorio).</p>
             )}
-            {formato === 'video' && escenas.length < 2 && (
-              <p className="texto-muted">Agregá al menos una segunda escena en la línea de tiempo para poder generar una animación.</p>
+            {formato === 'video' && duracionTotal <= 0 && (
+              <p className="texto-muted">Agregá al menos una segunda escena en la línea de tiempo, o dibujá una flecha desde un jugador o la pelota, para poder generar una animación.</p>
             )}
 
             {resultado === 'ok' && (
