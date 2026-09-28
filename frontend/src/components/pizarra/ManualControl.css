@@ -162,46 +162,38 @@
   margin: 0;
 }
 
-/* Categorías expandibles del popover de Equipamiento */
-.pizarra-popover-categorias {
-  gap: 4px;
+/* Grilla de Equipamiento: vista previa real (Konva chico) + nombre corto
+   debajo, en vez de categorías desplegables con solo texto — se elige
+   mirando, no adivinando qué dibuja cada opción. */
+.pizarra-grilla-equipo {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
 }
 
-.pizarra-popover-categorias details {
-  border-top: 1px solid var(--border);
-  padding: 6px 0;
-}
-
-.pizarra-popover-categorias details:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-
-.pizarra-popover-categorias summary {
+.pizarra-equipo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  list-style: none;
 }
 
-.pizarra-popover-categorias summary::-webkit-details-marker {
-  display: none;
+.pizarra-equipo-item.activo {
+  border-color: var(--granate-700);
+  box-shadow: 0 0 0 2px var(--granate-100);
+  background: var(--granate-50);
 }
 
-.pizarra-popover-categorias summary::before {
-  content: '▸';
-  display: inline-block;
-  width: 12px;
+.pizarra-equipo-item span {
+  font-size: 9px;
   color: var(--text-muted);
-}
-
-.pizarra-popover-categorias details[open] summary::before {
-  content: '▾';
-}
-
-.pizarra-popover-categorias .mc-grilla-equipamiento {
-  margin-top: 6px;
+  text-align: center;
+  line-height: 1.1;
 }
 
 /* Miniaturas de esquemas de grilla táctica */
@@ -272,21 +264,6 @@
 .mc-swatch-jugador.activo {
   border-color: var(--granate-700);
   box-shadow: 0 0 0 2px var(--granate-100);
-}
-
-.mc-grilla-equipamiento {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-}
-
-.mc-icono-equipo {
-  font-size: 10.5px;
-  text-align: center;
-  white-space: normal;
-  line-height: 1.2;
-  padding: 6px 4px;
-  min-height: 40px;
 }
 
 .mc-paleta {

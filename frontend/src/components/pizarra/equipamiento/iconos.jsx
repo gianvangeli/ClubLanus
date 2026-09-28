@@ -132,23 +132,22 @@ function IconoCruz({ color }) {
   )
 }
 
-// `categoria` agrupa las opciones dentro del popover de Equipamiento
-// (secciones expandibles) — no afecta el modelo de datos ni el render.
+// Etiquetas cortas a propósito: el popover de Equipamiento muestra la
+// vista previa real del ícono (Konva chico) + este nombre como caption
+// abajo, no hace falta que el texto solo ya describa el dibujo.
 export const EQUIPAMIENTO = [
-  { valor: 'pelota', etiqueta: 'Pelota', rotable: false, categoria: 'Balón' },
-  { valor: 'cono', etiqueta: 'Cono', rotable: false, categoria: 'Conos' },
-  { valor: 'varilla', etiqueta: 'Varilla', rotable: true, categoria: 'Postes' },
-  { valor: 'arco1', etiqueta: 'Arco (marco completo)', rotable: true, categoria: 'Arcos' },
-  { valor: 'arco2', etiqueta: 'Arco (ángulo distinto)', rotable: true, categoria: 'Arcos' },
-  { valor: 'arco3', etiqueta: 'Arco (otro ángulo)', rotable: true, categoria: 'Arcos' },
-  { valor: 'arco_chico', etiqueta: 'Arco chico', rotable: true, categoria: 'Arcos' },
-  { valor: 'maniqui', etiqueta: 'Maniquí', rotable: true, categoria: 'Maniquíes' },
-  { valor: 'barrera', etiqueta: 'Barrera', rotable: true, categoria: 'Maniquíes' },
-  { valor: 'bandera', etiqueta: 'Bandera', rotable: false, categoria: 'Marcadores' },
-  { valor: 'marcador', etiqueta: 'Marcador', rotable: false, categoria: 'Marcadores' },
+  { valor: 'pelota', etiqueta: 'Pelota', rotable: false },
+  { valor: 'cono', etiqueta: 'Cono', rotable: false },
+  { valor: 'varilla', etiqueta: 'Poste', rotable: true },
+  { valor: 'arco1', etiqueta: 'Arco frontal', rotable: true },
+  { valor: 'arco2', etiqueta: 'Arco angulado', rotable: true },
+  { valor: 'arco3', etiqueta: 'Arco lateral', rotable: true },
+  { valor: 'arco_chico', etiqueta: 'Arco chico', rotable: true },
+  { valor: 'maniqui', etiqueta: 'Maniquí', rotable: true },
+  { valor: 'barrera', etiqueta: 'Barrera', rotable: true },
+  { valor: 'bandera', etiqueta: 'Bandera', rotable: false },
+  { valor: 'marcador', etiqueta: 'Marcador', rotable: false },
 ]
-
-export const CATEGORIAS_EQUIPAMIENTO = [...new Set(EQUIPAMIENTO.map((e) => e.categoria))]
 
 export function renderFiguraEquipamiento(tipo, color, _rotacion) {
   switch (tipo) {

@@ -365,6 +365,21 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     actualizarEscena(cambios)
   }
 
+  // Tamaño de equipamiento (5.4): si hay figuras seleccionadas, cambiarlo
+  // redimensiona esas de una — si no, solo queda como el tamaño por
+  // defecto de la próxima figura que se coloque (mismo criterio que color/
+  // tipo de equipamiento elegidos en el popover).
+  const cambiarEscalaFigura = (valor) => {
+    setEscalaFigura(valor)
+    const relevantes = seleccionados.filter((s) => s.lista === 'figuras')
+    if (relevantes.length === 0) return
+    actualizarEscena({
+      figuras: escena.figuras.map((f) =>
+        relevantes.some((r) => r.id === f.id) && !f.bloqueado ? { ...f, escala: valor } : f
+      ),
+    })
+  }
+
   const onClickElemento = (lista, elemento) => {
     if (herramienta === 'borrar') {
       if (elemento.bloqueado) return
@@ -801,7 +816,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
           figuraEquipamiento={figuraEquipamiento}
           onCambiarFiguraEquipamiento={setFiguraEquipamiento}
           escalaFigura={escalaFigura}
-          onCambiarEscalaFigura={setEscalaFigura}
+          onCambiarEscalaFigura={cambiarEscalaFigura}
           escalasFigura={ESCALAS_FIGURA}
           colorDibujo={colorDibujo}
           onCambiarColorDibujo={setColorDibujo}
