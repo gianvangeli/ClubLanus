@@ -429,7 +429,14 @@ const PizarraTactica = forwardRef(function PizarraTactica(
       return
     }
     if (herramienta === 'figura') {
-      actualizarEscena({ figuras: [...escena.figuras, { id: nuevoId(), tipo: figuraEquipamiento, color: colorDibujo, x: pos.x, y: pos.y, rotacion: 0, escala: escalaFigura }] })
+      // Después de colocar el equipamiento pasa a "Seleccionar" con la
+      // figura recién puesta ya elegida — así se puede arrastrar para
+      // ajustar la posición al toque, sin tener que cambiar de herramienta
+      // a mano primero (spec: "poder moverlo apenas se agrega").
+      const id = nuevoId()
+      actualizarEscena({ figuras: [...escena.figuras, { id, tipo: figuraEquipamiento, color: colorDibujo, x: pos.x, y: pos.y, rotacion: 0, escala: escalaFigura }] })
+      setHerramienta('seleccionar')
+      setSeleccionados([{ lista: 'figuras', id }])
       return
     }
     if (herramienta === 'texto') {
