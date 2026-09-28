@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import { aInputDate, calcularEdad, formatFecha } from '../utils/fecha'
@@ -126,15 +126,7 @@ export default function AdminJugadorDetalle() {
       </Link>
 
       <div className="detalle-header">
-        {jugador.tiene_foto ? (
-          <img
-            className="detalle-header-avatar detalle-header-avatar-foto"
-            src={`${API_BASE}/api/jugadores/${id}/foto?token=${localStorage.getItem('token')}`}
-            alt={`${jugador.nombre} ${jugador.apellido}`}
-          />
-        ) : (
-          <div className="detalle-header-avatar">{iniciales}</div>
-        )}
+        <AvatarJugadorDetalle jugadorId={id} jugador={jugador} iniciales={iniciales} onFotoActualizada={cargarJugador} />
         <div className="detalle-header-info">
           <h1>
             {jugador.nombre} {jugador.apellido}
@@ -812,6 +804,85 @@ function Caracteristicas({ jugador, onActualizado }) {
           </form>
         )}
       </div>
+    </div>
+  )
+}
+
+// Avatar de la cabecera de la ficha: muestra la foto (o las iniciales) y
+// permite subirla/reemplazarla/quitarla in situ — mismo patrón que
+// AvatarJugador en AdminJugadores.jsx, pero acá además suma "quitar foto"
+// (el endpoint ya existía en el backend, no se usaba desde ningún lado).
+function AvatarJugadorDetalle({ jugadorId, jugador, iniciales, onFotoActualizada }) {
+  const inputRef = useRef(null)
+  const [subiendo, setSubiendo] = useState(false)
+  const token = localStorage.getItem('token')
+
+  const elegirArchivo = () => inputRef.current?.click()
+
+  const onArchivoElegido = async (e) => {
+    const archivo = e.target.files[0]
+    e.target.value = ''
+    if (!archivo) return
+
+    const formData = new FormData()
+    formData.append('foto', archivo)
+
+    setSubiendo(true)
+    try {
+      await api.post(`/jugadores/${jugadorId}/foto`, formData)
+      onFotoActualizada()
+    } catch {
+      // La subida de foto no bloquea la ficha; el jugador sigue con iniciales.
+    } finally {
+      setSubiendo(false)
+    }
+  }
+
+  const quitarFoto = async () => {
+    if (!window.confirm('¿Quitar la foto de este jugador?')) return
+    setSubiendo(true)
+    try {
+      await api.delete(`/jugadores/${jugadorId}/foto`)
+      onFotoActualizada()
+    } catch {
+      // idem
+    } finally {
+      setSubiendo(false)
+    }
+  }
+
+  return (
+    <div className="detalle-header-avatar-wrap">
+      {jugador.tiene_foto ? (
+        <img
+          className="detalle-header-avatar detalle-header-avatar-foto"
+          src={`${API_BASE}/api/jugadores/${jugadorId}/foto?token=${token}`}
+          alt={`${jugador.nombre} ${jugador.apellido}`}
+        />
+      ) : (
+        <div className="detalle-header-avatar">{iniciales}</div>
+      )}
+      <button
+        type="button"
+        className="detalle-header-avatar-subir"
+        title="Cambiar foto"
+        onClick={elegirArchivo}
+        disabled={subiendo}
+      >
+        {subiendo ? <span className="spinner" /> : '📷'}
+      </button>
+      {jugador.tiene_foto && (
+        <button
+          type="button"
+          className="detalle-header-avatar-quitar"
+          title="Quitar foto"
+          onClick={quitarFoto}
+          disabled={subiendo}
+        >
+          ✕
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" hidden onChange={onArchivoElegido} />
     </div>
   )
 }
