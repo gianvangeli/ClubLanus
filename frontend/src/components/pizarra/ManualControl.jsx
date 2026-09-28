@@ -108,6 +108,7 @@ export default function ManualControl(props) {
                 onCambiarColorSecundarioJugador={onCambiarColorSecundarioJugador}
                 mostrarNumeroJugador={mostrarNumeroJugador}
                 onCambiarMostrarNumeroJugador={onCambiarMostrarNumeroJugador}
+                onElegirColor={cerrarPopover}
                 onCerrar={cerrarPopover}
               />
             )}
@@ -142,6 +143,7 @@ export default function ManualControl(props) {
                 escalaFigura={escalaFigura}
                 onCambiarEscalaFigura={onCambiarEscalaFigura}
                 escalasFigura={escalasFigura}
+                onElegirEquipamiento={cerrarPopover}
                 onCerrar={cerrarPopover}
               />
             )}
