@@ -31,6 +31,28 @@ export default function CanchaPopover({ campo, onCambiarCampo, onCerrar }) {
         </select>
       </div>
 
+      {campo.tipo === 'completa' && (
+        <div className="pizarra-popover-seccion">
+          <span className="pizarra-popover-label">Orientación</span>
+          <div className="pizarra-popover-fila">
+            <button
+              type="button"
+              className={`btn btn-sm ${(campo.orientacion || 'vertical') === 'vertical' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => onCambiarCampo({ orientacion: 'vertical' })}
+            >
+              Parada
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${campo.orientacion === 'horizontal' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => onCambiarCampo({ orientacion: 'horizontal' })}
+            >
+              Acostada
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="pizarra-popover-seccion">
         <span className="pizarra-popover-label">Color</span>
         <div className="mc-paleta">

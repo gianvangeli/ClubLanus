@@ -67,6 +67,11 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const [escala, setEscala] = useState(1)
   const modelo = normalizarEscenaV2(value)
   const alto = CAMPOS[modelo.campo.tipo]?.alto ?? CAMPOS.completa.alto
+  // Cancha "acostada" (ver CampoLienzo.jsx): mismo criterio ahí y acá para
+  // no desalinear la medición de escala con lo que realmente se dibuja.
+  const horizontal = modelo.campo.tipo === 'completa' && modelo.campo.orientacion === 'horizontal'
+  const anchoEfectivo = horizontal ? alto : ANCHO
+  const altoEfectivo = horizontal ? ANCHO : alto
 
   // La cancha se dibuja siempre en su sistema de coordenadas interno fijo
   // (ANCHO x alto); acá se mide cuánto espacio real hay disponible en
@@ -84,14 +89,14 @@ const PizarraTactica = forwardRef(function PizarraTactica(
       const anchoDisponible = el.clientWidth
       const altoDisponible = el.clientHeight
       if (anchoDisponible <= 0 || altoDisponible <= 0) return
-      setEscala(Math.min(anchoDisponible / ANCHO, altoDisponible / alto))
+      setEscala(Math.min(anchoDisponible / anchoEfectivo, altoDisponible / altoEfectivo))
     }
     medir()
     const observer = new ResizeObserver(medir)
     observer.observe(el)
     return () => observer.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelo.campo.tipo])
+  }, [modelo.campo.tipo, modelo.campo.orientacion])
 
   const [indiceEscena, setIndiceEscena] = useState(0)
   const escenaActivaIdx = Math.min(indiceEscena, modelo.escenas.length - 1)
@@ -695,7 +700,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     <div className={`pizarra-tactica ${panelColapsado ? 'panel-colapsado' : ''} ${panelLado === 'izquierda' ? 'panel-izquierda' : ''}`}>
       <div className="pizarra-cancha-col">
         <div className="pizarra-stage-wrap" ref={stageWrapRef}>
-          <div className="pizarra-stage-inner" style={{ width: ANCHO * escala, height: alto * escala }}>
+          <div className="pizarra-stage-inner" style={{ width: anchoEfectivo * escala, height: altoEfectivo * escala }}>
             <CampoLienzo
               stageRef={stageRef}
               escena={escena}

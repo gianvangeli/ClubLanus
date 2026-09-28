@@ -37,8 +37,18 @@ const PUNTO_PENAL = 76
 const RADIO_CORNER = 11
 const ANGULO_ARCO = (Math.asin((AREA_ALTO - PUNTO_PENAL) / RADIO_CIRCULO) * 180) / Math.PI
 
+// Rotación del arco según de qué lado está el arco/goal al que pertenece
+// — 'arriba'/'abajo' para la cancha parada (orientación vertical, default),
+// 'izquierda'/'derecha' para la cancha acostada (orientación horizontal).
+const ROTACION_ARCO_AREA = {
+  arriba: ANGULO_ARCO,
+  abajo: 180 + ANGULO_ARCO,
+  izquierda: ANGULO_ARCO - 90,
+  derecha: 90 + ANGULO_ARCO,
+}
+
 function ArcoArea({ x, y, orientacion, color }) {
-  const rotacion = orientacion === 'arriba' ? ANGULO_ARCO : 180 + ANGULO_ARCO
+  const rotacion = ROTACION_ARCO_AREA[orientacion]
   return (
     <Arc
       x={x}
@@ -90,6 +100,32 @@ function LineasCampo({ tipo, alto, color }) {
     lineas.push(<ArcoArea key="arcoSup" x={w / 2} y={4 + PUNTO_PENAL} orientacion="arriba" color={color} />)
     lineas.push(<Circle key="circulo" x={w / 2} y={h - 4} radius={RADIO_CIRCULO} stroke={color} strokeWidth={2} />)
   }
+  return <>{lineas}</>
+}
+
+// Cancha completa "acostada" (orientación horizontal): mismos elementos que
+// LineasCampo, recalculados de cero para arcos a izquierda/derecha en vez
+// de arriba/abajo — se escribe aparte (no se deriva rotando LineasCampo)
+// para no arriesgar la versión vertical, que ya funciona. Solo aplica a
+// tipo 'completa' (la cancha 'media' ya es más ancha que alta de por sí,
+// no necesita acostarse).
+function LineasCampoHorizontal({ ancho, alto, color }) {
+  const w = ancho
+  const h = alto
+  const lineas = []
+  lineas.push(<Rect key="borde" x={4} y={4} width={w - 8} height={h - 8} stroke={color} strokeWidth={2} />)
+  lineas.push(<ArcosCorner key="corners" w={w} h={h} color={color} />)
+  lineas.push(<Line key="medio" points={[w / 2, 4, w / 2, h - 4]} stroke={color} strokeWidth={2} />)
+  lineas.push(<Circle key="circulo" x={w / 2} y={h / 2} radius={RADIO_CIRCULO} stroke={color} strokeWidth={2} />)
+  lineas.push(<Circle key="puntomedio" x={w / 2} y={h / 2} radius={2.5} fill={color} />)
+  lineas.push(<Rect key="areaIzq" x={4} y={h / 2 - AREA_ANCHO / 2} width={AREA_ALTO} height={AREA_ANCHO} stroke={color} strokeWidth={2} />)
+  lineas.push(<Rect key="areaChicaIzq" x={4} y={h / 2 - AREA_CHICA_ANCHO / 2} width={AREA_CHICA_ALTO} height={AREA_CHICA_ANCHO} stroke={color} strokeWidth={2} />)
+  lineas.push(<Circle key="puntoIzq" x={4 + PUNTO_PENAL} y={h / 2} radius={2.5} fill={color} />)
+  lineas.push(<ArcoArea key="arcoIzq" x={4 + PUNTO_PENAL} y={h / 2} orientacion="izquierda" color={color} />)
+  lineas.push(<Rect key="areaDer" x={w - 4 - AREA_ALTO} y={h / 2 - AREA_ANCHO / 2} width={AREA_ALTO} height={AREA_ANCHO} stroke={color} strokeWidth={2} />)
+  lineas.push(<Rect key="areaChicaDer" x={w - 4 - AREA_CHICA_ALTO} y={h / 2 - AREA_CHICA_ANCHO / 2} width={AREA_CHICA_ALTO} height={AREA_CHICA_ANCHO} stroke={color} strokeWidth={2} />)
+  lineas.push(<Circle key="puntoDer" x={w - 4 - PUNTO_PENAL} y={h / 2} radius={2.5} fill={color} />)
+  lineas.push(<ArcoArea key="arcoDer" x={w - 4 - PUNTO_PENAL} y={h / 2} orientacion="derecha" color={color} />)
   return <>{lineas}</>
 }
 
@@ -295,6 +331,13 @@ export default function CampoLienzo({
 }) {
   const alto = CAMPOS[campo.tipo]?.alto ?? CAMPOS.completa.alto
   const coloresCampo = COLORES_CAMPO[campo.color] || COLORES_CAMPO.blanco
+  // Cancha "acostada": solo tiene sentido para la cancha entera (la mitad
+  // ya es más ancha que alta) — el lienzo completo (ancho/alto/fondo/
+  // líneas) se calcula con los ejes invertidos, ver también PizarraTactica.jsx
+  // (mide el contenedor con este mismo criterio para la escala).
+  const horizontal = campo.tipo === 'completa' && campo.orientacion === 'horizontal'
+  const anchoEfectivo = horizontal ? alto : ANCHO
+  const altoEfectivo = horizontal ? ANCHO : alto
   const estaSeleccionado = (lista, id) => seleccionados.some((s) => s.lista === lista && s.id === id)
   const click = (lista, el) => (editable ? () => onClickElemento?.(lista, el) : undefined)
   const puedeArrastrar = (el) => editable && !el.bloqueado && (herramienta === 'mover' || (herramienta === 'seleccionar' && estaSeleccionado))
@@ -407,8 +450,8 @@ export default function CampoLienzo({
   return (
     <Stage
       ref={stageRef}
-      width={ANCHO * escala}
-      height={alto * escala}
+      width={anchoEfectivo * escala}
+      height={altoEfectivo * escala}
       scaleX={escala}
       scaleY={escala}
       onMouseDown={onStageMouseDown}
@@ -425,18 +468,23 @@ export default function CampoLienzo({
           name="fondo"
           x={0}
           y={0}
-          width={ANCHO}
-          height={alto}
+          width={anchoEfectivo}
+          height={altoEfectivo}
           {...(patronCesped
             ? { fillPatternImage: patronCesped, fillPatternRepeat: 'repeat' }
             : { fill: coloresCampo.fondo })}
         />
         {campo.lineas && (
           <Group listening={false}>
-            <LineasCampo tipo={campo.tipo} alto={alto} color={coloresCampo.linea} />
+            {horizontal
+              ? <LineasCampoHorizontal ancho={anchoEfectivo} alto={altoEfectivo} color={coloresCampo.linea} />
+              : <LineasCampo tipo={campo.tipo} alto={alto} color={coloresCampo.linea} />}
           </Group>
         )}
-        {campo.grid && campo.grid !== 'ninguno' && (
+        {/* La grilla táctica (Select Grid) asume la cancha parada — se
+            oculta en orientación horizontal en vez de mostrarla mal
+            calculada (fuera de alcance rotarla también por ahora). */}
+        {!horizontal && campo.grid && campo.grid !== 'ninguno' && (
           <Group listening={false} opacity={0.5}>
             <GrillaOverlay grid={campo.grid} tipo={campo.tipo} alto={alto} />
           </Group>

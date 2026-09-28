@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import CampoLienzo, { ANCHO } from './CampoLienzo'
+import CampoLienzo, { ANCHO, CAMPOS } from './CampoLienzo'
 import useVideoRecorder, { soportaGrabacion } from './useVideoRecorder'
 import { escenaInterpolada, duracionTotalMs } from './interpolarEscenas'
 import './AnimacionPanel.css'
@@ -26,6 +26,7 @@ const BITRATE_POR_CALIDAD = { baja: 1_500_000, alta: 4_000_000 }
  * solo reproducción + exportación.
  */
 export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, endpointBase, patronCesped }) {
+  const alto = CAMPOS[campo.tipo]?.alto ?? CAMPOS.completa.alto
   const [escenaMostrada, setEscenaMostrada] = useState(escenas[0])
   const [reproduciendo, setReproduciendo] = useState(false)
   const previewRafRef = useRef(null)
@@ -124,7 +125,7 @@ export default function AnimacionPanel({ escenas, campo, onCerrar, ejercicioId, 
 
         <div className="animacion-cuerpo">
           <div className="animacion-cover">
-            <div className="animacion-preview-wrap" style={{ maxWidth: ANCHO }}>
+            <div className="animacion-preview-wrap" style={{ maxWidth: campo.tipo === 'completa' && campo.orientacion === 'horizontal' ? alto : ANCHO }}>
               <CampoLienzo stageRef={stageRef} escena={escenaMostrada} campo={campo} editable={false} patronCesped={patronCesped} />
             </div>
             {/* Canvas oculto: acá se compone cada frame (fusión del stage de
