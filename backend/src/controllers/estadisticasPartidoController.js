@@ -146,6 +146,45 @@ const GLOSARIO = [
   ["Intensidad de juego", "Número de pases por minuto de posesión del balón."],
 ];
 
+// Quita acentos, pasa a minúsculas y colapsa espacios — para comparar
+// nombres del PDF contra el plantel sin que un tilde de menos rompa el
+// matching.
+const normalizarNombre = (s) =>
+  String(s || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ");
+
+// Red de contención determinística para cuando la IA deja jugador_id en
+// null (duda propia, o directamente no lo intentó): matchea el nombre
+// detectado en el PDF contra nombre+apellido del plantel, en cualquier
+// orden y aunque el PDF solo traiga el apellido. Solo asigna si hay
+// exactamente UN candidato — ambiguo sigue siendo null, para que lo
+// resuelva una persona en el preview.
+const matchearJugadorPorNombre = (nombreDetectado, plantel) => {
+  const detectado = normalizarNombre(nombreDetectado);
+  if (!detectado) return null;
+  const tokensDetectado = detectado.split(" ").filter(Boolean);
+
+  const candidatos = plantel.filter((j) => {
+    const nombreCompleto = normalizarNombre(`${j.nombre} ${j.apellido}`);
+    const apellidoNombre = normalizarNombre(`${j.apellido} ${j.nombre}`);
+    if (detectado === nombreCompleto || detectado === apellidoNombre) return true;
+
+    const tokensJugador = new Set(nombreCompleto.split(" ").filter(Boolean));
+    // Todos los tokens de un lado están contenidos en el otro (ej. el PDF
+    // trae solo "Sosa" o solo el nombre de pila abreviado).
+    return (
+      (tokensDetectado.length > 0 && tokensDetectado.every((t) => tokensJugador.has(t))) ||
+      (tokensJugador.size > 0 && [...tokensJugador].every((t) => tokensDetectado.includes(t)))
+    );
+  });
+
+  return candidatos.length === 1 ? candidatos[0].id : null;
+};
+
 const armarPromptEstadisticas = (plantel) => {
   const vocabularioEquipo = CATEGORIAS_EQUIPO.map(
     ({ categoria, indicadores }) => `- ${categoria}: ${indicadores.join(", ")}`
@@ -181,7 +220,7 @@ const armarPromptEstadisticas = (plantel) => {
     "1. Respondé SOLO JSON válido, sin texto adicional ni fences de markdown, con este schema exacto:",
     '   { "partido": { "rival": string, "condicion": "local"|"visitante"|null, "resultado": string|null, "competencia": string|null }, "equipo": [ { "categoria": string, "indicador": string, "valor_lanus": number|null, "valor_rival": number|null } ], "jugadores": [ { "nombre_detectado": string, "jugador_id": number|null, "indicadores": [ { "categoria": string, "indicador": string, "valor": number } ] } ] }',
     '2. "jugadores" incluye SOLO jugadores del plantel propio (Lanús), nunca del equipo rival. Una fila por jugador de Lanús detectado en el informe, aunque no puedas identificarlo con certeza (en ese caso jugador_id: null igual, y nombre_detectado con el nombre tal cual aparece en el PDF).',
-    '3. "jugador_id" es el id de la lista del plantel si estás razonablemente segura de la identidad; si tenés dudas, poné null. Nunca inventes un id que no esté en la lista.',
+    '3. "jugador_id" es el id de la lista del plantel si estás razonablemente segura de la identidad (una coincidencia parcial de nombre, ej. solo apellido o nombre abreviado, alcanza si es la única razonable); si tenés dudas reales (nombre ambiguo entre 2+ jugadores, o no aparece en la lista), poné null. Nunca inventes un id que no esté en la lista. Hay una verificación adicional por nombre después de tu respuesta, así que preferí arriesgar una coincidencia razonable antes que dejar null de más.',
     "4. Muchos valores del PDF vienen compuestos (ej. \"5/1 20%\" = intentos/logrados/porcentaje, o 4 números juntos como desglose en subtipos). Desdoblalos en varios indicadores numéricos separados usando los encabezados de columna reales del PDF (ej. \"Pases\" y \"Pases precisos\" como dos indicadores, no uno con el texto \"5/1 20%\"). Nunca guardes un valor como string.",
     "5. No inventes valores que no estén en el PDF: en \"equipo\" usá null en valor_lanus/valor_rival si ese dato no aparece para ese lado; en indicadores de jugador, directamente omitilo si no aparece.",
     "6. Los valores numéricos van con punto decimal.",
@@ -219,15 +258,19 @@ const previsualizarEstadisticasPartido = async (req, res) => {
       }));
 
     const idsValidos = new Set(plantel.map((j) => j.id));
-    const jugadores = resultado.jugadores.map((f) => ({
-      nombre_detectado: String(f.nombre_detectado || "").trim() || "(sin nombre)",
-      jugador_id: idsValidos.has(f.jugador_id) ? f.jugador_id : null,
-      indicadores: Array.isArray(f.indicadores)
-        ? f.indicadores
-            .filter((i) => i && i.indicador && typeof i.valor === "number" && !Number.isNaN(i.valor))
-            .map((i) => ({ categoria: i.categoria || "Otros", indicador: String(i.indicador), valor: i.valor }))
-        : [],
-    }));
+    const jugadores = resultado.jugadores.map((f) => {
+      const nombreDetectado = String(f.nombre_detectado || "").trim() || "(sin nombre)";
+      const jugadorIdIA = idsValidos.has(f.jugador_id) ? f.jugador_id : null;
+      return {
+        nombre_detectado: nombreDetectado,
+        jugador_id: jugadorIdIA || matchearJugadorPorNombre(nombreDetectado, plantel),
+        indicadores: Array.isArray(f.indicadores)
+          ? f.indicadores
+              .filter((i) => i && i.indicador && typeof i.valor === "number" && !Number.isNaN(i.valor))
+              .map((i) => ({ categoria: i.categoria || "Otros", indicador: String(i.indicador), valor: i.valor }))
+          : [],
+      };
+    });
 
     const partido = resultado.partido || {};
 

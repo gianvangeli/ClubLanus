@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import api, { API_BASE, extraerError } from '../api/client'
 import { formatFecha } from '../utils/fecha'
@@ -6,12 +6,21 @@ import { agruparPorCategoria } from '../utils/agrupar'
 import './PreparacionFisica.css'
 import './EstadisticasPartido.css'
 
+// Sin acentos/mayúsculas, para que el buscador de jugadores no dependa de
+// tipear el tilde exacto.
+const normalizarTexto = (s) =>
+  String(s || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+
 export default function EstadisticasPartidoDetalle() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [partido, setPartido] = useState(null)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState('')
+  const [busquedaJugador, setBusquedaJugador] = useState('')
 
   useEffect(() => {
     setCargando(true)
@@ -31,6 +40,13 @@ export default function EstadisticasPartidoDetalle() {
       setError(extraerError(err, 'No se pudo eliminar el partido'))
     }
   }
+
+  const jugadoresFiltrados = useMemo(() => {
+    const jugadores = partido?.jugadores || []
+    const termino = normalizarTexto(busquedaJugador.trim())
+    if (!termino) return jugadores
+    return jugadores.filter((j) => normalizarTexto(`${j.nombre} ${j.apellido}`).includes(termino))
+  }, [partido, busquedaJugador])
 
   if (cargando) {
     return (
@@ -113,13 +129,18 @@ export default function EstadisticasPartidoDetalle() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item, i) => (
-                    <tr key={i}>
-                      <td>{item.indicador}</td>
-                      <td>{item.valor_lanus ?? '—'}</td>
-                      <td>{item.valor_rival ?? '—'}</td>
-                    </tr>
-                  ))}
+                  {items.map((item, i) => {
+                    const ambosNumericos = typeof item.valor_lanus === 'number' && typeof item.valor_rival === 'number'
+                    const lanusMayor = ambosNumericos && item.valor_lanus > item.valor_rival
+                    const rivalMayor = ambosNumericos && item.valor_rival > item.valor_lanus
+                    return (
+                      <tr key={i}>
+                        <td>{item.indicador}</td>
+                        <td>{lanusMayor ? <strong>{item.valor_lanus}</strong> : (item.valor_lanus ?? '—')}</td>
+                        <td>{rivalMayor ? <strong>{item.valor_rival}</strong> : (item.valor_rival ?? '—')}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -132,8 +153,20 @@ export default function EstadisticasPartidoDetalle() {
         {partido.jugadores.length === 0 && (
           <p className="texto-muted">No hay estadísticas por jugador cargadas para este partido.</p>
         )}
+        {partido.jugadores.length > 1 && (
+          <input
+            type="text"
+            className="ep-buscador-jugador"
+            placeholder="Buscar jugador..."
+            value={busquedaJugador}
+            onChange={(e) => setBusquedaJugador(e.target.value)}
+          />
+        )}
+        {partido.jugadores.length > 0 && jugadoresFiltrados.length === 0 && (
+          <p className="texto-muted">Ningún jugador coincide con "{busquedaJugador}".</p>
+        )}
         <div className="pf-picos-lista">
-          {partido.jugadores.map((j) => (
+          {jugadoresFiltrados.map((j) => (
             <div key={j.id} className="pf-pico-item">
               <div className="pf-pico-header">
                 <strong>

@@ -76,3 +76,28 @@
   cursor: pointer;
   white-space: nowrap;
 }
+
+.ep-fila-sin-asignar {
+  background: var(--warning-bg);
+  border-color: var(--warning);
+}
+
+.ep-aviso-texto {
+  color: var(--warning);
+}
+
+.pf-indicador-chip-editable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pf-indicador-chip-editable input {
+  width: 56px;
+  padding: 1px 4px;
+  border: 1px solid var(--granate-100);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+}

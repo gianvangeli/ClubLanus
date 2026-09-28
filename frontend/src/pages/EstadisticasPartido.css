@@ -3,6 +3,15 @@
   margin-bottom: 12px;
 }
 
+.ep-buscador-jugador {
+  width: 100%;
+  max-width: 280px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 14px;
+}
+
 .ep-lista {
   display: flex;
   flex-direction: column;

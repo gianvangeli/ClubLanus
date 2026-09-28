@@ -81,7 +81,28 @@ export default function ImportarEstadisticasPartidoPanel({ onImportado }) {
     }))
   }
 
+  // Busca por categoria+indicador (no por índice plano) porque la lista se
+  // renderiza agrupada con agruparPorCategoria, que no preserva el índice
+  // original de f.indicadores.
+  const cambiarValorJugador = (indiceFila, categoria, indicador) => (e) => {
+    const valor = e.target.value === '' ? null : Number(e.target.value)
+    setPreview((prev) => ({
+      ...prev,
+      jugadores: prev.jugadores.map((f, i) =>
+        i !== indiceFila
+          ? f
+          : {
+              ...f,
+              indicadores: f.indicadores.map((ind) =>
+                ind.categoria === categoria && ind.indicador === indicador ? { ...ind, valor } : ind
+              ),
+            }
+      ),
+    }))
+  }
+
   const jugadoresAIncluir = (preview?.jugadores || []).filter((f) => f.incluir)
+  const jugadoresSinAsignar = jugadoresAIncluir.filter((f) => !f.jugador_id).length
   const puedeConfirmar = (preview?.equipo || []).length > 0 && jugadoresAIncluir.every((f) => f.jugador_id)
 
   const confirmar = async () => {
@@ -97,7 +118,12 @@ export default function ImportarEstadisticasPartidoPanel({ onImportado }) {
       datos.append('equipo', JSON.stringify(preview.equipo))
       datos.append(
         'jugadores',
-        JSON.stringify(jugadoresAIncluir.map((f) => ({ jugador_id: f.jugador_id, indicadores: f.indicadores })))
+        JSON.stringify(
+          jugadoresAIncluir.map((f) => ({
+            jugador_id: f.jugador_id,
+            indicadores: f.indicadores.filter((ind) => typeof ind.valor === 'number' && !Number.isNaN(ind.valor)),
+          }))
+        )
       )
       if (archivo) datos.append('archivo', archivo)
 
@@ -232,12 +258,17 @@ export default function ImportarEstadisticasPartidoPanel({ onImportado }) {
             <div className="ep-bloque">
               <h5 className="ep-bloque-titulo">Estadísticas por jugador</h5>
               <p className="texto-muted" style={{ marginBottom: 12 }}>
-                Revisá que cada fila esté asignada al jugador correcto. Las filas sin jugador asignado no se pueden
-                importar.
+                Revisá que cada fila esté asignada al jugador correcto y corregí los valores si hace falta. Las filas
+                sin jugador asignado no se pueden importar.
+                {' '}
+                {jugadoresAIncluir.length} jugador{jugadoresAIncluir.length !== 1 ? 'es' : ''} a importar
+                {jugadoresSinAsignar > 0 && (
+                  <strong className="ep-aviso-texto"> · {jugadoresSinAsignar} sin asignar</strong>
+                )}
               </p>
               <div className="ep-filas">
                 {preview.jugadores.map((f, i) => (
-                  <div className="ep-fila" key={i}>
+                  <div className={`ep-fila ${f.incluir && !f.jugador_id ? 'ep-fila-sin-asignar' : ''}`} key={i}>
                     <div className="ep-fila-header">
                       <label className="ep-check">
                         <input type="checkbox" checked={f.incluir} onChange={() => toggleIncluir(i)} />
@@ -263,8 +294,14 @@ export default function ImportarEstadisticasPartidoPanel({ onImportado }) {
                           <h5>{categoria}</h5>
                           <div className="pf-pico-indicadores">
                             {items.map((ind, idx) => (
-                              <span key={idx} className="pf-indicador-chip">
-                                {ind.indicador}: <strong>{ind.valor}</strong>
+                              <span key={idx} className="pf-indicador-chip pf-indicador-chip-editable">
+                                {ind.indicador}:
+                                <input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={ind.valor ?? ''}
+                                  onChange={cambiarValorJugador(i, ind.categoria, ind.indicador)}
+                                />
                               </span>
                             ))}
                           </div>
