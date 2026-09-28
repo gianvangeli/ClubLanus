@@ -9,8 +9,8 @@
      clara (`.escena-chip`, `.pizarra-popover`), así que siguen legibles. */
   display: flex;
   align-items: stretch;
-  gap: 20px;
-  padding: 20px;
+  gap: 10px;
+  padding: 8px;
   position: relative;
   min-width: 0;
   min-height: 0;

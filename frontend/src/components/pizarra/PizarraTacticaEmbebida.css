@@ -62,15 +62,20 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  /* Lo más chico posible: es puro margen "perdido" que no puede usar la
+     cancha — antes 24px acá + 20px de PizarraTactica.css dejaban una franja
+     bastante ancha sin aprovechar. */
+  padding: 8px;
   overflow: auto;
   background: #14161a;
 }
 
 .pizarra-embebida-cerrar {
   position: fixed;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  /* Corrido lo suficiente para no superponerse con la barra de íconos
+     (56px de ancho) cuando el margen general se achica. */
+  right: 76px;
   z-index: 61;
   background: var(--surface);
 }
