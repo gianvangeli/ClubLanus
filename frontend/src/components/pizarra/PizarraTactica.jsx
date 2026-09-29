@@ -64,6 +64,10 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const internalChangeRef = useRef(false)
   const cancelandoTextoRef = useRef(false)
   const stageWrapRef = useRef(null)
+  // true mientras el puntero/dedo está presionado con la herramienta
+  // Borrar activa — permite "barrer" varios elementos en un solo gesto en
+  // vez de un click prolijo por pieza (ver onHoverElementoBorrar).
+  const borrandoRef = useRef(false)
   const [escala, setEscala] = useState(1)
   const modelo = normalizarEscenaV2(value)
   const alto = CAMPOS[modelo.campo.tipo]?.alto ?? CAMPOS.completa.alto
@@ -391,6 +395,15 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     }
   }
 
+  // Barrido de borrado: se dispara al pasar el puntero sobre un elemento
+  // mientras está presionado (ver borrandoRef) y la herramienta Borrar
+  // está activa — en cualquier otro caso no hace nada, así que es inocuo
+  // tenerlo cableado siempre en CampoLienzo.
+  const onHoverElementoBorrar = (lista, elemento) => {
+    if (herramienta !== 'borrar' || !borrandoRef.current || elemento.bloqueado) return
+    borrarElemento(lista, elemento.id)
+  }
+
   const cerrarPoligono = () => {
     if (!poligonoEnCurso || poligonoEnCurso.puntos.length < 6) return
     actualizarEscena({
@@ -407,6 +420,10 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     const pos = posicionRelativa(stage)
     if (!pos) return
     const enVacio = e.target === stage || e.target.name?.() === 'fondo'
+
+    if (herramienta === 'borrar') {
+      borrandoRef.current = true
+    }
 
     if (herramienta === 'jugador') {
       const usados = escena.jugadores.map((j) => j.numero || 0)
@@ -492,6 +509,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   }
 
   const onStageMouseUp = () => {
+    borrandoRef.current = false
     if (dibujando) {
       const { x1, y1, x2, y2 } = dibujando
       if (Math.hypot(x2 - x1, y2 - y1) > 8) {
@@ -740,6 +758,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
               onStageMouseUp={onStageMouseUp}
               onStageDblClick={cerrarPoligono}
               onClickElemento={onClickElemento}
+              onHoverBorrar={onHoverElementoBorrar}
               onMoverElemento={moverElemento}
               onArrastrarHandleCurva={onArrastrarHandleCurva}
               onEditarTexto={onEditarTexto}

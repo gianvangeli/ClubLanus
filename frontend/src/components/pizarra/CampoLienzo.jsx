@@ -321,6 +321,7 @@ export default function CampoLienzo({
   onStageMouseUp,
   onStageDblClick,
   onClickElemento,
+  onHoverBorrar,
   onMoverElemento,
   onArrastrarHandleCurva,
   onEditarTexto,
@@ -340,6 +341,13 @@ export default function CampoLienzo({
   const altoEfectivo = horizontal ? ANCHO : alto
   const estaSeleccionado = (lista, id) => seleccionados.some((s) => s.lista === lista && s.id === id)
   const click = (lista, el) => (editable ? () => onClickElemento?.(lista, el) : undefined)
+  // Barrido de la herramienta Borrar: mientras se mantiene apretado el
+  // botón/dedo, cada elemento que el puntero cruza se borra — este handler
+  // solo actúa (ver onHoverElementoBorrar en PizarraTactica.jsx) si la
+  // herramienta activa es "borrar" Y el puntero está actualmente
+  // presionado; en cualquier otro caso no hace nada, así que es seguro
+  // cablearlo siempre sin pisar el comportamiento de otras herramientas.
+  const hoverBorrar = (lista, el) => (editable ? () => onHoverBorrar?.(lista, el) : undefined)
   const puedeArrastrar = (el) => editable && !el.bloqueado && (herramienta === 'mover' || (herramienta === 'seleccionar' && estaSeleccionado))
   // Opacidad final de un elemento: si viene con `opacity` explícito (fade
   // in/out calculado por el motor de interpolación de escenas) se respeta
@@ -619,6 +627,7 @@ export default function CampoLienzo({
             draggable={puedeArrastrar(f)}
             onDragEnd={(e) => onMoverElemento?.('figuras', f.id, e.target.x(), e.target.y())}
             onClick={click('figuras', f)}
+            onMouseEnter={hoverBorrar('figuras', f)}
             onTransformEnd={finalizarRotacionFigura(f.id)}
           >
             {estaSeleccionado('figuras', f.id) && <Circle radius={18} stroke="#7a1230" strokeWidth={2} dash={[4, 3]} />}
@@ -649,6 +658,7 @@ export default function CampoLienzo({
             lineJoin="round"
             tension={0.4}
             onClick={click('trazos', t)}
+            onMouseEnter={hoverBorrar('trazos', t)}
           />
         ))}
         {dibujoEnCurso?.tipo === 'trazo' && (
@@ -666,6 +676,7 @@ export default function CampoLienzo({
             dash: dashDeFlecha(a),
             opacity: op(a),
             onClick: click('flechas', a),
+            onMouseEnter: hoverBorrar('flechas', a),
           }
           // Punto relleno en el inicio: marca las flechas "de movimiento"
           // (nacen pegadas a un jugador o a la pelota) — esas son las que
@@ -680,7 +691,7 @@ export default function CampoLienzo({
             if (a.estructura === 'doble') {
               const off = (a.grosor || 3) * 1.4 + 2.5
               return (
-                <Group key={a.id} opacity={op(a)} onClick={click('flechas', a)}>
+                <Group key={a.id} opacity={op(a)} onClick={click('flechas', a)} onMouseEnter={hoverBorrar('flechas', a)}>
                   <Line {...comun} opacity={1} points={desplazarPuntosPerpendicular(puntos, off)} lineCap="round" />
                   <Line {...comun} opacity={1} points={desplazarPuntosPerpendicular(puntos, -off)} lineCap="round" />
                   {puntoOrigen}
@@ -696,7 +707,7 @@ export default function CampoLienzo({
           }
           if (tipo === 'bloqueo') {
             return (
-              <Group key={a.id} opacity={op(a)} onClick={click('flechas', a)}>
+              <Group key={a.id} opacity={op(a)} onClick={click('flechas', a)} onMouseEnter={hoverBorrar('flechas', a)}>
                 <Line points={puntos} stroke={comun.stroke} strokeWidth={a.grosor || 3} tension={a.tension || 0} dash={dashDeFlecha(a)} lineCap="round" />
                 <Line points={puntosBarraBloqueo(puntos)} stroke={comun.stroke} strokeWidth={a.grosor || 3} lineCap="round" />
               </Group>
@@ -756,6 +767,7 @@ export default function CampoLienzo({
             draggable={puedeArrastrar(j)}
             onDragEnd={(e) => onMoverElemento?.('jugadores', j.id, e.target.x(), e.target.y())}
             onClick={click('jugadores', j)}
+            onMouseEnter={hoverBorrar('jugadores', j)}
             onDblClick={() => onEditarNumero?.(j)}
             onDblTap={() => onEditarNumero?.(j)}
           >
@@ -787,6 +799,7 @@ export default function CampoLienzo({
               draggable={puedeArrastrar(t)}
               onDragEnd={(e) => onMoverElemento?.('textos', t.id, e.target.x(), e.target.y())}
               onClick={click('textos', t)}
+              onMouseEnter={hoverBorrar('textos', t)}
               onDblClick={() => onEditarTexto?.(t)}
               onDblTap={() => onEditarTexto?.(t)}
             />
