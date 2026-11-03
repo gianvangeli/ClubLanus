@@ -79,6 +79,17 @@
   margin-top: 2px;
 }
 
+.buscador-ejercicios-origen {
+  margin-right: 8px;
+  font-size: 11px;
+  padding: 1px 8px;
+}
+
+.buscador-ejercicios-origen-desglosado {
+  border-color: var(--granate-700);
+  color: var(--granate-700);
+}
+
 .entren-acceso-box p {
   margin-bottom: 14px;
 }

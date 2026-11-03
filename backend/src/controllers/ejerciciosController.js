@@ -166,25 +166,66 @@ const eliminarEjercicio = async (req, res) => {
   }
 };
 
-// Busca entre TODOS los ejercicios ya cargados (de cualquier sesión), para
-// poder reutilizarlos en una sesión nueva sin tener que ir a buscar la
-// sesión vieja en la agenda. Sin término de búsqueda, devuelve los últimos
-// cargados (para poder navegar aunque no se sepa bien qué buscar).
+// Quita etiquetas HTML (el contenido estructurado de Entrenamientos
+// Desglosados viene de un editor rich-text) para poder volcarlo en campos
+// de texto plano del modelo de la agenda diaria, sin perder la info.
+const quitarEtiquetasHtml = (html) =>
+  String(html || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Busca entre TODOS los ejercicios ya cargados — tanto de otras sesiones de
+// la agenda diaria como de la biblioteca de Entrenamientos Desglosados —
+// para poder reutilizarlos en una sesión nueva sin tener que armarlos de
+// cero. Cada resultado trae `origen` ('sesion' | 'desglosado') para que el
+// frontend sepa a qué endpoint de reutilización apuntar. Sin término de
+// búsqueda, devuelve los últimos cargados de cada fuente.
 const buscarEjercicios = async (req, res) => {
   try {
     const termino = `%${(req.query.q || "").trim()}%`;
 
-    const [ejercicios] = await db.query(
+    const [deSesion] = await db.query(
       `SELECT e.id, e.numero, e.tipo_trabajo, e.espacio, e.objetivo, e.entrenamiento_id, en.fecha
        FROM ejercicios e
        JOIN entrenamientos en ON en.id = e.entrenamiento_id
        WHERE e.tipo_trabajo LIKE ? OR e.objetivo LIKE ? OR e.espacio LIKE ? OR e.descripcion LIKE ?
        ORDER BY en.fecha DESC, e.numero DESC
-       LIMIT 30`,
+       LIMIT 15`,
       [termino, termino, termino, termino]
     );
 
-    res.json(ejercicios);
+    const [deDesglosados] = await db.query(
+      `SELECT id, titulo, categoria, subcategoria, fecha, descripcion
+       FROM ejercicios_tacticos
+       WHERE titulo LIKE ? OR descripcion LIKE ? OR categoria LIKE ? OR subcategoria LIKE ?
+       ORDER BY fecha DESC, id DESC
+       LIMIT 15`,
+      [termino, termino, termino, termino]
+    );
+
+    // Shape normalizado para que el buscador del frontend no tenga que
+    // conocer los dos modelos de datos distintos: título a mostrar,
+    // subtítulo descriptivo y fecha, más `origen` para saber a qué endpoint
+    // de reutilización apuntar.
+    const resultados = [
+      ...deSesion.map((ej) => ({
+        id: ej.id,
+        titulo: ej.tipo_trabajo || "Sin tipo de trabajo definido",
+        subtitulo: ej.objetivo || ej.espacio || null,
+        fecha: ej.fecha,
+        origen: "sesion",
+      })),
+      ...deDesglosados.map((ej) => ({
+        id: ej.id,
+        titulo: ej.titulo,
+        subtitulo: ej.subcategoria || ej.categoria || quitarEtiquetasHtml(ej.descripcion) || null,
+        fecha: ej.fecha,
+        origen: "desglosado",
+      })),
+    ].sort((a, b) => new Date(b.fecha || 0) - new Date(a.fecha || 0));
+
+    res.json(resultados);
   } catch (error) {
     res.status(500).json({ message: "Error al buscar ejercicios", error: error.message });
   }
@@ -236,6 +277,85 @@ const reutilizarEjercicio = async (req, res) => {
     res.status(201).json({
       message: "Ejercicio reutilizado correctamente",
       ejercicio_id: result.insertId,
+      numero: siguiente,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error al reutilizar el ejercicio", error: error.message });
+  }
+};
+
+// Copia un ejercicio de la biblioteca de Entrenamientos Desglosados
+// (ejercicios_tacticos) como un ejercicio nuevo dentro de la sesión
+// indicada, sin afectar al original — mismo criterio que reutilizarEjercicio,
+// pero mapeando entre los dos modelos de datos (no son el mismo shape).
+const reutilizarEjercicioDesglosado = async (req, res) => {
+  try {
+    const { entrenamientoId, origenId } = req.params;
+    const creadoPor = req.usuario.id;
+
+    const [entrenamientos] = await db.query("SELECT id, fecha FROM entrenamientos WHERE id = ?", [entrenamientoId]);
+    if (entrenamientos.length === 0) {
+      return res.status(404).json({ message: "Entrenamiento no encontrado" });
+    }
+
+    const [origenes] = await db.query("SELECT * FROM ejercicios_tacticos WHERE id = ?", [origenId]);
+    if (origenes.length === 0) {
+      return res.status(404).json({ message: "Ejercicio de origen no encontrado" });
+    }
+    const origen = origenes[0];
+    const contenido = origen.contenido_json ? JSON.parse(origen.contenido_json) : {};
+
+    const objetivo = quitarEtiquetasHtml(contenido.objetivo) || null;
+    const reglas = quitarEtiquetasHtml(contenido.reglas);
+    const coaching = quitarEtiquetasHtml(contenido.coaching);
+    const descripcion =
+      [reglas && `Reglas: ${reglas}`, coaching && `Puntos de coaching: ${coaching}`].filter(Boolean).join("\n\n") || null;
+
+    const [[{ siguiente }]] = await db.query(
+      "SELECT COALESCE(MAX(numero), 0) + 1 AS siguiente FROM ejercicios WHERE entrenamiento_id = ?",
+      [entrenamientoId]
+    );
+
+    const [result] = await db.query(
+      `INSERT INTO ejercicios
+         (entrenamiento_id, numero, dia, tipo_trabajo, objetivo, n_jugadores, duracion, descripcion,
+          dibujo_json, dibujo_thumbnail, pizarra_modo, pizarra_archivo_url, pizarra_archivo_tipo, pizarra_archivo_nombre_original, creado_por)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        entrenamientoId,
+        siguiente,
+        entrenamientos[0].fecha,
+        origen.titulo,
+        objetivo,
+        origen.cantidad_jugadores,
+        origen.duracion_minutos ? `${origen.duracion_minutos} min` : null,
+        descripcion,
+        origen.dibujo_json,
+        origen.dibujo_thumbnail,
+        origen.pizarra_modo,
+        origen.pizarra_archivo_url,
+        origen.pizarra_archivo_tipo,
+        origen.pizarra_archivo_nombre_original,
+        creadoPor,
+      ]
+    );
+    const ejercicioId = result.insertId;
+
+    // El video real (si tiene) vive en una sola columna en ejercicios_tacticos
+    // pero en una tabla aparte del lado de la agenda diaria — se copia la
+    // referencia al mismo archivo/link, sin duplicar el storage (mismo
+    // criterio que ya se usa acá arriba con dibujo_thumbnail).
+    if (origen.video_tipo) {
+      const [videoResult] = await db.query(
+        `INSERT INTO videos (titulo, tipo, url_video, categoria_video, subido_por) VALUES (?, ?, ?, 'ejercicio', ?)`,
+        [origen.titulo, origen.video_tipo, origen.video_url, creadoPor]
+      );
+      await db.query("INSERT INTO ejercicio_videos (ejercicio_id, video_id) VALUES (?, ?)", [ejercicioId, videoResult.insertId]);
+    }
+
+    res.status(201).json({
+      message: "Ejercicio reutilizado correctamente",
+      ejercicio_id: ejercicioId,
       numero: siguiente,
     });
   } catch (error) {
@@ -404,6 +524,7 @@ module.exports = {
   eliminarEjercicio,
   buscarEjercicios,
   reutilizarEjercicio,
+  reutilizarEjercicioDesglosado,
   agregarVideoEjercicio,
   eliminarVideoEjercicio,
   obtenerArchivoVideoEjercicio,

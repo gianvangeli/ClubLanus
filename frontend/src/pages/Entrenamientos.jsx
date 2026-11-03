@@ -173,13 +173,11 @@ export function VideoEntrenamiento({ video, puedeEliminar, onEliminar }) {
   )
 }
 
+// Solo pide la fecha: descripción y video del día ya se cargan una vez
+// adentro de la sesión (EdicionSesion / AgregarVideo en EntrenamientoDetalle.jsx)
+// — repetir esos campos acá solo hacía más lenta la carga diaria.
 function NuevaSesion({ onCreado }) {
   const [fecha, setFecha] = useState(hoyISO())
-  const [descripcion, setDescripcion] = useState('')
-  const [tituloVideo, setTituloVideo] = useState('')
-  const [modo, setModo] = useState('archivo')
-  const [archivos, setArchivos] = useState([])
-  const [urlVideo, setUrlVideo] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
@@ -193,20 +191,8 @@ function NuevaSesion({ onCreado }) {
     try {
       const datos = new FormData()
       datos.append('fecha', fecha)
-      if (descripcion) datos.append('descripcion', descripcion)
-      if (tituloVideo) datos.append('titulo_video', tituloVideo)
-      if (modo === 'archivo') {
-        archivos.forEach((archivo) => datos.append('videos', archivo))
-      } else if (urlVideo.trim()) {
-        datos.append('url_video', urlVideo)
-      }
-
       await api.post('/entrenamientos', datos)
       setMensaje('Sesión guardada correctamente')
-      setDescripcion('')
-      setTituloVideo('')
-      setArchivos([])
-      setUrlVideo('')
       onCreado()
     } catch (err) {
       setError(extraerError(err, 'No se pudo guardar la sesión'))
@@ -227,54 +213,6 @@ function NuevaSesion({ onCreado }) {
           <label>Fecha</label>
           <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
         </div>
-      </div>
-
-      <div className="field">
-        <label>Descripción de la sesión (opcional, solo cuerpo técnico)</label>
-        <input value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
-      </div>
-
-      <div className="field">
-        <label>Video del día <span className="campo-requerido">(opcional)</span></label>
-        <div className="modo-toggle">
-          <button
-            type="button"
-            className={`btn btn-sm ${modo === 'archivo' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setModo('archivo')}
-          >
-            Subir archivo
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${modo === 'link' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setModo('link')}
-          >
-            Link externo
-          </button>
-        </div>
-      </div>
-
-      {modo === 'archivo' ? (
-        <div className="field">
-          <label>Archivos de video (podés elegir uno o dos)</label>
-          <input
-            type="file"
-            accept="video/*"
-            multiple
-            onChange={(e) => setArchivos(Array.from(e.target.files))}
-          />
-          {archivos.length > 0 && <span className="texto-muted">{archivos.length} archivo(s) seleccionado(s)</span>}
-        </div>
-      ) : (
-        <div className="field">
-          <label>URLs del video (una por línea si son varios)</label>
-          <textarea rows={2} value={urlVideo} onChange={(e) => setUrlVideo(e.target.value)} />
-        </div>
-      )}
-
-      <div className="field">
-        <label>Título del video {modo === 'archivo' ? '(opcional si subís varios)' : '(opcional)'}</label>
-        <input value={tituloVideo} onChange={(e) => setTituloVideo(e.target.value)} />
       </div>
 
       <button className="btn btn-primary" type="submit" disabled={enviando}>

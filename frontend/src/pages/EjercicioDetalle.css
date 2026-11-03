@@ -128,7 +128,10 @@
 
 .ej-cuerpo {
   display: grid;
-  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  /* El video/foto real del ejercicio es la información principal — la
+     pizarra (dibujo u archivo subido) es un complemento, así que ocupa un
+     ancho fijo más chico en vez de llevarse el espacio flexible. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
   gap: 20px;
   padding: 16px 20px;
 }

@@ -254,7 +254,12 @@ const actualizarEjercicioTactico = async (req, res) => {
     } else if (dibujo_json !== undefined) {
       if (ejercicios[0].pizarra_archivo_url) eliminarArchivo(ejercicios[0].pizarra_archivo_url);
       const asignacionThumbnail = dibujo_thumbnail !== undefined ? ", dibujo_thumbnail = ?" : "";
-      const valoresPizarra = [JSON.stringify(dibujo_json)];
+      // dibujo_json ya llega como string JSON (lo manda así el frontend) — si
+      // se vuelve a stringificar acá queda doble-encodeado y, al leerlo
+      // después con un solo JSON.parse, da un string en vez del objeto de la
+      // escena (la pizarra se ve en blanco). Mismo criterio que ya usa
+      // correctamente ejerciciosController.js actualizarEjercicio.
+      const valoresPizarra = [typeof dibujo_json === "string" ? dibujo_json : JSON.stringify(dibujo_json)];
       if (dibujo_thumbnail !== undefined) valoresPizarra.push(dibujo_thumbnail);
       await db.query(
         `UPDATE ejercicios_tacticos

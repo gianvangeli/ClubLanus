@@ -9,6 +9,7 @@ const {
   eliminarEjercicio,
   buscarEjercicios,
   reutilizarEjercicio,
+  reutilizarEjercicioDesglosado,
   agregarVideoEjercicio,
   eliminarVideoEjercicio,
   obtenerArchivoVideoEjercicio,
@@ -32,6 +33,7 @@ router.get("/buscar", buscarEjercicios);
 router.post("/entrenamiento/:entrenamientoId", crearEjercicio);
 router.get("/entrenamiento/:entrenamientoId", listarEjercicios);
 router.post("/entrenamiento/:entrenamientoId/reutilizar/:origenId", reutilizarEjercicio);
+router.post("/entrenamiento/:entrenamientoId/reutilizar-desglosado/:origenId", reutilizarEjercicioDesglosado);
 router.get("/:id", obtenerEjercicio);
 router.put(
   "/:id",

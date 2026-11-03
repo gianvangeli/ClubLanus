@@ -485,9 +485,17 @@ function Ejercicios({ entrenamientoId }) {
   )
 }
 
-// Busca entre todos los ejercicios ya cargados (de cualquier sesión) y
+const ETIQUETA_ORIGEN = {
+  sesion: 'Sesión',
+  desglosado: 'Desglosado',
+}
+
+// Busca entre todos los ejercicios ya cargados — tanto de otras sesiones de
+// la agenda diaria como de la biblioteca de Entrenamientos Desglosados — y
 // copia el elegido a la sesión actual, para no tener que volver a armar
-// desde cero una planificación o un dibujo táctico ya usado antes.
+// desde cero una planificación o un dibujo táctico ya usado antes. Cada
+// resultado trae su `origen`, que determina a qué endpoint apuntar al
+// reutilizar (los dos modelos de datos no son el mismo shape).
 function BuscadorEjercicios({ entrenamientoId, onReutilizado, onCancelar }) {
   const [termino, setTermino] = useState('')
   const [resultados, setResultados] = useState([])
@@ -511,7 +519,8 @@ function BuscadorEjercicios({ entrenamientoId, onReutilizado, onCancelar }) {
     setError('')
     setReutilizandoId(ejercicio.id)
     try {
-      const { data } = await api.post(`/ejercicios/entrenamiento/${entrenamientoId}/reutilizar/${ejercicio.id}`)
+      const ruta = ejercicio.origen === 'desglosado' ? 'reutilizar-desglosado' : 'reutilizar'
+      const { data } = await api.post(`/ejercicios/entrenamiento/${entrenamientoId}/${ruta}/${ejercicio.id}`)
       onReutilizado(data.ejercicio_id)
     } catch (err) {
       setError(extraerError(err, 'No se pudo reutilizar el ejercicio'))
@@ -522,7 +531,7 @@ function BuscadorEjercicios({ entrenamientoId, onReutilizado, onCancelar }) {
   return (
     <div className="card seccion buscador-ejercicios">
       <div className="field">
-        <label>Buscar por tipo de trabajo, objetivo o espacio</label>
+        <label>Buscar por tipo de trabajo, objetivo, categoría...</label>
         <input
           autoFocus
           value={termino}
@@ -546,11 +555,14 @@ function BuscadorEjercicios({ entrenamientoId, onReutilizado, onCancelar }) {
       {!buscando && resultados.length > 0 && (
         <div className="buscador-ejercicios-lista">
           {resultados.map((ej) => (
-            <div key={ej.id} className="buscador-ejercicios-item">
+            <div key={`${ej.origen}-${ej.id}`} className="buscador-ejercicios-item">
               <div>
-                <strong>{ej.tipo_trabajo || 'Sin tipo de trabajo definido'}</strong>
-                <span className="texto-muted"> — {formatFecha(ej.fecha)}</span>
-                {ej.objetivo && <p className="texto-muted buscador-ejercicios-objetivo">{ej.objetivo}</p>}
+                <span className={`chip-outline buscador-ejercicios-origen buscador-ejercicios-origen-${ej.origen}`}>
+                  {ETIQUETA_ORIGEN[ej.origen] || ej.origen}
+                </span>
+                <strong>{ej.titulo}</strong>
+                {ej.fecha && <span className="texto-muted"> — {formatFecha(ej.fecha)}</span>}
+                {ej.subtitulo && <p className="texto-muted buscador-ejercicios-objetivo">{ej.subtitulo}</p>}
               </div>
               <button
                 className="btn btn-primary btn-sm"
