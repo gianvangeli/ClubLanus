@@ -200,59 +200,42 @@ const trazarJersey = (ctx) => {
   ctx.closePath()
 }
 
-// Relleno de la camiseta según el patrón elegido, recortado a JERSEY_PATH
-// por el <Group clipFunc> que lo envuelve — acá solo hace falta dibujar
-// rectángulos de sobra, el clip se encarga de la forma final.
-function RellenoJersey({ patron, color, colorSecundario }) {
-  const c2 = colorSecundario || '#ffffff'
-  if (patron === 'mitades') {
+function TokenJugador({ color, forma, numero, mostrarNumero }) {
+  const numeroTexto = mostrarNumero && (
+    <Text
+      text={String(numero ?? '')}
+      fontSize={9}
+      fontStyle="bold"
+      fill="#fff"
+      shadowColor="#000"
+      shadowBlur={2}
+      shadowOpacity={0.6}
+      x={-9}
+      y={-9}
+      width={18}
+      height={18}
+      align="center"
+      verticalAlign="middle"
+    />
+  )
+
+  if (forma === 'circulo') {
     return (
       <>
-        <Rect x={-10} y={-10} width={20} height={10} fill={color} />
-        <Rect x={-10} y={0} width={20} height={10} fill={c2} />
+        <Circle radius={11} fill={color} stroke="#fff" strokeWidth={1.5} />
+        {numeroTexto}
       </>
     )
   }
-  if (patron === 'rayas') {
-    const ancho = 20 / 5
-    return Array.from({ length: 5 }, (_, i) => (
-      <Rect key={i} x={-10 + i * ancho} y={-10} width={ancho} height={20} fill={i % 2 === 0 ? color : c2} />
-    ))
-  }
-  if (patron === 'aros') {
-    const alto = 20 / 5
-    return Array.from({ length: 5 }, (_, i) => (
-      <Rect key={i} x={-10} y={-10 + i * alto} width={20} height={alto} fill={i % 2 === 0 ? color : c2} />
-    ))
-  }
-  return <Rect x={-10} y={-10} width={20} height={20} fill={color} />
-}
 
-function TokenJugador({ color, colorSecundario, patron, numero, mostrarNumero }) {
   return (
     <>
       <Circle y={-12} radius={4.2} fill={color} stroke="#fff" strokeWidth={1.3} />
       <Group clipFunc={trazarJersey}>
-        <RellenoJersey patron={patron} color={color} colorSecundario={colorSecundario} />
+        <Rect x={-10} y={-10} width={20} height={20} fill={color} />
       </Group>
       <Path data={JERSEY_PATH} stroke="#fff" strokeWidth={1.2} listening={false} />
-      {mostrarNumero && (
-        <Text
-          text={String(numero ?? '')}
-          fontSize={9}
-          fontStyle="bold"
-          fill="#fff"
-          shadowColor="#000"
-          shadowBlur={2}
-          shadowOpacity={0.6}
-          x={-9}
-          y={-9}
-          width={18}
-          height={18}
-          align="center"
-          verticalAlign="middle"
-        />
-      )}
+      {numeroTexto}
     </>
   )
 }
@@ -722,7 +705,12 @@ export default function CampoLienzo({
         })}
         {dibujoEnCurso?.tipo === 'flecha' && (
           <Arrow
-            points={[dibujoEnCurso.x1, dibujoEnCurso.y1, dibujoEnCurso.x2, dibujoEnCurso.y2]}
+            points={
+              dibujoEnCurso.camino && dibujoEnCurso.camino.length >= 4
+                ? dibujoEnCurso.camino
+                : [dibujoEnCurso.x1, dibujoEnCurso.y1, dibujoEnCurso.x2, dibujoEnCurso.y2]
+            }
+            tension={dibujoEnCurso.camino ? 0.5 : 0}
             stroke={dibujoEnCurso.color}
             fill={dibujoEnCurso.color}
             strokeWidth={dibujoEnCurso.grosor}
@@ -774,8 +762,7 @@ export default function CampoLienzo({
             {estaSeleccionado('jugadores', j.id) && <Circle radius={17} stroke="#7a1230" strokeWidth={2} dash={[4, 3]} />}
             <TokenJugador
               color={j.color}
-              colorSecundario={j.colorSecundario}
-              patron={j.patron || 'liso'}
+              forma={j.forma || 'camiseta'}
               numero={j.numero}
               mostrarNumero={j.mostrarNumero !== false}
             />

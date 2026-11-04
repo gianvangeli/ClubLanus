@@ -33,21 +33,51 @@ function SombraBase({ y, rx = 10, ry = 3 }) {
   return <Ellipse y={y} radiusX={rx} radiusY={ry} fill="#00000022" />
 }
 
+// Vértices de un polígono regular de `lados` lados, radio `r`, centrado en
+// (cx,cy) — se usa para el pentágono central y para ubicar los gajos de
+// hexágono a su alrededor con la misma simetría de 5 puntas.
+const verticesPoligono = (lados, r, cx = 0, cy = 0, rotacionDeg = -90) =>
+  Array.from({ length: lados }, (_, i) => {
+    const rad = ((360 / lados) * i + rotacionDeg) * (Math.PI / 180)
+    return [cx + Math.cos(rad) * r, cy + Math.sin(rad) * r]
+  }).flat()
+
 function IconoPelota({ color: _color }) {
+  const cy = -1.5 // centro del pentágono, levemente arriba del centro de la pelota
+  const pentagono = verticesPoligono(5, 3.3, 0, cy)
   return (
     <>
       <SombraBase y={9.5} rx={7.5} ry={2} />
-      <Circle radius={9} fill="#ffffff" stroke="#241a1e" strokeWidth={1} />
-      <Line points={[-4.5, -2, 4.5, -2, 2, 5.5, -2, 5.5]} closed stroke="#241a1e" strokeWidth={1} />
-      {/* Gajos del patrón hexagonal, alrededor del pentágono central. */}
-      {[0, 72, 144, 216, 288].map((deg) => {
-        const rad = (deg * Math.PI) / 180
-        const x1 = Math.sin(rad) * 3.2
-        const y1 = -Math.cos(rad) * 3.2 - 2.2
-        const x2 = Math.sin(rad) * 8.3
-        const y2 = -Math.cos(rad) * 8.3 - 2.2
-        return <Line key={deg} points={[x1, y1, x2, y2]} stroke="#241a1e" strokeWidth={0.8} />
+      {/* Esfera con sombreado radial (luz arriba a la izquierda) en vez de
+          relleno plano, para dar sensación de volumen 3D. */}
+      <Circle
+        radius={9}
+        stroke="#241a1e"
+        strokeWidth={1}
+        fillRadialGradientStartPoint={{ x: -3, y: -4 }}
+        fillRadialGradientStartRadius={0}
+        fillRadialGradientEndPoint={{ x: -1, y: -1 }}
+        fillRadialGradientEndRadius={12}
+        fillRadialGradientColorStops={[0, '#ffffff', 0.55, '#f2f2f2', 1, '#c9c9c9']}
+      />
+      {/* Gajos de hexágono alrededor del pentágono: una cuña oscura por cada
+          lado, en vez de una simple línea — se ve más parecido al panelado
+          real de un balón clásico. */}
+      {Array.from({ length: 5 }, (_, i) => {
+        const ax = pentagono[i * 2]
+        const ay = pentagono[i * 2 + 1]
+        const bx = pentagono[((i + 1) % 5) * 2]
+        const by = pentagono[((i + 1) % 5) * 2 + 1]
+        const mx = (ax + bx) / 2
+        const my = (ay + by) / 2
+        const nx = mx
+        const ny = my - cy
+        const largo = Math.hypot(nx, ny) || 1
+        const puntaX = mx + (nx / largo) * 3.4
+        const puntaY = my + (ny / largo) * 3.4
+        return <Line key={i} points={[ax, ay, puntaX, puntaY, bx, by]} closed fill="#241a1e" opacity={0.92} />
       })}
+      <Line points={pentagono} closed fill="#1a1316" stroke="#000000" strokeWidth={0.5} />
     </>
   )
 }
@@ -65,6 +95,23 @@ function IconoCono({ color }) {
       {/* Franja clara típica del cono de entrenamiento. */}
       <Line points={[-6.2, 3.5, 6.2, 3.5, 7.3, 6.5, -7.3, 6.5]} closed fill={claro} opacity={0.85} />
       <Rect x={-2.5} y={-13} width={5} height={2.5} fill={oscuro} cornerRadius={1} />
+    </>
+  )
+}
+
+// Cono plano (disco marcador chato), distinto del cono alto de arriba —
+// vista "de 3/4" como se lo ve apoyado en el piso: una elipse de base y una
+// más chica y oscura encima simulando el botón central de los marcadores
+// reales.
+function IconoConoPlano({ color }) {
+  const oscuro = sombrear(color, -0.3)
+  const claro = sombrear(color, 0.35)
+  return (
+    <>
+      <SombraBase y={5.5} rx={9} ry={2.6} />
+      <Ellipse y={2} radiusX={9} radiusY={4} fill={color} stroke="#00000022" strokeWidth={1} />
+      <Ellipse y={1} radiusX={9} radiusY={4} fill={claro} opacity={0.35} />
+      <Ellipse y={1.5} radiusX={3.2} radiusY={1.6} fill={oscuro} />
     </>
   )
 }
@@ -254,7 +301,8 @@ function IconoCruz({ color }) {
 // abajo, no hace falta que el texto solo ya describa el dibujo.
 export const EQUIPAMIENTO = [
   { valor: 'pelota', etiqueta: 'Pelota', rotable: false },
-  { valor: 'cono', etiqueta: 'Cono', rotable: false },
+  { valor: 'cono', etiqueta: 'Cono grande', rotable: false },
+  { valor: 'cono_plano', etiqueta: 'Cono plano', rotable: false },
   { valor: 'varilla', etiqueta: 'Poste', rotable: true },
   { valor: 'arco1', etiqueta: 'Arco frontal', rotable: true },
   { valor: 'arco2', etiqueta: 'Arco angulado', rotable: true },
@@ -272,6 +320,8 @@ function iconoPorTipo(tipo, color, _rotacion) {
       return <IconoPelota color={color} />
     case 'cono':
       return <IconoCono color={color} />
+    case 'cono_plano':
+      return <IconoConoPlano color={color} />
     case 'varilla':
       return <IconoVarilla color={color} />
     case 'arco1':

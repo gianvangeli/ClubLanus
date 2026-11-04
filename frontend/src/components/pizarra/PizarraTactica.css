@@ -53,6 +53,12 @@
      real donde se hizo click en la cancha. */
   position: relative;
   flex-shrink: 0;
+  /* Sin esto, en pantallas táctiles el navegador puede interpretar el
+     primer tramo de un trazo como gesto de scroll/zoom antes de cedérselo
+     al canvas, desplazando o recortando las coordenadas que Konva recibe
+     — causa más común de que un trazo aparezca en otro lado del que se
+     tocó. No afecta a mouse/desktop. */
+  touch-action: none;
 }
 
 .pizarra-editor-texto {

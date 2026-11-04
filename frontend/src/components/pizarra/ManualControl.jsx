@@ -45,7 +45,7 @@ export default function ManualControl(props) {
   const {
     campo, herramienta, onCambiarHerramienta, onColapsar, onCambiarCampo,
     colorJugador, onCambiarColorJugador, mostrarNumeroJugador, onCambiarMostrarNumeroJugador, coloresJugador,
-    patronJugador, onCambiarPatronJugador, colorSecundarioJugador, onCambiarColorSecundarioJugador,
+    formaJugador, onCambiarFormaJugador,
     figuraEquipamiento, onCambiarFiguraEquipamiento,
     escalaFigura, onCambiarEscalaFigura, escalasFigura,
     colorDibujo, onCambiarColorDibujo, paletaDibujo,
@@ -102,10 +102,8 @@ export default function ManualControl(props) {
                 coloresJugador={coloresJugador}
                 colorJugador={colorJugador}
                 onCambiarColorJugador={onCambiarColorJugador}
-                patronJugador={patronJugador}
-                onCambiarPatronJugador={onCambiarPatronJugador}
-                colorSecundarioJugador={colorSecundarioJugador}
-                onCambiarColorSecundarioJugador={onCambiarColorSecundarioJugador}
+                formaJugador={formaJugador}
+                onCambiarFormaJugador={onCambiarFormaJugador}
                 mostrarNumeroJugador={mostrarNumeroJugador}
                 onCambiarMostrarNumeroJugador={onCambiarMostrarNumeroJugador}
                 onElegirColor={cerrarPopover}
@@ -114,6 +112,7 @@ export default function ManualControl(props) {
             )}
             {popover === 'linea' && popoverAbierto === 'linea' && (
               <LineaPopover
+                colorDibujo={colorDibujo} onCambiarColorDibujo={onCambiarColorDibujo} paletaDibujo={paletaDibujo}
                 tipoLinea={tipoLinea} onCambiarTipoLinea={onCambiarTipoLinea}
                 curva={curva} onCambiarCurva={onCambiarCurva}
                 estiloLinea={estiloLinea} onCambiarEstiloLinea={onCambiarEstiloLinea}

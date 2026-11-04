@@ -14,8 +14,9 @@ const nuevoId = () => `el-${Date.now()}-${idSeq++}`
 const COLORES_JUGADOR = [
   '#7a1230', '#1d4ed8', '#111827', '#f97316', '#0ea5e9',
   '#16a34a', '#eab308', '#db2777', '#8b5cf6', '#64748b',
+  '#ffffff', '#e11d48',
 ]
-const PALETA_DIBUJO = ['#7a1230', '#111827', '#1d4ed8', '#e11d48', '#16a34a', '#ffffff']
+const PALETA_DIBUJO = ['#7a1230', '#111827', '#1d4ed8', '#e11d48', '#16a34a', '#eab308', '#ffffff']
 const TAMANOS = [
   { valor: 2, etiqueta: 'Chico' },
   { valor: 4, etiqueta: 'Mediano' },
@@ -144,8 +145,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
   const [figuraEquipamiento, setFiguraEquipamiento] = useState('pelota')
   const [escalaFigura, setEscalaFigura] = useState(1)
   const [colorJugador, setColorJugador] = useState(COLORES_JUGADOR[0])
-  const [patronJugador, setPatronJugador] = useState('liso')
-  const [colorSecundarioJugador, setColorSecundarioJugador] = useState('#ffffff')
+  const [formaJugador, setFormaJugador] = useState('camiseta')
   const [mostrarNumeroJugador, setMostrarNumeroJugador] = useState(true)
   const [patronesListos, setPatronesListos] = useState({})
 
@@ -434,8 +434,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
           {
             id: nuevoId(),
             color: colorJugador,
-            colorSecundario: colorSecundarioJugador,
-            patron: patronJugador,
+            forma: formaJugador,
             numero,
             mostrarNumero: mostrarNumeroJugador,
             x: pos.x,
@@ -464,7 +463,12 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     if (herramienta === 'linea') {
       const jugadorOrigen = escena.jugadores.find((j) => Math.hypot(j.x - pos.x, j.y - pos.y) < 16)
       const figuraOrigen = !jugadorOrigen && escena.figuras.find((f) => f.tipo === 'pelota' && Math.hypot(f.x - pos.x, f.y - pos.y) < 16)
-      setDibujando({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, origenJugadorId: jugadorOrigen?.id || null, origenFiguraId: figuraOrigen?.id || null })
+      // Para "curva" se va acumulando el camino real del arrastre (mismo
+      // mecanismo que el lápiz con trazoActual) — la curva final sigue
+      // exactamente el gesto en vez de una ondulación fija calculada entre
+      // los dos extremos.
+      const camino = curva && tipoLinea !== 'ondulada' ? [pos.x, pos.y] : null
+      setDibujando({ x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y, camino, origenJugadorId: jugadorOrigen?.id || null, origenFiguraId: figuraOrigen?.id || null })
       return
     }
     if (herramienta === 'zona') {
@@ -491,7 +495,14 @@ const PizarraTactica = forwardRef(function PizarraTactica(
     const stage = e.target.getStage()
     const pos = posicionRelativa(stage)
     if (!pos) return
-    if (dibujando) setDibujando({ ...dibujando, x2: pos.x, y2: pos.y })
+    if (dibujando) {
+      setDibujando({
+        ...dibujando,
+        x2: pos.x,
+        y2: pos.y,
+        camino: dibujando.camino ? [...dibujando.camino, pos.x, pos.y] : dibujando.camino,
+      })
+    }
     if (dibujandoZona) {
       let x2 = pos.x
       let y2 = pos.y
@@ -515,13 +526,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
       if (Math.hypot(x2 - x1, y2 - y1) > 8) {
         let points = [x1, y1, x2, y2]
         if (tipoLinea === 'ondulada') points = puntosOndulados(x1, y1, x2, y2)
-        else if (curva) {
-          const midX = (x1 + x2) / 2
-          const midY = (y1 + y2) / 2
-          const dx = x2 - x1
-          const dy = y2 - y1
-          points = [x1, y1, midX - dy * 0.25, midY + dx * 0.25, x2, y2]
-        }
+        else if (curva && dibujando.camino && dibujando.camino.length >= 4) points = dibujando.camino
         actualizarEscena({
           flechas: [
             ...escena.flechas,
@@ -832,10 +837,8 @@ const PizarraTactica = forwardRef(function PizarraTactica(
           onCambiarCampo={actualizarCampo}
           colorJugador={colorJugador}
           onCambiarColorJugador={setColorJugador}
-          patronJugador={patronJugador}
-          onCambiarPatronJugador={setPatronJugador}
-          colorSecundarioJugador={colorSecundarioJugador}
-          onCambiarColorSecundarioJugador={setColorSecundarioJugador}
+          formaJugador={formaJugador}
+          onCambiarFormaJugador={setFormaJugador}
           mostrarNumeroJugador={mostrarNumeroJugador}
           onCambiarMostrarNumeroJugador={setMostrarNumeroJugador}
           coloresJugador={COLORES_JUGADOR}

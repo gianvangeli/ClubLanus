@@ -2,6 +2,7 @@
 // entre sí (Forma, Tamaño, Estilo de trazo, Estructura), como pide la spec
 // (sección 5.5). Se abre al tocar el ícono de línea en "Add Object".
 export default function LineaPopover({
+  colorDibujo, onCambiarColorDibujo, paletaDibujo,
   tipoLinea, onCambiarTipoLinea,
   curva, onCambiarCurva,
   estiloLinea, onCambiarEstiloLinea,
@@ -15,6 +16,15 @@ export default function LineaPopover({
       <div className="pizarra-popover-titulo">Línea</div>
 
       <div className="pizarra-popover-seccion">
+        <span className="pizarra-popover-label">Color de dibujo</span>
+        <div className="mc-paleta">
+          {paletaDibujo.map((c) => (
+            <button key={c} type="button" className={`mc-swatch ${colorDibujo === c ? 'activo' : ''}`} style={{ background: c }} onClick={() => onCambiarColorDibujo(c)} />
+          ))}
+        </div>
+      </div>
+
+      <div className="pizarra-popover-seccion">
         <span className="pizarra-popover-label">Forma</span>
         <div className="pizarra-popover-fila">
           <button type="button" className={`btn btn-sm ${!curva ? 'btn-primary' : 'btn-ghost'}`} onClick={() => onCambiarCurva(false)} disabled={tipoLinea === 'ondulada'}>
@@ -24,7 +34,7 @@ export default function LineaPopover({
             Curva
           </button>
         </div>
-        {curva && <p className="pizarra-popover-ayuda">Arrastrá el punto azul sobre la línea para curvarla.</p>}
+        {curva && <p className="pizarra-popover-ayuda">Al dibujarla, el trazo sigue el camino del mouse/dedo — no hace falta corregirla después.</p>}
       </div>
 
       <div className="pizarra-popover-seccion">
