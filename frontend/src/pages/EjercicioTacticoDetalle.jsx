@@ -6,19 +6,8 @@ import PizarraTacticaEmbebida from '../components/pizarra/PizarraTacticaEmbebida
 import EditorTexto from '../components/EditorTexto'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
+import { ETIQUETAS_CATEGORIA, ETIQUETAS_FAVOR_CONTRA } from './categoriasEjerciciosTacticos'
 import './EjercicioDetalle.css'
-
-const ETIQUETAS_CATEGORIA = {
-  rondos: 'Rondos',
-  pelota_parada: 'Pelota parada',
-  preestablecido: 'Preestablecido',
-  ruta_de_pases: 'Ruta de pases',
-  especifico_ofensivo: 'Específico ofensivo',
-  especifico_defensivo: 'Específico defensivo',
-  posesiones: 'Posesiones',
-  salidas_progresivas: 'Salidas progresivas',
-  ejercicios_individuales: 'Ejercicios individuales',
-}
 
 const CONTENIDO_VACIO = { objetivo: '', reglas: '', coaching: '' }
 const LIMITE_TITULO = 150
@@ -36,6 +25,7 @@ export default function EjercicioTacticoDetalle() {
   const [fecha, setFecha] = useState('')
   const [cantidadJugadores, setCantidadJugadores] = useState('')
   const [duracionMinutos, setDuracionMinutos] = useState('')
+  const [favorContra, setFavorContra] = useState(null)
   const [contenido, setContenido] = useState(CONTENIDO_VACIO)
   const [dibujo, setDibujo] = useState(null)
   const [modoPizarra, setModoPizarra] = useState('dibujo')
@@ -56,6 +46,7 @@ export default function EjercicioTacticoDetalle() {
         setFecha(data.fecha ? String(data.fecha).slice(0, 10) : '')
         setCantidadJugadores(data.cantidad_jugadores ?? '')
         setDuracionMinutos(data.duracion_minutos ?? '')
+        setFavorContra(data.favor_contra || null)
         setContenido(
           data.contenido_json || (data.descripcion ? { ...CONTENIDO_VACIO, objetivo: `<p>${data.descripcion}</p>` } : CONTENIDO_VACIO)
         )
@@ -80,6 +71,7 @@ export default function EjercicioTacticoDetalle() {
       datos.append('cantidad_jugadores', cantidadJugadores || '')
       datos.append('duracion_minutos', duracionMinutos || '')
       datos.append('contenido_json', JSON.stringify(contenido))
+      if (ejercicio.categoria === 'pelota_parada' && favorContra) datos.append('favor_contra', favorContra)
       if (modoPizarra === 'archivo' && archivoPizarra) {
         datos.append('pizarra_archivo', archivoPizarra)
       } else if (modoPizarra === 'dibujo' && dibujo) {
@@ -197,6 +189,23 @@ export default function EjercicioTacticoDetalle() {
             <label>Duración (minutos):</label>
             <input type="number" min={0} value={duracionMinutos} onChange={(e) => setDuracionMinutos(e.target.value)} />
           </div>
+          {ejercicio.categoria === 'pelota_parada' && (
+            <div className="ej-campo">
+              <label>Clasificación:</label>
+              <div className="modo-toggle">
+                {Object.entries(ETIQUETAS_FAVOR_CONTRA).map(([valor, etiqueta]) => (
+                  <button
+                    key={valor}
+                    type="button"
+                    className={`btn btn-sm ${favorContra === valor ? 'btn-primary' : 'btn-ghost'}`}
+                    onClick={() => setFavorContra(valor)}
+                  >
+                    {etiqueta}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="ej-cuerpo">

@@ -2,53 +2,44 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import api, { extraerError } from '../api/client'
-import CanchaEditor, { ESCENA_VACIA } from '../components/CanchaEditor'
 import { formatFecha } from '../utils/fecha'
+import { ETIQUETAS_CATEGORIA, ETIQUETAS_FAVOR_CONTRA } from './categoriasEjerciciosTacticos'
 import './Entrenamientos.css'
 import './EjerciciosTacticos.css'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
-const ETIQUETAS_CATEGORIA = {
-  rondos: 'Rondos',
-  pelota_parada: 'Pelota parada',
-  preestablecido: 'Preestablecido',
-  ruta_de_pases: 'Ruta de pases',
-  especifico_ofensivo: 'Específico ofensivo',
-  especifico_defensivo: 'Específico defensivo',
-  posesiones: 'Posesiones',
-  salidas_progresivas: 'Salidas progresivas',
-  ejercicios_individuales: 'Ejercicios individuales',
-}
-
 // Ejercicios tácticos: dentro de "Entrenamientos desglosados" (exclusivo
 // del cuerpo técnico), una biblioteca de videos cortos organizada en
-// categorías fijas — algunas con sub-división (Rondos, Pelota parada) y el
-// resto sin ella —, cada uno con su pizarra táctica (dibujada o subida
-// como imagen/video).
+// categorías fijas — algunas con sub-división (Rondos, Posesiones,
+// Individuales, Acciones a balón parado) y el resto sin ella —, cada uno
+// con su pizarra táctica (se arma en la ficha completa, no al crear: ver
+// NuevoEjercicio). Acciones a balón parado además se clasifica A favor/
+// En contra, independiente de la sub-categoría (córner/tiro libre).
 export default function EjerciciosTacticos() {
   const [categorias, setCategorias] = useState(null)
   const [categoria, setCategoria] = useState(null)
   const [subcategoria, setSubcategoria] = useState(null)
+  const [favorContra, setFavorContra] = useState(null)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const cargarCategorias = () => {
     api
       .get('/ejercicios-tacticos/categorias')
       .then(({ data }) => {
         setCategorias(data)
-        const inicial = Object.keys(data)[0]
-        setCategoria(inicial)
-        setSubcategoria(data[inicial]?.[0] || null)
+        setCategoria((actual) => (actual && data[actual] ? actual : null))
       })
       .catch((err) => setError(extraerError(err, 'No se pudieron cargar las categorías')))
-  }, [])
+  }
+
+  useEffect(cargarCategorias, [])
 
   if (error) {
     return <div className="alert alert-error">{error}</div>
   }
 
-  if (!categorias || !categoria) {
+  if (!categorias) {
     return (
       <div className="empty-state">
         <span className="spinner spinner-dark" />
@@ -56,28 +47,36 @@ export default function EjerciciosTacticos() {
     )
   }
 
-  const cambiarCategoria = (c) => {
+  const elegirCategoria = (c) => {
     setCategoria(c)
-    setSubcategoria(categorias[c][0] || null)
+    setSubcategoria(categorias[c].subcategorias[0] || null)
+    setFavorContra(c === 'pelota_parada' ? 'favor' : null)
   }
 
-  return (
-    <div>
-      <div className="et-tabs">
+  if (!categoria) {
+    return (
+      <div className="et-grilla-categorias">
         {Object.keys(categorias).map((c) => (
-          <button
-            key={c}
-            className={`btn btn-sm ${categoria === c ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => cambiarCategoria(c)}
-          >
-            {ETIQUETAS_CATEGORIA[c] || c}
+          <button key={c} type="button" className="et-tarjeta-categoria" onClick={() => elegirCategoria(c)}>
+            <strong>{ETIQUETAS_CATEGORIA[c] || c}</strong>
+            <span className="entren-count-chip">{categorias[c].cantidad}</span>
           </button>
         ))}
       </div>
+    )
+  }
 
-      {categorias[categoria].length > 0 && (
+  const subcats = categorias[categoria].subcategorias
+
+  return (
+    <div>
+      <button type="button" className="btn btn-ghost btn-sm et-volver-categorias" onClick={() => setCategoria(null)}>
+        ← {ETIQUETAS_CATEGORIA[categoria] || categoria}
+      </button>
+
+      {subcats.length > 0 && (
         <div className="et-tabs et-subtabs">
-          {categorias[categoria].map((s) => (
+          {subcats.map((s) => (
             <button
               key={s}
               className={`btn btn-sm ${subcategoria === s ? 'btn-primary' : 'btn-ghost'}`}
@@ -89,12 +88,31 @@ export default function EjerciciosTacticos() {
         </div>
       )}
 
-      <ListaEjercicios categoria={categoria} subcategoria={subcategoria} />
+      {categoria === 'pelota_parada' && (
+        <div className="et-tabs et-subtabs">
+          {Object.entries(ETIQUETAS_FAVOR_CONTRA).map(([valor, etiqueta]) => (
+            <button
+              key={valor}
+              className={`btn btn-sm ${favorContra === valor ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setFavorContra(valor)}
+            >
+              {etiqueta}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <ListaEjercicios
+        categoria={categoria}
+        subcategoria={subcategoria}
+        favorContra={categoria === 'pelota_parada' ? favorContra : null}
+        onCreado={cargarCategorias}
+      />
     </div>
   )
 }
 
-function ListaEjercicios({ categoria, subcategoria }) {
+function ListaEjercicios({ categoria, subcategoria, favorContra, onCreado }) {
   const { esCuerpoTecnico } = useAuth()
   const navigate = useNavigate()
   const [ejercicios, setEjercicios] = useState([])
@@ -105,6 +123,7 @@ function ListaEjercicios({ categoria, subcategoria }) {
     setCargando(true)
     const params = { categoria }
     if (subcategoria) params.subcategoria = subcategoria
+    if (favorContra) params.favor_contra = favorContra
     api
       .get('/ejercicios-tacticos', { params })
       .then(({ data }) => setEjercicios(data))
@@ -112,11 +131,26 @@ function ListaEjercicios({ categoria, subcategoria }) {
       .finally(() => setCargando(false))
   }
 
-  useEffect(cargar, [categoria, subcategoria])
+  useEffect(cargar, [categoria, subcategoria, favorContra])
+
+  const etiquetaVacio =
+    [subcategoria, favorContra && ETIQUETAS_FAVOR_CONTRA[favorContra]].filter(Boolean).join(' · ') ||
+    ETIQUETAS_CATEGORIA[categoria] ||
+    categoria
 
   return (
     <div>
-      {esCuerpoTecnico && <NuevoEjercicio categoria={categoria} subcategoria={subcategoria} onCreado={cargar} />}
+      {esCuerpoTecnico && (
+        <NuevoEjercicio
+          categoria={categoria}
+          subcategoria={subcategoria}
+          favorContra={favorContra}
+          onCreado={() => {
+            cargar()
+            onCreado?.()
+          }}
+        />
+      )}
 
       {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
 
@@ -128,7 +162,7 @@ function ListaEjercicios({ categoria, subcategoria }) {
 
       {!cargando && ejercicios.length === 0 && (
         <div className="empty-state card">
-          <p>Todavía no hay ejercicios cargados en &quot;{subcategoria || ETIQUETAS_CATEGORIA[categoria] || categoria}&quot;.</p>
+          <p>Todavía no hay ejercicios cargados en &quot;{etiquetaVacio}&quot;.</p>
         </div>
       )}
 
@@ -138,11 +172,8 @@ function ListaEjercicios({ categoria, subcategoria }) {
             <button className="entren-sesion-header" onClick={() => navigate(`/entrenamientos/ejercicios-tacticos/${ej.id}`)}>
               <div className="entren-sesion-fecha">{ej.titulo}</div>
               <div className="entren-sesion-meta">
-                {ej.fecha && (
-                  <span className="texto-muted">
-                    {formatFecha(ej.fecha)}
-                  </span>
-                )}
+                {ej.fecha && <span className="texto-muted">{formatFecha(ej.fecha)}</span>}
+                {ej.favor_contra && <span className="entren-count-chip">{ETIQUETAS_FAVOR_CONTRA[ej.favor_contra]}</span>}
                 {ej.cantidad_jugadores && <span className="entren-count-chip">{ej.cantidad_jugadores} jugador(es)</span>}
                 {ej.duracion_minutos && <span className="entren-count-chip">{ej.duracion_minutos}′</span>}
                 <span className="entren-chevron">→</span>
@@ -157,15 +188,16 @@ function ListaEjercicios({ categoria, subcategoria }) {
 
 const FORM_VACIO = { titulo: '', descripcion: '', cantidad_jugadores: '' }
 
-function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
+// Alta mínima: fecha, título, cantidad de jugadores, descripción y video.
+// La pizarra táctica (dibujada o subida) se arma después, en la ficha
+// completa del ejercicio — antes se pedía acá también con el editor
+// viejo (CanchaEditor), duplicando el trabajo apenas creado.
+function NuevoEjercicio({ categoria, subcategoria, favorContra, onCreado }) {
   const navigate = useNavigate()
   const [form, setForm] = useState({ ...FORM_VACIO, fecha: hoyISO() })
   const [modo, setModo] = useState('archivo')
   const [archivo, setArchivo] = useState(null)
   const [urlVideo, setUrlVideo] = useState('')
-  const [modoPizarra, setModoPizarra] = useState('dibujo')
-  const [dibujo, setDibujo] = useState(ESCENA_VACIA)
-  const [archivoPizarra, setArchivoPizarra] = useState(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState('')
 
@@ -174,11 +206,16 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
   const onSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (categoria === 'pelota_parada' && !favorContra) {
+      setError('Elegí si la acción es A favor o En contra antes de registrar el ejercicio')
+      return
+    }
     setEnviando(true)
     try {
       const datos = new FormData()
       datos.append('categoria', categoria)
       if (subcategoria) datos.append('subcategoria', subcategoria)
+      if (categoria === 'pelota_parada' && favorContra) datos.append('favor_contra', favorContra)
       datos.append('titulo', form.titulo)
       if (form.fecha) datos.append('fecha', form.fecha)
       if (form.descripcion) datos.append('descripcion', form.descripcion)
@@ -189,18 +226,11 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
         datos.append('url_video', urlVideo.trim())
       }
 
-      if (modoPizarra === 'archivo' && archivoPizarra) {
-        datos.append('pizarra_archivo', archivoPizarra)
-      } else if (modoPizarra === 'dibujo') {
-        const pizarraTieneContenido =
-          dibujo.jugadores.length > 0 || dibujo.flechas.length > 0 || dibujo.figuras.length > 0
-        if (pizarraTieneContenido) datos.append('dibujo_json', JSON.stringify(dibujo))
-      }
-
       const { data } = await api.post('/ejercicios-tacticos', datos)
       onCreado()
-      // El resto de la carga (contenido estructurado, animación por
-      // escenas, etc.) se completa en la ficha completa del ejercicio.
+      // El resto de la carga (contenido estructurado, pizarra táctica,
+      // animación por escenas, etc.) se completa en la ficha completa del
+      // ejercicio.
       navigate(`/entrenamientos/ejercicios-tacticos/${data.id}`)
     } catch (err) {
       setError(extraerError(err, 'No se pudo guardar el ejercicio'))
@@ -209,9 +239,14 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
     }
   }
 
+  const tituloPaso =
+    [subcategoria, categoria === 'pelota_parada' ? ETIQUETAS_FAVOR_CONTRA[favorContra] : null].filter(Boolean).join(' · ') ||
+    ETIQUETAS_CATEGORIA[categoria] ||
+    categoria
+
   return (
     <form className="card entren-form" onSubmit={onSubmit}>
-      <h3>Nuevo ejercicio — {subcategoria || ETIQUETAS_CATEGORIA[categoria] || categoria}</h3>
+      <h3>Nuevo ejercicio — {tituloPaso}</h3>
 
       {error && <div className="alert alert-error">{error}</div>}
 
@@ -267,39 +302,6 @@ function NuevoEjercicio({ categoria, subcategoria, onCreado }) {
         <div className="field">
           <label>URL del video</label>
           <input value={urlVideo} onChange={(e) => setUrlVideo(e.target.value)} />
-        </div>
-      )}
-
-      <div className="field">
-        <label>Pizarra táctica (opcional)</label>
-        <div className="modo-toggle">
-          <button
-            type="button"
-            className={`btn btn-sm ${modoPizarra === 'dibujo' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setModoPizarra('dibujo')}
-          >
-            Dibujar pizarra
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${modoPizarra === 'archivo' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setModoPizarra('archivo')}
-          >
-            Subir imagen o video
-          </button>
-        </div>
-      </div>
-
-      {modoPizarra === 'dibujo' ? (
-        <CanchaEditor value={dibujo} onChange={setDibujo} editable />
-      ) : (
-        <div className="field">
-          <input
-            type="file"
-            accept="image/*,video/*"
-            onChange={(e) => setArchivoPizarra(e.target.files[0] || null)}
-          />
-          {archivoPizarra && <span className="texto-muted">{archivoPizarra.name}</span>}
         </div>
       )}
 

@@ -5,6 +5,43 @@
   margin-bottom: 14px;
 }
 
+/* Grilla de tarjetas de categoría (reemplaza la fila plana de pills) —
+   nombre + cantidad de ejercicios ya cargados, para elegir "mirando" en
+   vez de adivinar qué hay en cada una. */
+.et-grilla-categorias {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.et-tarjeta-categoria {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.et-tarjeta-categoria:hover {
+  border-color: var(--granate-700);
+  box-shadow: var(--shadow-sm);
+}
+
+.et-tarjeta-categoria strong {
+  font-size: 14.5px;
+  color: var(--text);
+}
+
+.et-volver-categorias {
+  margin-bottom: 14px;
+}
+
 .et-subtabs {
   margin-bottom: 20px;
 }

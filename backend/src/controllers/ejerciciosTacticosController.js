@@ -10,21 +10,26 @@ const { tipoDeArchivoPizarra } = require("../middlewares/uploadPizarraMiddleware
 // (no requiere migración, categoria/subcategoria son texto).
 const SUBCATEGORIAS = {
   rondos: ["+5", "+10", "+15", "+20"],
+  posesiones: ["+5", "+10", "+15", "+20"],
+  salidas_progresivas: [],
+  ruta_de_pases: [],
+  especifico_ofensivo: [],
+  especifico_defensivo: [],
+  preestablecido: [],
+  ejercicios_individuales: ["Defensores", "Mediocampistas", "Arqueros"],
+  // "ABP en contra/a favor" dejó de ser una sub-categoría acá (se mezclaba
+  // con un eje distinto: córner/tiro libre vs. a favor/en contra) — ahora
+  // es su propio campo `favor_contra`, ver crearEjercicioTactico.
   pelota_parada: [
-    "ABP (en contra)",
     "Corner por derecha",
     "Corner por izquierda",
     "Tiro libre lateral",
     "Tiro libre semi-frontal",
     "Tiro libre frontal",
   ],
-  preestablecido: [],
-  ruta_de_pases: [],
-  especifico_ofensivo: [],
-  especifico_defensivo: [],
-  posesiones: [],
-  salidas_progresivas: [],
-  ejercicios_individuales: [],
+  duelos: [],
+  inicios: [],
+  presiones: [],
 };
 
 const CATEGORIAS = Object.keys(SUBCATEGORIAS);
@@ -38,9 +43,22 @@ const validarCategoria = (categoria, subcategoria) => {
   return null;
 };
 
-// Devuelve la taxonomía para que el frontend arme los botones de categoría/sub-categoría.
-const listarCategorias = (req, res) => {
-  res.json(SUBCATEGORIAS);
+// Devuelve la taxonomía (para armar los botones de categoría/sub-categoría)
+// más la cantidad de ejercicios ya cargados por categoría, para mostrar en
+// las tarjetas de selección (ver EjerciciosTacticos.jsx).
+const listarCategorias = async (req, res) => {
+  try {
+    const [filas] = await db.query(
+      "SELECT categoria, COUNT(*) AS cantidad FROM ejercicios_tacticos GROUP BY categoria"
+    );
+    const cantidades = Object.fromEntries(filas.map((f) => [f.categoria, f.cantidad]));
+    const categorias = Object.fromEntries(
+      CATEGORIAS.map((c) => [c, { subcategorias: SUBCATEGORIAS[c], cantidad: cantidades[c] || 0 }])
+    );
+    res.json(categorias);
+  } catch (error) {
+    res.status(500).json({ message: "Error al listar las categorías", error: error.message });
+  }
 };
 
 // Alta de un ejercicio táctico (video corto + pizarra) dentro de una
@@ -51,6 +69,11 @@ const crearEjercicioTactico = async (req, res) => {
     const { categoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos, url_video, dibujo_json } = req.body;
     const creadoPor = req.usuario.id;
     const subcategoria = SUBCATEGORIAS[categoria]?.length > 0 ? req.body.subcategoria : null;
+    // Solo tiene sentido para ABP (pelota_parada) — para cualquier otra
+    // categoría se ignora, aunque llegue en el body.
+    const favorContra = categoria === "pelota_parada" && ["favor", "contra"].includes(req.body.favor_contra)
+      ? req.body.favor_contra
+      : null;
 
     const errorCategoria = validarCategoria(categoria, subcategoria);
     if (errorCategoria) {
@@ -58,6 +81,9 @@ const crearEjercicioTactico = async (req, res) => {
     }
     if (!titulo) {
       return res.status(400).json({ message: "El título es obligatorio" });
+    }
+    if (categoria === "pelota_parada" && !favorContra) {
+      return res.status(400).json({ message: "Elegí si la acción a balón parado es a favor o en contra" });
     }
 
     let videoTipo = null;
@@ -100,13 +126,14 @@ const crearEjercicioTactico = async (req, res) => {
 
     const [result] = await db.query(
       `INSERT INTO ejercicios_tacticos
-       (categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos,
+       (categoria, subcategoria, favor_contra, titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos,
         video_tipo, video_url, video_nombre_original,
         dibujo_json, pizarra_modo, pizarra_archivo_url, pizarra_archivo_tipo, pizarra_archivo_nombre_original, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         categoria,
         subcategoria,
+        favorContra,
         titulo,
         fecha || null,
         descripcion || null,
@@ -136,6 +163,9 @@ const listarEjerciciosTacticos = async (req, res) => {
   try {
     const { categoria } = req.query;
     const subcategoria = req.query.subcategoria || null;
+    // Solo se usa (y solo tiene sentido) en pelota_parada — en el resto de
+    // las categorías viene null y el filtro <=> lo deja sin efecto.
+    const favorContra = req.query.favor_contra || null;
 
     const errorCategoria = validarCategoria(categoria, subcategoria);
     if (errorCategoria) {
@@ -143,11 +173,11 @@ const listarEjerciciosTacticos = async (req, res) => {
     }
 
     const [ejercicios] = await db.query(
-      `SELECT id, titulo, fecha, cantidad_jugadores, duracion_minutos, creado_en
+      `SELECT id, titulo, fecha, favor_contra, cantidad_jugadores, duracion_minutos, creado_en
        FROM ejercicios_tacticos
-       WHERE categoria = ? AND subcategoria <=> ?
+       WHERE categoria = ? AND subcategoria <=> ? AND favor_contra <=> ?
        ORDER BY fecha DESC, id DESC`,
-      [categoria, subcategoria]
+      [categoria, subcategoria, favorContra]
     );
 
     res.json(ejercicios);
@@ -161,7 +191,7 @@ const obtenerEjercicioTactico = async (req, res) => {
     const { id } = req.params;
 
     const [ejercicios] = await db.query(
-      `SELECT id, categoria, subcategoria, titulo, fecha, descripcion, contenido_json, cantidad_jugadores,
+      `SELECT id, categoria, subcategoria, favor_contra, titulo, fecha, descripcion, contenido_json, cantidad_jugadores,
               duracion_minutos, video_tipo, video_url, video_nombre_original, animacion_video_url, dibujo_json,
               dibujo_thumbnail, pizarra_modo, pizarra_archivo_tipo, pizarra_archivo_nombre_original, creado_por, creado_en
        FROM ejercicios_tacticos WHERE id = ?`,
@@ -190,17 +220,24 @@ const actualizarEjercicioTactico = async (req, res) => {
     const { titulo, fecha, descripcion, contenido_json, cantidad_jugadores, duracion_minutos, dibujo_json, dibujo_thumbnail } = req.body;
 
     const [ejercicios] = await db.query(
-      "SELECT pizarra_archivo_url, video_tipo, video_url FROM ejercicios_tacticos WHERE id = ?",
+      "SELECT categoria, pizarra_archivo_url, video_tipo, video_url FROM ejercicios_tacticos WHERE id = ?",
       [id]
     );
     if (ejercicios.length === 0) {
       return res.status(404).json({ message: "Ejercicio táctico no encontrado" });
     }
 
+    // Igual que al crear: solo tiene sentido para ABP, se ignora en el
+    // resto de las categorías aunque llegue en el body.
+    const favorContra =
+      ejercicios[0].categoria === "pelota_parada" && ["favor", "contra"].includes(req.body.favor_contra)
+        ? req.body.favor_contra
+        : undefined;
+
     await db.query(
       `UPDATE ejercicios_tacticos
        SET titulo = COALESCE(?, titulo), fecha = ?, descripcion = ?, contenido_json = ?,
-           cantidad_jugadores = ?, duracion_minutos = ?
+           cantidad_jugadores = ?, duracion_minutos = ?, favor_contra = COALESCE(?, favor_contra)
        WHERE id = ?`,
       [
         titulo || null,
@@ -213,6 +250,7 @@ const actualizarEjercicioTactico = async (req, res) => {
           : null,
         cantidad_jugadores || null,
         duracion_minutos || null,
+        favorContra || null,
         id,
       ]
     );
