@@ -276,6 +276,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
 
   const moverElemento = (lista, id, x, y) => actualizarEscena({ [lista]: escena[lista].map((el) => (el.id === id ? { ...el, x, y } : el)) })
   const rotarFigura = (id, rotacion) => actualizarEscena({ figuras: escena.figuras.map((f) => (f.id === id ? { ...f, rotacion } : f)) })
+  const redimensionarFigura = (id, escala) => actualizarEscena({ figuras: escena.figuras.map((f) => (f.id === id ? { ...f, escala } : f)) })
   const redimensionarZona = (id, cambios) => actualizarEscena({ zonas: escena.zonas.map((z) => (z.id === id ? { ...z, ...cambios } : z)) })
   const redimensionarImagen = (id, cambios) => actualizarEscena({ imagenes: (escena.imagenes || []).map((im) => (im.id === id ? { ...im, ...cambios } : im)) })
   const borrarElemento = (lista, id) => actualizarEscena({ [lista]: escena[lista].filter((el) => el.id !== id) })
@@ -769,6 +770,7 @@ const PizarraTactica = forwardRef(function PizarraTactica(
               onEditarTexto={onEditarTexto}
               onEditarNumero={onEditarNumero}
               onRotarFigura={rotarFigura}
+              onRedimensionarFigura={redimensionarFigura}
               onRedimensionarZona={redimensionarZona}
               onRedimensionarImagen={redimensionarImagen}
             />

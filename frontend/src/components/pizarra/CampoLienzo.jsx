@@ -310,6 +310,7 @@ export default function CampoLienzo({
   onEditarTexto,
   onEditarNumero,
   onRotarFigura,
+  onRedimensionarFigura,
   onRedimensionarZona,
   onRedimensionarImagen,
 }) {
@@ -403,9 +404,22 @@ export default function CampoLienzo({
     })
   }
 
-  const finalizarRotacionFigura = (id) => (e) => {
+  // Rotar y redimensionar comparten un solo Transformer con anclas de
+  // esquina (ver <Transformer ref={transformerFiguraRef}>) — Konva dispara
+  // un único evento "transformend" con rotación y escala juntas, así que
+  // se leen y aplican los dos acá. El modelo de datos solo tiene un
+  // `escala` uniforme (no ancho/alto separados), así que se toma scaleX
+  // como el factor (las anclas de esquina mantienen X/Y iguales).
+  const finalizarTransformFigura = (f) => (e) => {
     const nodo = e.target
-    onRotarFigura?.(id, nodo.rotation())
+    const factor = nodo.scaleX()
+    nodo.scaleX(1)
+    nodo.scaleY(1)
+    onRotarFigura?.(f.id, nodo.rotation())
+    if (factor !== 1) {
+      const nuevaEscala = Math.max(0.3, Math.min(3, (f.escala || 1) * factor))
+      onRedimensionarFigura?.(f.id, nuevaEscala)
+    }
   }
 
   // Rect/Rombo/Hexágono: el nodo Konva tiene x/y = esquina superior
@@ -611,7 +625,7 @@ export default function CampoLienzo({
             onDragEnd={(e) => onMoverElemento?.('figuras', f.id, e.target.x(), e.target.y())}
             onClick={click('figuras', f)}
             onMouseEnter={hoverBorrar('figuras', f)}
-            onTransformEnd={finalizarRotacionFigura(f.id)}
+            onTransformEnd={finalizarTransformFigura(f)}
           >
             {estaSeleccionado('figuras', f.id) && <Circle radius={18} stroke="#7a1230" strokeWidth={2} dash={[4, 3]} />}
             <FiguraForma tipo={f.tipo} color={f.color} rotacion={f.rotacion} />
@@ -621,8 +635,9 @@ export default function CampoLienzo({
         {editable && figuraSeleccionadaId && (
           <Transformer
             ref={transformerFiguraRef}
-            resizeEnabled={false}
             rotateEnabled
+            enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+            boundBoxFunc={(oldBox, newBox) => (newBox.width < 10 || newBox.width > 160 ? oldBox : newBox)}
             borderStroke="#7a1230"
             anchorStroke="#7a1230"
             anchorFill="#fff"

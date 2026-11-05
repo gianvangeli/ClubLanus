@@ -1,4 +1,4 @@
-import { Circle, Ellipse, Rect, Line, Group } from 'react-konva'
+import { Circle, Ellipse, Rect, Line, Group, Text } from 'react-konva'
 
 // Íconos de "Add Equipment" (sección 5.4) + las formas viejas de "Figuras"
 // que ya existían (cuadrado/círculo/cruz), para no perder compatibilidad
@@ -209,6 +209,39 @@ function IconoArcoLateral({ color }) {
   )
 }
 
+// Arco grande: el arco "normal" (no una miniatura ni una variante en
+// perspectiva) — marco más robusto, red en patrón cruzado (grilla +
+// diagonales en los dos sentidos, más parecida a una malla real) y
+// patitas cortas en las esquinas de abajo para remarcar que está apoyado
+// en el piso.
+function IconoArcoGrande({ color }) {
+  const x1 = -19
+  const y1 = -14
+  const x2 = 19
+  const y2 = 12
+  return (
+    <>
+      <SombraBase y={13} rx={20} ry={3.5} />
+      <RedArco
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        columnas={6}
+        filas={4}
+        diagonales={[
+          [x1, y1, x2, y2],
+          [x1, y2, x2, y1],
+        ]}
+      />
+      <MarcoConVolumen points={[x1, y2, x1, y1, x2, y1, x2, y2]} color={color} strokeWidth={3} />
+      {/* Patitas de apoyo en las esquinas inferiores. */}
+      <Line points={[x1, y2, x1 - 3, y2 + 3]} stroke={color} strokeWidth={2.5} lineCap="round" />
+      <Line points={[x2, y2, x2 + 3, y2 + 3]} stroke={color} strokeWidth={2.5} lineCap="round" />
+    </>
+  )
+}
+
 // Arco chico / mini arco: mismo marco frontal, a menor escala y con red
 // más simple (marcador mini, no hace falta tanto detalle).
 function IconoArcoChico({ color }) {
@@ -222,11 +255,12 @@ function IconoArcoChico({ color }) {
 }
 
 // Barrera: fila de maniquíes (usada tanto como pieza de equipamiento suelta
-// como para simular una barrera de tiro libre).
+// como para simular una barrera de tiro libre). Espaciado acorde al ancho
+// del maniquí (silueta humana, más ancho que el blob anterior).
 function IconoBarrera({ color }) {
   return (
     <>
-      {[-10, 0, 10].map((dx) => (
+      {[-15, 0, 15].map((dx) => (
         <Group key={dx} x={dx}>
           <IconoManiqui color={color} />
         </Group>
@@ -235,19 +269,19 @@ function IconoBarrera({ color }) {
   )
 }
 
-// Maniquí: silueta individual con dos tonos (frente/costado) para dar
-// forma cilíndrica, y una base circular con peso (como los reales).
+// Maniquí: silueta humana plana (cabeza + torso + piernas) de un solo
+// color, bien más alto que el poste — se usa como "jugador" de referencia
+// en ejercicios, tiene que leerse como una persona, no como un blob.
 function IconoManiqui({ color }) {
-  const claro = sombrear(color, 0.35)
-  const oscuro = sombrear(color, -0.25)
+  const oscuro = sombrear(color, -0.35)
   return (
     <>
-      <Ellipse y={9.5} radiusX={5} radiusY={1.8} fill="#00000030" />
-      <Ellipse y={8.5} radiusX={4.5} radiusY={1.6} fill={oscuro} />
-      <Rect x={-3} y={-6} width={3} height={15} fill={claro} cornerRadius={[2.5, 0, 0, 2.5]} />
-      <Rect x={0} y={-6} width={3} height={15} fill={oscuro} cornerRadius={[0, 2.5, 2.5, 0]} />
-      <Circle y={-10} radius={3.5} fill={claro} />
-      <Circle x={1} y={-10} radius={3.5} fill={oscuro} opacity={0.5} />
+      <SombraBase y={16.5} rx={7} ry={2.2} />
+      <Circle y={-15} radius={4} fill={color} stroke={oscuro} strokeWidth={0.8} />
+      <Line points={[-6, -11, 6, -11, 4, 2, -4, 2]} closed fill={color} stroke={oscuro} strokeWidth={0.8} />
+      <Line points={[0, -11, 0, 2]} stroke={oscuro} strokeWidth={0.8} opacity={0.5} />
+      <Rect x={-4} y={2} width={3.2} height={14} cornerRadius={[0, 0, 1.5, 1.5]} fill={color} stroke={oscuro} strokeWidth={0.8} />
+      <Rect x={0.8} y={2} width={3.2} height={14} cornerRadius={[0, 0, 1.5, 1.5]} fill={color} stroke={oscuro} strokeWidth={0.8} />
     </>
   )
 }
@@ -279,6 +313,21 @@ function IconoMarcador({ color }) {
   )
 }
 
+// Entrenador/ayudante: insignia circular de dos tonos con una letra fija
+// adentro — marcador de cuerpo técnico en la cancha, distinto del jugador
+// (que es camiseta/círculo numerado).
+function IconoEntrenador({ color }) {
+  const oscuro = sombrear(color, -0.5)
+  return (
+    <>
+      <SombraBase y={12} rx={9} ry={2.2} />
+      <Circle radius={10} fill={color} stroke="#ffffff" strokeWidth={1.5} />
+      <Circle radius={7} fill={oscuro} />
+      <Text text="C" fontSize={11} fontStyle="bold" fill="#ffffff" width={14} height={14} x={-7} y={-7} align="center" verticalAlign="middle" />
+    </>
+  )
+}
+
 function IconoCuadrado({ color }) {
   return <Rect x={-8} y={-8} width={16} height={16} fill={color} />
 }
@@ -304,14 +353,13 @@ export const EQUIPAMIENTO = [
   { valor: 'cono', etiqueta: 'Cono grande', rotable: false },
   { valor: 'cono_plano', etiqueta: 'Cono plano', rotable: false },
   { valor: 'varilla', etiqueta: 'Poste', rotable: true },
-  { valor: 'arco1', etiqueta: 'Arco frontal', rotable: true },
-  { valor: 'arco2', etiqueta: 'Arco angulado', rotable: true },
-  { valor: 'arco3', etiqueta: 'Arco lateral', rotable: true },
-  { valor: 'arco_chico', etiqueta: 'Arco chico', rotable: true },
+  { valor: 'arco_grande', etiqueta: 'Arco grande', rotable: true },
+  { valor: 'arco_chico', etiqueta: 'Arco pequeño', rotable: true },
   { valor: 'maniqui', etiqueta: 'Maniquí', rotable: true },
   { valor: 'barrera', etiqueta: 'Barrera', rotable: true },
   { valor: 'bandera', etiqueta: 'Bandera', rotable: false },
   { valor: 'marcador', etiqueta: 'Marcador', rotable: false },
+  { valor: 'entrenador', etiqueta: 'Entrenador/Ayudante', rotable: false },
 ]
 
 function iconoPorTipo(tipo, color, _rotacion) {
@@ -324,6 +372,13 @@ function iconoPorTipo(tipo, color, _rotacion) {
       return <IconoConoPlano color={color} />
     case 'varilla':
       return <IconoVarilla color={color} />
+    case 'arco_grande':
+      return <IconoArcoGrande color={color} />
+    case 'arco_chico':
+      return <IconoArcoChico color={color} />
+    // Variantes viejas de arco: ya no están en el popover de Equipamiento
+    // (ver EQUIPAMIENTO), pero se mantienen acá para que los ejercicios ya
+    // guardados con estos tipos se sigan viendo igual.
     case 'arco1':
       return <IconoArcoFrontal color={color} />
     case 'arco2':
@@ -332,14 +387,14 @@ function iconoPorTipo(tipo, color, _rotacion) {
       return <IconoArcoLateral color={color} />
     case 'barrera':
       return <IconoBarrera color={color} />
-    case 'arco_chico':
-      return <IconoArcoChico color={color} />
     case 'maniqui':
       return <IconoManiqui color={color} />
     case 'bandera':
       return <IconoBandera color={color} />
     case 'marcador':
       return <IconoMarcador color={color} />
+    case 'entrenador':
+      return <IconoEntrenador color={color} />
     // Compatibilidad con dibujos viejos (CanchaEditor clásico).
     case 'cuadrado':
       return <IconoCuadrado color={color} />
