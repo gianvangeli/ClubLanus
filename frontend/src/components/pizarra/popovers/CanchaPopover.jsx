@@ -11,8 +11,6 @@ const OPCIONES_COLOR = [
 const OPCIONES_PATRON = [
   { valor: 'ninguno', etiqueta: 'Ninguno' },
   { valor: 'rayas', etiqueta: 'Rayas' },
-  { valor: 'cuadros', etiqueta: 'Cuadros' },
-  { valor: 'diagonal', etiqueta: 'Diagonal' },
 ]
 
 // Popover de "Cancha" (antes secciones inline "Cancha/color" + "Select
@@ -25,7 +23,13 @@ export default function CanchaPopover({ campo, onCambiarCampo, onCerrar }) {
 
       <div className="pizarra-popover-seccion">
         <span className="pizarra-popover-label">Tipo</span>
-        <select value={campo.tipo} onChange={(e) => onCambiarCampo({ tipo: e.target.value })}>
+        <select
+          value={campo.tipo}
+          onChange={(e) => {
+            onCambiarCampo({ tipo: e.target.value })
+            onCerrar?.()
+          }}
+        >
           <option value="completa">Cancha entera</option>
           <option value="media">Mitad de cancha</option>
         </select>
@@ -38,14 +42,20 @@ export default function CanchaPopover({ campo, onCambiarCampo, onCerrar }) {
             <button
               type="button"
               className={`btn btn-sm ${(campo.orientacion || 'vertical') === 'vertical' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => onCambiarCampo({ orientacion: 'vertical' })}
+              onClick={() => {
+                onCambiarCampo({ orientacion: 'vertical' })
+                onCerrar?.()
+              }}
             >
               Parada
             </button>
             <button
               type="button"
               className={`btn btn-sm ${campo.orientacion === 'horizontal' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => onCambiarCampo({ orientacion: 'horizontal' })}
+              onClick={() => {
+                onCambiarCampo({ orientacion: 'horizontal' })
+                onCerrar?.()
+              }}
             >
               Acostada
             </button>
