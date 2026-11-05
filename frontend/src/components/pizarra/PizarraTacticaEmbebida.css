@@ -60,7 +60,13 @@
   inset: 0;
   z-index: 60;
   display: flex;
-  align-items: center;
+  /* Anclado arriba (no center): si la cancha+barra no entran completas en
+     pantallas bajas, lo que sobra queda SIEMPRE abajo — el scroll
+     disponible (overflow:auto) es predecible hacia abajo. Con center,
+     sobraba mitad arriba y mitad abajo del viewport y había que adivinar
+     que hacía falta scrollear hacia arriba para ver los primeros íconos
+     de la barra (ej. "Texto"), algo que nadie prueba de entrada. */
+  align-items: flex-start;
   justify-content: center;
   /* Lo más chico posible: es puro margen "perdido" que no puede usar la
      cancha — antes 24px acá + 20px de PizarraTactica.css dejaban una franja

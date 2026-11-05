@@ -74,7 +74,7 @@ export default function ManualControl(props) {
     <aside className="manual-control">
       <div className="mc-grupo">
         <button type="button" className="mc-icono" title="Colapsar panel" onClick={onColapsar}>
-          <ChevronsLeft size={18} />
+          <ChevronsLeft size={16} />
         </button>
         <button
           type="button"
@@ -82,7 +82,7 @@ export default function ManualControl(props) {
           title={panelLado === 'izquierda' ? 'Mover panel a la derecha' : 'Mover panel a la izquierda'}
           onClick={onCambiarLado}
         >
-          <ArrowLeftRight size={18} />
+          <ArrowLeftRight size={16} />
         </button>
       </div>
 
@@ -95,7 +95,7 @@ export default function ManualControl(props) {
               title={titulo}
               onClick={() => elegirHerramienta(valor)}
             >
-              <Icono size={18} />
+              <Icono size={16} />
             </button>
             {popover === 'jugador' && popoverAbierto === 'jugador' && (
               <JugadorPopover
@@ -153,7 +153,7 @@ export default function ManualControl(props) {
       <div className="mc-grupo">
         <div className="mc-icono-anchor">
           <button type="button" className={`mc-icono ${popoverAbierto === 'cancha' ? 'activo' : ''}`} title="Cancha" onClick={toggleCancha}>
-            <LayoutGrid size={18} />
+            <LayoutGrid size={16} />
           </button>
           {popoverAbierto === 'cancha' && <CanchaPopover campo={campo} onCambiarCampo={onCambiarCampo} onCerrar={cerrarPopover} />}
         </div>
@@ -162,27 +162,27 @@ export default function ManualControl(props) {
       {seleccionActiva && (
         <div className="mc-grupo">
           <button type="button" className="mc-icono" title="Duplicar" onClick={onDuplicarSeleccion}>
-            <Copy size={18} />
+            <Copy size={16} />
           </button>
           <button type="button" className="mc-icono" title="Bloquear/Desbloquear" onClick={onBloquearSeleccion}>
-            <LockKeyhole size={18} />
+            <LockKeyhole size={16} />
           </button>
           <button type="button" className="mc-icono mc-icono-peligro" title="Eliminar" onClick={onEliminarSeleccion}>
-            <Trash2 size={18} />
+            <Trash2 size={16} />
           </button>
           {seleccionMultiple && (
             <>
               <button type="button" className="mc-icono" title="Alinear horizontal" onClick={onAlinearHorizontal}>
-                <AlignHorizontalJustifyCenter size={18} />
+                <AlignHorizontalJustifyCenter size={16} />
               </button>
               <button type="button" className="mc-icono" title="Alinear vertical" onClick={onAlinearVertical}>
-                <AlignVerticalJustifyCenter size={18} />
+                <AlignVerticalJustifyCenter size={16} />
               </button>
               <button type="button" className="mc-icono" title="Distribuir horizontal" onClick={onDistribuirHorizontal}>
-                <AlignHorizontalDistributeCenter size={18} />
+                <AlignHorizontalDistributeCenter size={16} />
               </button>
               <button type="button" className="mc-icono" title="Distribuir vertical" onClick={onDistribuirVertical}>
-                <AlignVerticalDistributeCenter size={18} />
+                <AlignVerticalDistributeCenter size={16} />
               </button>
             </>
           )}
@@ -191,33 +191,33 @@ export default function ManualControl(props) {
 
       <div className="mc-grupo mc-grupo-separado">
         <button type="button" className="mc-icono" title="Deshacer" onClick={onDeshacer} disabled={!puedeDeshacer}>
-          <Undo2 size={18} />
+          <Undo2 size={16} />
         </button>
         <button type="button" className="mc-icono" title="Rehacer" onClick={onRehacer} disabled={!puedeRehacer}>
-          <Redo2 size={18} />
+          <Redo2 size={16} />
         </button>
         <label className="mc-icono" title="Subir imagen de referencia">
-          <ImagePlus size={18} />
+          <ImagePlus size={16} />
           <input type="file" accept="image/*" onChange={onSubirImagen} hidden />
         </label>
         <button type="button" className="mc-icono" title="Exportar imagen" onClick={onExportarImagen}>
-          <Download size={18} />
+          <Download size={16} />
         </button>
         <button type="button" className="mc-icono" title="Vaciar cancha" onClick={onVaciarCancha}>
-          <Trash2 size={18} />
+          <Trash2 size={16} />
         </button>
         <button type="button" className="mc-icono" title="Jugadas guardadas" onClick={onAbrirJugadas}>
-          <FolderOpen size={18} />
+          <FolderOpen size={16} />
         </button>
       </div>
 
       <div className="mc-grupo mc-pie">
         <button type="button" className="mc-icono" title="Editar animación" onClick={onAbrirAnimacion}>
-          <Clapperboard size={18} />
+          <Clapperboard size={16} />
         </button>
         {onGuardar && (
           <button type="button" className="mc-icono mc-icono-destacado" title="Guardar" onClick={onGuardar}>
-            <Save size={18} />
+            <Save size={16} />
           </button>
         )}
       </div>

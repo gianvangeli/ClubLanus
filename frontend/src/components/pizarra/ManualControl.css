@@ -6,18 +6,23 @@
      (así es como funciona `overflow` en CSS), y con eso los popovers —
      que se abren hacia afuera del ícono, no hacia adentro de la barra —
      quedarían invisibles. Si la barra no entra completa, scrollea el
-     overlay de pantalla completa entero (ver .pizarra-embebida-abierta). */
+     overlay de pantalla completa entero (ver .pizarra-embebida-abierta,
+     anclado arriba a propósito para que ese scroll sea hacia abajo, no
+     haya que adivinar que también hay que scrollear hacia arriba). Tamaños
+     compactos (ver .mc-icono/.mc-grupo) para que, con la cantidad de
+     herramientas que ya tiene la barra, entre completa en la mayoría de
+     las pantallas sin necesidad de scrollear nada. */
   flex: 0 0 auto;
-  width: 56px;
+  width: 50px;
   max-width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 7px;
   background: var(--granate-900);
   border: 1px solid var(--granate-800);
   border-radius: var(--radius-sm);
-  padding: 10px 8px;
+  padding: 7px 6px;
 }
 
 /* Clase compartida por otros paneles de la pizarra (botón "cerrar" de
@@ -36,8 +41,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding-bottom: 10px;
+  gap: 4px;
+  padding-bottom: 7px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
@@ -60,8 +65,8 @@
 }
 
 .mc-icono {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   padding: 0;
   display: inline-flex;
   align-items: center;
