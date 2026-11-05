@@ -21,6 +21,20 @@ export function formatFecha(fecha) {
   return `${dia}/${mes}/${d.getUTCFullYear()}`
 }
 
+const NOMBRES_MES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+// Formatea a "Mes AAAA" (ej. "Noviembre 2026") — para agrupar listas por
+// mes (Agenda diaria). Componentes UTC, mismo criterio que formatFecha.
+export function formatMesAnio(fecha) {
+  if (!fecha) return ''
+  const d = new Date(fecha)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${NOMBRES_MES[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+}
+
 // true si la fecha ya pasó (o es hoy), comparando solo el día calendario
 // (no la hora) para no depender de la zona horaria del navegador.
 export function esFechaPasada(fecha) {

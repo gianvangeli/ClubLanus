@@ -27,6 +27,117 @@
   gap: 12px;
 }
 
+/* Buscador compacto (estilo "Buscar en el documento"): una sola fila, el
+   panel de resultados se despliega aparte sin empujar el layout. */
+.entren-buscador {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.entren-buscador-caja {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.entren-buscador-caja:focus-within {
+  border-color: var(--granate-700);
+}
+
+.entren-buscador-icono {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.entren-buscador-caja input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: transparent;
+}
+
+.entren-buscador-resultados {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 15;
+  max-height: 360px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.entren-buscador-vacio {
+  padding: 10px 8px;
+}
+
+.entren-buscador-item {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+
+.entren-buscador-item:hover {
+  background: var(--granate-50);
+}
+
+.entren-buscador-sub {
+  margin-top: 2px;
+  font-size: 12.5px;
+}
+
+/* Carpetas por mes */
+.entren-mes-grupo {
+  margin-bottom: 14px;
+}
+
+.entren-mes-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.entren-mes-nombre {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.entren-mes-flecha {
+  color: var(--granate-700);
+  font-size: 12px;
+  width: 12px;
+  display: inline-block;
+}
+
 .entren-sesion {
   padding: 0;
   overflow: hidden;

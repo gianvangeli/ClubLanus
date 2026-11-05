@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import api, { API_BASE, extraerError } from '../api/client'
 import YouTubePlayer from '../components/YouTubePlayer'
 import { extraerIdYouTube } from '../utils/youtube'
-import { formatFecha } from '../utils/fecha'
+import { formatFecha, formatMesAnio } from '../utils/fecha'
 import EjerciciosTacticos from './EjerciciosTacticos'
 import './Entrenamientos.css'
 
@@ -87,8 +88,75 @@ function AgendaDiaria() {
     }
   }
 
+  // Carpetas por mes: las sesiones ya vienen ordenadas fecha DESC del
+  // backend, acá solo se agrupan para presentación (sin tocar el backend).
+  const gruposPorMes = useMemo(() => {
+    const mapa = new Map()
+    sesiones.forEach((s) => {
+      const clave = (s.fecha || '').slice(0, 7)
+      if (!mapa.has(clave)) mapa.set(clave, [])
+      mapa.get(clave).push(s)
+    })
+    return Array.from(mapa.entries()).map(([clave, items]) => ({ clave, items }))
+  }, [sesiones])
+
+  const [mesesAbiertos, setMesesAbiertos] = useState(() => new Set())
+  const inicializadoRef = useRef(false)
+  useEffect(() => {
+    // Arranca abierto solo el mes más reciente (el primero de la lista) —
+    // así se resuelve el caso de uso ("encontrar una sesión vieja sin
+    // scrollear todo") sin esconder lo que más se usa (hoy/esta semana).
+    // Solo la primera vez que hay datos: si el usuario después colapsa ese
+    // mes a mano, no se reabre solo.
+    if (!inicializadoRef.current && gruposPorMes.length > 0) {
+      inicializadoRef.current = true
+      setMesesAbiertos(new Set([gruposPorMes[0].clave]))
+    }
+  }, [gruposPorMes])
+
+  const toggleMes = (clave) =>
+    setMesesAbiertos((prev) => {
+      const next = new Set(prev)
+      if (next.has(clave)) next.delete(clave)
+      else next.add(clave)
+      return next
+    })
+
+  const filaSesion = (s) => (
+    <div className="card entren-sesion" key={s.id}>
+      <Link to={`/entrenamientos/${s.id}`} className="entren-sesion-header">
+        <div className="entren-sesion-fecha">
+          <strong>{tituloSesion(s.fecha)}</strong>
+        </div>
+        <div className="entren-sesion-meta">
+          {esCuerpoTecnico && s.solicitudes_pendientes > 0 && (
+            <span className="entren-chip-acceso entren-chip-pendiente">
+              {s.solicitudes_pendientes} solicitud(es)
+            </span>
+          )}
+          {!esCuerpoTecnico && (
+            <span className={`entren-chip-acceso entren-chip-${s.acceso}`}>
+              {ETIQUETAS_ACCESO[s.acceso] || ETIQUETAS_ACCESO.sin_solicitud}
+            </span>
+          )}
+          <span className="entren-count-chip">{s.cantidad_videos} video(s)</span>
+        </div>
+      </Link>
+      {esCuerpoTecnico && (
+        <button
+          className="entren-eliminar"
+          title="Eliminar sesión"
+          onClick={() => eliminarSesion(s.id)}
+        >
+          ✕
+        </button>
+      )}
+    </div>
+  )
+
   return (
     <div>
+      {esCuerpoTecnico && <BuscadorAgenda />}
       {esCuerpoTecnico && <NuevaSesion onCreado={cargar} />}
 
       {error && <div className="alert alert-error" style={{ marginBottom: 16 }}>{error}</div>}
@@ -105,39 +173,101 @@ function AgendaDiaria() {
         </div>
       )}
 
-      <div className="entren-lista">
-        {sesiones.map((s) => (
-          <div className="card entren-sesion" key={s.id}>
-            <Link to={`/entrenamientos/${s.id}`} className="entren-sesion-header">
-              <div className="entren-sesion-fecha">
-                <strong>{tituloSesion(s.fecha)}</strong>
-              </div>
-              <div className="entren-sesion-meta">
-                {esCuerpoTecnico && s.solicitudes_pendientes > 0 && (
-                  <span className="entren-chip-acceso entren-chip-pendiente">
-                    {s.solicitudes_pendientes} solicitud(es)
-                  </span>
-                )}
-                {!esCuerpoTecnico && (
-                  <span className={`entren-chip-acceso entren-chip-${s.acceso}`}>
-                    {ETIQUETAS_ACCESO[s.acceso] || ETIQUETAS_ACCESO.sin_solicitud}
-                  </span>
-                )}
-                <span className="entren-count-chip">{s.cantidad_videos} video(s)</span>
-              </div>
-            </Link>
-            {esCuerpoTecnico && (
-              <button
-                className="entren-eliminar"
-                title="Eliminar sesión"
-                onClick={() => eliminarSesion(s.id)}
-              >
-                ✕
-              </button>
-            )}
-          </div>
-        ))}
+      {gruposPorMes.map(({ clave, items }) => (
+        <div className="entren-mes-grupo" key={clave}>
+          <button type="button" className="entren-mes-header" onClick={() => toggleMes(clave)}>
+            <span className="entren-mes-nombre">
+              <span className="entren-mes-flecha">{mesesAbiertos.has(clave) ? '▾' : '▸'}</span>
+              {formatMesAnio(`${clave}-01`)}
+            </span>
+            <span className="entren-count-chip">{items.length}</span>
+          </button>
+          {mesesAbiertos.has(clave) && <div className="entren-lista">{items.map(filaSesion)}</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Buscador compacto de ejercicios ya cargados en la agenda diaria, por
+// palabra/frase/nombre/número — estilo "Buscar en el documento" de Google
+// Docs/Slides: una sola fila, resultados en un panel desplegable que no
+// empuja el layout, se cierra solo al elegir uno o clickear afuera.
+function BuscadorAgenda() {
+  const [termino, setTermino] = useState('')
+  const [resultados, setResultados] = useState([])
+  const [buscando, setBuscando] = useState(false)
+  const [abierto, setAbierto] = useState(false)
+  const [error, setError] = useState('')
+  const contenedorRef = useRef(null)
+
+  useEffect(() => {
+    const q = termino.trim()
+    if (!q) {
+      setResultados([])
+      setAbierto(false)
+      return
+    }
+    setBuscando(true)
+    const timeout = setTimeout(() => {
+      api
+        .get('/ejercicios/buscar-agenda', { params: { q } })
+        .then(({ data }) => {
+          setResultados(data)
+          setAbierto(true)
+          setError('')
+        })
+        .catch((err) => setError(extraerError(err, 'No se pudo buscar')))
+        .finally(() => setBuscando(false))
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [termino])
+
+  useEffect(() => {
+    const onClickFuera = (e) => {
+      if (contenedorRef.current && !contenedorRef.current.contains(e.target)) setAbierto(false)
+    }
+    document.addEventListener('mousedown', onClickFuera)
+    return () => document.removeEventListener('mousedown', onClickFuera)
+  }, [])
+
+  return (
+    <div className="entren-buscador" ref={contenedorRef}>
+      <div className="entren-buscador-caja">
+        <Search size={16} className="entren-buscador-icono" />
+        <input
+          value={termino}
+          onChange={(e) => setTermino(e.target.value)}
+          onFocus={() => termino.trim() && setAbierto(true)}
+          placeholder="Buscar ejercicio por palabra, nombre, número..."
+        />
+        {buscando && <span className="spinner" />}
       </div>
+
+      {abierto && (
+        <div className="entren-buscador-resultados">
+          {error && <p className="texto-muted entren-buscador-vacio">{error}</p>}
+          {!error && !buscando && resultados.length === 0 && (
+            <p className="texto-muted entren-buscador-vacio">Sin resultados para "{termino.trim()}".</p>
+          )}
+          {resultados.map((ej) => (
+            <Link
+              key={ej.id}
+              to={`/entrenamientos/${ej.entrenamiento_id}/ejercicios/${ej.id}`}
+              className="entren-buscador-item"
+              onClick={() => setAbierto(false)}
+            >
+              <div>
+                <strong>{ej.tipo_trabajo || `Ejercicio ${String(ej.numero).padStart(2, '0')}`}</strong>
+                <span className="texto-muted"> — {formatFecha(ej.fecha)}</span>
+              </div>
+              {(ej.objetivo || ej.espacio) && (
+                <p className="texto-muted entren-buscador-sub">{ej.objetivo || ej.espacio}</p>
+              )}
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

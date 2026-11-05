@@ -8,6 +8,7 @@ const {
   actualizarEjercicio,
   eliminarEjercicio,
   buscarEjercicios,
+  buscarEjerciciosAgenda,
   reutilizarEjercicio,
   reutilizarEjercicioDesglosado,
   agregarVideoEjercicio,
@@ -28,8 +29,9 @@ const CUERPO_TECNICO = ["admin", "entrenador", "preparador_fisico"];
 // tiene acceso a ninguna de estas rutas.
 router.use(verificarToken, autorizarRoles(...CUERPO_TECNICO));
 
-// "/buscar" va antes de "/:id" para que no lo capture como un id.
+// "/buscar" y "/buscar-agenda" van antes de "/:id" para que no lo capturen como un id.
 router.get("/buscar", buscarEjercicios);
+router.get("/buscar-agenda", buscarEjerciciosAgenda);
 router.post("/entrenamiento/:entrenamientoId", crearEjercicio);
 router.get("/entrenamiento/:entrenamientoId", listarEjercicios);
 router.post("/entrenamiento/:entrenamientoId/reutilizar/:origenId", reutilizarEjercicio);

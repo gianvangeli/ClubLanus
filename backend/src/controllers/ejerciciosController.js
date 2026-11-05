@@ -231,6 +231,36 @@ const buscarEjercicios = async (req, res) => {
   }
 };
 
+// Buscador de la Agenda diaria: a diferencia de buscarEjercicios (pensado
+// para "Reutilizar ejercicio", busca en 2 fuentes con tope de 15 cada una),
+// este busca SOLO en ejercicios de la agenda diaria, sin tope — el pedido
+// explícito es que aparezcan todos los resultados que coincidan, para
+// encontrar cualquier ejercicio ya dado durante el año. Compara también
+// contra n_jugadores/duracion para cubrir búsquedas por número (ej. "20").
+// Sin término, devuelve vacío (no tiene sentido listar todo sin buscar).
+const buscarEjerciciosAgenda = async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+    if (!q) return res.json([]);
+
+    const termino = `%${q}%`;
+    const [ejercicios] = await db.query(
+      `SELECT e.id, e.entrenamiento_id, e.numero, e.tipo_trabajo, e.objetivo, e.espacio, en.fecha
+       FROM ejercicios e
+       JOIN entrenamientos en ON en.id = e.entrenamiento_id
+       WHERE e.tipo_trabajo LIKE ? OR e.objetivo LIKE ? OR e.espacio LIKE ? OR e.descripcion LIKE ?
+          OR e.n_jugadores LIKE ? OR e.duracion LIKE ?
+       ORDER BY en.fecha DESC, e.numero DESC
+       LIMIT 200`,
+      [termino, termino, termino, termino, termino, termino]
+    );
+
+    res.json(ejercicios);
+  } catch (error) {
+    res.status(500).json({ message: "Error al buscar ejercicios", error: error.message });
+  }
+};
+
 // Copia un ejercicio ya cargado (planificación + dibujo táctico) como un
 // ejercicio nuevo dentro de la sesión indicada, sin afectar al original.
 const reutilizarEjercicio = async (req, res) => {
@@ -523,6 +553,7 @@ module.exports = {
   actualizarEjercicio,
   eliminarEjercicio,
   buscarEjercicios,
+  buscarEjerciciosAgenda,
   reutilizarEjercicio,
   reutilizarEjercicioDesglosado,
   agregarVideoEjercicio,
